@@ -8,6 +8,46 @@
   <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet" />
   <script src="https://unpkg.com/phosphor-icons"></script>
   <style>
+
+nav a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+form input:focus, form textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+form button:hover {
+  background-color: var(--accent);
+  opacity: 0.95;
+}
+
+
+.card-hover:hover {
+  background-color: #f1f5f9;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+[data-theme='dark'] 
+nav a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+form input:focus, form textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+form button:hover {
+  background-color: var(--accent);
+  opacity: 0.95;
+}
+
+
+.card-hover:hover {
+  background-color: #1e293b;
+}
 .card-gradient-blue { background: linear-gradient(180deg, #f0f9ff 0%, #ffffff 100%); }
 [data-theme='dark'] .card-gradient-blue { background: linear-gradient(180deg, #1e293b 0%, #111827 100%); }
 .card-gradient-gray { background: linear-gradient(180deg, #f9fafb 0%, #ffffff 100%); }
@@ -153,15 +193,15 @@
   <section class="card container" id="how-it-works" data-aos="fade-up" class="card-gradient-blue">
     <h3>How It Works</h3>
     <div style="display: flex; flex-wrap: wrap; gap: 2rem; justify-content: center;">
-      <div data-aos="fade-up" data-aos-delay="300" style="flex: 1; min-width: 250px; max-width: 300px; background: var(--box); border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+      <div data-aos="fade-up" data-aos-delay="300" class="card-hover" style="flex: 1; min-width: 250px; max-width: 300px; background: var(--box); border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
         <h4>🔍 Request a Quote</h4>
         <p>Provide container and location details — we handle the rest.</p>
       </div>
-      <div data-aos="fade-up" data-aos-delay="100" style="flex: 1; min-width: 250px; max-width: 300px; background: var(--box); border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+      <div data-aos="fade-up" data-aos-delay="100" class="card-hover" style="flex: 1; min-width: 250px; max-width: 300px; background: var(--box); border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
         <h4>🤖 AI Match + Schedule</h4>
         <p>Get real-time pricing and carrier matching powered by automation.</p>
       </div>
-      <div data-aos="fade-up" data-aos-delay="100" style="flex: 1; min-width: 250px; max-width: 300px; background: var(--box); border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+      <div data-aos="fade-up" data-aos-delay="100" class="card-hover" style="flex: 1; min-width: 250px; max-width: 300px; background: var(--box); border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
         <h4>📦 Track to Delivery</h4>
         <p>See every move — from port release to door delivery, in real time.</p>
       </div>
