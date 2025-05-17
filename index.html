@@ -9,6 +9,7 @@
   <script src="https://unpkg.com/phosphor-icons"></script>
   <style>
     :root {
+  scroll-behavior: smooth;
       --bg: #f9fafb;
       --text: #1f2937;
       --accent: #3b82f6;
@@ -28,6 +29,10 @@
       transition: background 0.3s, color 0.3s;
     }
     nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--box);
       display: flex;
       justify-content: space-between;
       align-items: center;
