@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,124 +6,86 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>DrayageDirect.io</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet" />
   <style>
     body {
       font-family: 'Inter', sans-serif;
+      margin: 0;
       background-color: #f9fafb;
       color: #1f2937;
-      margin: 0;
-      padding: 0;
-    }
-    .container {
-      max-width: 1024px;
-      margin: 0 auto;
-      padding: 0 1.5rem;
-    }
-    nav {
-      background-color: #ffffff;
-      padding: 1rem 2rem;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      text-align: center;
-    }
-    nav a {
-      color: #1f2937;
-      margin: 0 1rem;
-      text-decoration: none;
-      font-weight: 500;
-    }
-    header {
-      padding: 1.5rem 2rem;
-      text-align: center;
-      background-color: #ffffff;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }
-    header h1 {
-      margin: 0;
-      font-size: 1.75rem;
-      color: #111827;
-    }
-    .hero {
-      padding: 4rem 2rem;
-      background: linear-gradient(120deg, #1e3a8a, #3b82f6);
-      color: #ffffff;
-      text-align: center;
-    }
-    .hero h2 {
-      font-size: 3rem;
-      margin-bottom: 1rem;
-    }
-    .hero p {
-      font-size: 1.25rem;
-      max-width: 640px;
-      margin: 0 auto 2rem;
-    }
-    .cta-button {
-      background-color: #ffffff;
-      color: #1e3a8a;
-      padding: 0.75rem 1.5rem;
-      border: none;
-      border-radius: 0.375rem;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
-      margin: 0 0.5rem;
-    }
-    .cta-button:hover {
-      background-color: #dbeafe;
     }
     section {
       padding: 3rem 1.5rem;
     }
-    section h3 {
-      font-size: 2rem;
+    .container {
+      max-width: 1024px;
+      margin: 0 auto;
+    }
+    nav {
       text-align: center;
-      margin-bottom: 1.5rem;
+      background: #fff;
+      padding: 1rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    }
+    nav a {
+      margin: 0 1rem;
+      color: #1f2937;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    header h1 {
+      text-align: left;
+      font-size: 1.5rem;
+      padding: 1rem 1.5rem;
+    }
+    .hero {
+      background: linear-gradient(120deg, #1e3a8a, #3b82f6);
+      color: white;
+      padding: 4rem 2rem;
+      text-align: center;
+    }
+    .hero h2 {
+      font-size: 2.5rem;
+    }
+    .hero p {
+      max-width: 600px;
+      margin: 1rem auto 2rem;
+      font-size: 1.25rem;
+    }
+    .cta-button {
+      background: white;
+      color: #1e3a8a;
+      padding: 0.75rem 1.5rem;
+      margin: 0.5rem;
+      border: none;
+      font-weight: 600;
+      border-radius: 0.375rem;
+      cursor: pointer;
+    }
+    .arrow-down {
+      font-size: 2rem;
+      margin-top: 2rem;
+      animation: bounce 2s infinite;
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(10px); }
     }
     .features-grid {
       display: flex;
       flex-wrap: wrap;
-      justify-content: space-between;
       gap: 2rem;
-      max-width: 960px;
-      margin: 0 auto;
+      justify-content: space-between;
     }
     .features-grid ul {
+      flex: 1;
+      min-width: 280px;
       list-style: none;
       padding: 0;
-      flex: 1;
-      min-width: 300px;
-    }
-    .features-grid h4 {
-      margin-bottom: 1rem;
-      font-size: 1.125rem;
-      font-weight: 600;
-    }
-    .features-grid li {
-      margin-bottom: 0.75rem;
-      padding-left: 1.5rem;
-      position: relative;
     }
     .features-grid li::before {
-      content: "✓";
-      position: absolute;
-      left: 0;
+      content: "✓ ";
       color: #10b981;
-    }
-    blockquote {
-      background-color: #eef2ff;
-      border-left: 4px solid #6366f1;
-      margin: 2rem auto;
-      padding: 1.5rem;
-      font-style: italic;
-      color: #4b5563;
-      max-width: 720px;
-    }
-    .pricing {
-      text-align: center;
-      background-color: #ffffff;
-      padding: 3rem 2rem;
-      margin-top: 3rem;
     }
     .pricing .plan {
       border: 1px solid #d1d5db;
@@ -130,7 +93,7 @@
       padding: 2rem;
       margin: 1rem auto;
       max-width: 500px;
-      background-color: #f9fafb;
+      background-color: #ffffff;
     }
     form {
       display: flex;
@@ -139,7 +102,7 @@
       max-width: 500px;
       margin: 2rem auto;
     }
-    input, textarea, button {
+    input, button {
       padding: 0.75rem;
       font-size: 1rem;
       border: 1px solid #d1d5db;
@@ -149,17 +112,13 @@
       background-color: #3b82f6;
       color: white;
       border: none;
-      cursor: pointer;
-    }
-    button[type="submit"]:hover {
-      background-color: #2563eb;
     }
     footer {
-      background-color: #f3f4f6;
       text-align: center;
-      padding: 1rem 2rem;
-      font-size: 0.875rem;
+      font-size: 0.9rem;
       color: #6b7280;
+      padding: 2rem 1rem;
+      background: #f3f4f6;
     }
   </style>
 </head>
@@ -175,22 +134,23 @@
     <h1>DrayageDirect.io</h1>
   </header>
 
-  <section class="hero">
+  <section class="hero" data-aos="fade-up">
     <h2>Port to Door. Simplified.</h2>
     <p>Streamline your drayage ops with real-time tracking, automated billing, AI-powered email, and driver coordination — all from one centralized platform.</p>
     <button class="cta-button">Request a Demo</button>
     <button class="cta-button">Sign Up for Beta</button>
+    <div class="arrow-down">↓</div>
   </section>
 
-  <section id="features">
+  <section id="features" data-aos="fade-left">
     <h3>Why Drayage Teams Choose Us</h3>
-    <ol style="max-width: 640px; margin: 0 auto 2rem auto;">
+    <ol class="container">
       <li><strong>Built for Asset & Non-Asset Providers:</strong> Tailored tools for every operation model</li>
       <li><strong>Track Drivers, Containers, and Pay:</strong> Stay on top of what moves and what matters</li>
       <li><strong>Automate the Busy Work:</strong> Let AI handle emails, billing, and rate communication</li>
     </ol>
-    <h3 style="margin-top: 3rem;">Key Features</h3>
-    <div class="features-grid">
+    <h3 style="margin-top: 3rem;" data-aos="fade-up">Key Features</h3>
+    <div class="features-grid container" data-aos="fade-right">
       <ul>
         <h4>Asset-Based Trucking Companies</h4>
         <li>Order Entry</li>
@@ -215,19 +175,13 @@
     </div>
   </section>
 
-  <section id="testimonials">
+  <section id="testimonials" data-aos="zoom-in">
     <h3>What Our Users Say</h3>
-    <blockquote>
-      “We were juggling spreadsheets, texts, and endless emails before DrayageDirect. Now we run everything in one place — and our dispatchers sleep at night.”<br />
-      <strong>— Sergio P., Drayage Dispatcher, Houston</strong>
-    </blockquote>
-    <blockquote>
-      “We saved 15+ hours a week just by letting the AI handle customer rate follow-ups and appointment scheduling. This platform paid for itself in week one.”<br />
-      <strong>— Danielle R., Operations Manager, Los Angeles</strong>
-    </blockquote>
+    <blockquote>“We were juggling spreadsheets, texts, and endless emails before DrayageDirect. Now we run everything in one place — and our dispatchers sleep at night.” — Sergio P., Drayage Dispatcher, Houston</blockquote>
+    <blockquote>“We saved 15+ hours a week just by letting the AI handle customer rate follow-ups and appointment scheduling. This platform paid for itself in week one.” — Danielle R., Operations Manager, Los Angeles</blockquote>
   </section>
 
-  <section class="pricing" id="pricing">
+  <section id="pricing" class="pricing" data-aos="fade-up">
     <h3>Simple Pricing</h3>
     <div class="plan">
       <h4>Operations Starter Plan</h4>
@@ -241,13 +195,13 @@
     </div>
   </section>
 
-  <section id="contact">
+  <section id="contact" data-aos="fade-up">
     <h3>Get Early Access</h3>
     <form action="https://formspree.io/f/mnqegwyo" method="POST">
-      <input type="text" name="company" placeholder="Company Name" required>
-      <input type="email" name="email" placeholder="Email Address" required>
-      <input type="text" name="port" placeholder="Preferred Port(s)">
-      <input type="text" name="volume" placeholder="Monthly Shipment Volume">
+      <input type="text" name="company" placeholder="Company Name" required />
+      <input type="email" name="email" placeholder="Email Address" required />
+      <input type="text" name="port" placeholder="Preferred Port(s)" />
+      <input type="text" name="volume" placeholder="Monthly Shipment Volume" />
       <button type="submit">Submit</button>
     </form>
   </section>
@@ -255,5 +209,8 @@
   <footer>
     &copy; 2025 DrayageDirect.io – Purpose-built tech for the modern drayage operation.
   </footer>
+
+  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+  <script>AOS.init();</script>
 </body>
 </html>
