@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
@@ -6,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>DrayageDirect.io</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet" />
   <script src="https://unpkg.com/phosphor-icons"></script>
   <style>
     :root {
@@ -121,17 +121,6 @@
       font-size: 0.9rem;
     }
   </style>
-
-<link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet" />
-<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-<script>
-  AOS.init({
-    duration: 1000,
-    easing: 'ease-out-cubic',
-    once: true
-  });
-</script>
-
 </head>
 <body>
   <nav>
@@ -160,7 +149,7 @@
       <li><strong>Automate the Busy Work:</strong> Let AI handle emails, billing, and rate communication</li>
     </ol>
     <h3 style="margin-top:2rem;">Key Features</h3>
-    <div class="features-grid">
+    <div class="features-grid" data-aos="fade-right">
       <ul>
         <h4>Asset-Based Trucking Companies</h4>
         <li>🚚 Order Entry</li>
@@ -225,6 +214,15 @@
       const current = document.documentElement.getAttribute('data-theme');
       document.documentElement.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
     }
+  </script>
+
+  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+  <script>
+    AOS.init({
+      duration: 1000,
+      easing: 'ease-out-cubic',
+      once: true
+    });
   </script>
 </body>
 </html>
