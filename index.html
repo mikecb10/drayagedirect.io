@@ -1,1 +1,219 @@
-placeholder - content already written above or in canvas
+
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DrayageDirect.io</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/phosphor-icons"></script>
+  <style>
+    :root {
+      --bg: #f9fafb;
+      --text: #1f2937;
+      --accent: #3b82f6;
+      --box: #ffffff;
+    }
+    [data-theme="dark"] {
+      --bg: #1f2937;
+      --text: #f9fafb;
+      --accent: #60a5fa;
+      --box: #111827;
+    }
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      transition: background 0.3s, color 0.3s;
+    }
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--box);
+      padding: 1rem 2rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    }
+    nav a {
+      color: var(--text);
+      margin: 0 1rem;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .theme-toggle {
+      cursor: pointer;
+      font-size: 1.25rem;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+    .hero {
+      text-align: center;
+      padding: 4rem 2rem;
+      background: linear-gradient(120deg, #1e3a8a, #3b82f6);
+      color: white;
+    }
+    .hero button {
+      background: white;
+      color: #1e3a8a;
+      padding: 0.75rem 1.5rem;
+      border: none;
+      margin: 1rem;
+      border-radius: 0.375rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.3s;
+    }
+    .hero button:hover {
+      transform: translateY(-2px);
+      background: #e0e7ff;
+    }
+    section {
+      padding: 3rem 1.5rem;
+      max-width: 1024px;
+      margin: auto;
+    }
+    .card {
+      background: var(--box);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 12px;
+      padding: 2rem;
+      margin: 2rem 0;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+    }
+    .features-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+    }
+    .features-grid ul {
+      flex: 1;
+      min-width: 300px;
+      list-style: none;
+      padding: 0;
+    }
+    .features-grid li {
+      padding-left: 1.5rem;
+      position: relative;
+      margin-bottom: 0.75rem;
+    }
+    .features-grid li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: #10b981;
+    }
+    .plan:hover {
+      border-color: var(--accent);
+      box-shadow: 0 4px 12px rgba(59,130,246,0.1);
+      transform: translateY(-2px);
+    }
+    .plan {
+      transition: all 0.3s ease;
+    }
+    footer {
+      background: var(--box);
+      color: var(--text);
+      text-align: center;
+      padding: 2rem;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <header><h1>DrayageDirect.io</h1></header>
+    <div>
+      <a href="#features">Features</a>
+      <a href="#testimonials">Testimonials</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#contact">Contact</a>
+      <span class="theme-toggle" onclick="toggleTheme()">🌙</span>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <h2>Port to Door. Simplified.</h2>
+    <p>Streamline your drayage ops with real-time tracking, automated billing, AI-powered email, and driver coordination.</p>
+    <button>Request a Demo</button>
+    <button>Sign Up for Beta</button>
+  </section>
+
+  <section class="card" id="features">
+    <h3>Why Drayage Teams Choose Us</h3>
+    <ol>
+      <li><strong>Built for Asset & Non-Asset Providers:</strong> Tailored tools for every operation model</li>
+      <li><strong>Track Drivers, Containers, and Pay:</strong> Stay on top of what moves and what matters</li>
+      <li><strong>Automate the Busy Work:</strong> Let AI handle emails, billing, and rate communication</li>
+    </ol>
+    <h3 style="margin-top:2rem;">Key Features</h3>
+    <div class="features-grid">
+      <ul>
+        <h4>Asset-Based Trucking Companies</h4>
+        <li>🚚 Order Entry</li>
+        <li>📱 Driver Mobile App</li>
+        <li>📦 Container Tracking</li>
+        <li>🗓️ Driver Planner</li>
+        <li>📍 Dispatch</li>
+        <li>💳 Driver Pay</li>
+        <li>🧾 Accounts Payable/Receivable</li>
+        <li>🗂️ Electronic Documentation</li>
+      </ul>
+      <ul>
+        <h4>Non-Asset-Based Brokerages</h4>
+        <li>🌐 Customer Portal</li>
+        <li>✉️ Email Notifications</li>
+        <li>🤖 Embedded Email Inbox + AI</li>
+        <li>💡 Automated Customer Rates</li>
+        <li>📊 Reporting & Analytics</li>
+        <li>📆 Per Diem Monitoring</li>
+        <li>🧠 AI Agents</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="card" id="testimonials">
+    <h3>What Our Users Say</h3>
+    <blockquote>“We were juggling spreadsheets, texts, and endless emails before DrayageDirect. Now we run everything in one place — and our dispatchers sleep at night.” — Sergio P.</blockquote>
+    <blockquote>“We saved 15+ hours a week just by letting the AI handle customer rate follow-ups and appointment scheduling.” — Danielle R.</blockquote>
+  </section>
+
+  <section class="card" id="pricing">
+    <h3>Simple Pricing</h3>
+    <div class="plan card">
+      <h4>Operations Starter Plan</h4>
+      <p><strong>$199/month</strong></p>
+      <p>Perfect for dispatch and basic automation</p>
+    </div>
+    <div class="plan card">
+      <h4>Growth Plan</h4>
+      <p><strong>$399/month</strong></p>
+      <p>Includes AI features, documentation, and analytics suite</p>
+    </div>
+  </section>
+
+  <section class="card" id="contact">
+    <h3>Get Early Access</h3>
+    <form action="https://formspree.io/f/mnqegwyo" method="POST">
+      <input name="company" placeholder="Company Name" required />
+      <input name="email" type="email" placeholder="Email Address" required />
+      <input name="port" placeholder="Preferred Port(s)" />
+      <input name="volume" placeholder="Monthly Shipment Volume" />
+      <button type="submit">Submit</button>
+    </form>
+  </section>
+
+  <footer>
+    &copy; 2025 DrayageDirect.io – Modern tech for modern freight.
+  </footer>
+
+  <script>
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme');
+      document.documentElement.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+    }
+  </script>
+</body>
+</html>
