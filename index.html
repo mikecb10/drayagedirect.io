@@ -8,6 +8,7 @@
   <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet" />
   <script src="https://unpkg.com/phosphor-icons"></script>
   <style>
+.container { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem; }
     :root {
   scroll-behavior: smooth;
       --bg: #f9fafb;
@@ -139,14 +140,32 @@
     </div>
   </nav>
 
-  <section class="hero" data-aos="fade-up">
+  <section class="hero container" data-aos="fade-up">
     <h2>Port to Door. Simplified.</h2>
     <p>Streamline your drayage ops with real-time tracking, automated billing, AI-powered email, and driver coordination.</p>
     <button>Request a Demo</button>
     <button>Sign Up for Beta</button>
   </section>
+  <section class="card container" id="how-it-works" data-aos="fade-up" style="background: linear-gradient(180deg, #f0f9ff 0%, #ffffff 100%);">
+    <h3>How It Works</h3>
+    <div style="display: flex; flex-wrap: wrap; gap: 2rem; justify-content: center;">
+      <div style="flex: 1; min-width: 250px; max-width: 300px; background: var(--box); border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+        <h4>🔍 Request a Quote</h4>
+        <p>Provide container and location details — we handle the rest.</p>
+      </div>
+      <div style="flex: 1; min-width: 250px; max-width: 300px; background: var(--box); border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+        <h4>🤖 AI Match + Schedule</h4>
+        <p>Get real-time pricing and carrier matching powered by automation.</p>
+      </div>
+      <div style="flex: 1; min-width: 250px; max-width: 300px; background: var(--box); border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+        <h4>📦 Track to Delivery</h4>
+        <p>See every move — from port release to door delivery, in real time.</p>
+      </div>
+    </div>
+  </section>
 
-  <section class="card" id="features" data-aos="fade-left">
+
+  <section class="card container" id="features" style="background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);" data-aos="fade-left">
     <h3>Why Drayage Teams Choose Us</h3>
     <ol>
       <li><strong>Built for Asset & Non-Asset Providers:</strong> Tailored tools for every operation model</li>
@@ -179,13 +198,13 @@
     </div>
   </section>
 
-  <section class="card" id="testimonials" data-aos="zoom-in">
+  <section class="card container" id="testimonials" style="background: linear-gradient(180deg, #f9fafb 0%, #ffffff 100%);" data-aos="zoom-in">
     <h3>What Our Users Say</h3>
     <blockquote>“We were juggling spreadsheets, texts, and endless emails before DrayageDirect. Now we run everything in one place — and our dispatchers sleep at night.” — Sergio P.</blockquote>
     <blockquote>“We saved 15+ hours a week just by letting the AI handle customer rate follow-ups and appointment scheduling.” — Danielle R.</blockquote>
   </section>
 
-  <section class="card" id="pricing" data-aos="fade-up">
+  <section class="card container" id="pricing" data-aos="fade-up">
     <h3>Simple Pricing</h3>
     <div class="plan card">
       <h4>Operations Starter Plan</h4>
@@ -199,7 +218,7 @@
     </div>
   </section>
 
-  <section class="card" id="contact" data-aos="fade-up">
+  <section class="card container" id="contact" style="background: linear-gradient(180deg, #f9fafb 0%, #ffffff 100%);" data-aos="fade-up">
     <h3>Get Early Access</h3>
     <form action="https://formspree.io/f/mnqegwyo" method="POST">
       <input name="company" placeholder="Company Name" required />
