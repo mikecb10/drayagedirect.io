@@ -121,6 +121,17 @@
       font-size: 0.9rem;
     }
   </style>
+
+<link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet" />
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<script>
+  AOS.init({
+    duration: 1000,
+    easing: 'ease-out-cubic',
+    once: true
+  });
+</script>
+
 </head>
 <body>
   <nav>
@@ -134,14 +145,14 @@
     </div>
   </nav>
 
-  <section class="hero">
+  <section class="hero" data-aos="fade-up">
     <h2>Port to Door. Simplified.</h2>
     <p>Streamline your drayage ops with real-time tracking, automated billing, AI-powered email, and driver coordination.</p>
     <button>Request a Demo</button>
     <button>Sign Up for Beta</button>
   </section>
 
-  <section class="card" id="features">
+  <section class="card" id="features" data-aos="fade-left">
     <h3>Why Drayage Teams Choose Us</h3>
     <ol>
       <li><strong>Built for Asset & Non-Asset Providers:</strong> Tailored tools for every operation model</li>
@@ -174,13 +185,13 @@
     </div>
   </section>
 
-  <section class="card" id="testimonials">
+  <section class="card" id="testimonials" data-aos="zoom-in">
     <h3>What Our Users Say</h3>
     <blockquote>“We were juggling spreadsheets, texts, and endless emails before DrayageDirect. Now we run everything in one place — and our dispatchers sleep at night.” — Sergio P.</blockquote>
     <blockquote>“We saved 15+ hours a week just by letting the AI handle customer rate follow-ups and appointment scheduling.” — Danielle R.</blockquote>
   </section>
 
-  <section class="card" id="pricing">
+  <section class="card" id="pricing" data-aos="fade-up">
     <h3>Simple Pricing</h3>
     <div class="plan card">
       <h4>Operations Starter Plan</h4>
@@ -194,7 +205,7 @@
     </div>
   </section>
 
-  <section class="card" id="contact">
+  <section class="card" id="contact" data-aos="fade-up">
     <h3>Get Early Access</h3>
     <form action="https://formspree.io/f/mnqegwyo" method="POST">
       <input name="company" placeholder="Company Name" required />
