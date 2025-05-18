@@ -155,9 +155,7 @@
 <body>
   <div id="top"></div>
   <nav>
-    <a href="#top" style="display: flex; align-items: center;">
-      <img src="logo-navbar.png" alt="DrayageDirect logo" style="height: 48px; width: auto; margin-right: 0.5rem;" />
-    </a>
+    <a href="#top"><img src="logo-navbar.png" alt="DrayageDirect" style="height: 40px;"></a>
     <div class="menu-toggle" onclick="toggleMenu()">☰</div>
     <div class="nav-links">
       <a href="#features">Features</a>
@@ -167,5 +165,96 @@
       <span class="theme-toggle" onclick="toggleTheme()">🌙</span>
     </div>
   </nav>
+  <section class="hero" data-aos="fade-up">
+    <h2>Port to Door. Simplified.</h2>
+    <p>Real-time quoting, dispatching, and tracking from one platform.</p>
+    <button>Request a Demo</button>
+    <button>Sign Up for Beta</button>
+  </section>
+  <section class="card" id="features" data-aos="fade-up">
+    <h3>Why Drayage Teams Choose Us</h3>
+    <ol>
+      <li><strong>Built for Asset & Non-Asset Providers:</strong> Tailored tools for every operation model</li>
+      <li><strong>Track Drivers, Containers, and Pay:</strong> Stay on top of what moves and what matters</li>
+      <li><strong>Automate the Busy Work:</strong> Let AI handle emails, billing, and rate communication</li>
+    </ol>
+  </section>
+  <section class="card" data-aos="fade-up">
+    <h3>Key Features</h3>
+    <div class="features-grid">
+      <ul>
+        <h4>Asset-Based Trucking Companies</h4>
+        <li>🚚 Order Entry</li>
+        <li>📱 Driver Mobile App</li>
+        <li>📦 Container Tracking</li>
+        <li>🗓️ Driver Planner</li>
+        <li>📍 Dispatch</li>
+        <li>💳 Driver Pay</li>
+        <li>🧾 Accounts Payable/Receivable</li>
+        <li>🗂️ Electronic Documentation</li>
+      </ul>
+      <ul>
+        <h4>Non-Asset-Based Brokerages</h4>
+        <li>🌐 Customer Portal</li>
+        <li>✉️ Email Notifications</li>
+        <li>🤖 Embedded Email Inbox + AI</li>
+        <li>💡 Automated Customer Rates</li>
+        <li>📊 Reporting & Analytics</li>
+        <li>📆 Per Diem Monitoring</li>
+        <li>🧠 AI Agents</li>
+      </ul>
+    </div>
+  </section>
+  <section class="card" id="testimonials" data-aos="zoom-in">
+    <h3>What Our Users Say</h3>
+    <blockquote>“We were juggling spreadsheets, texts, and endless emails before DrayageDirect. Now we run everything in one place — and our dispatchers sleep at night.” — Sergio P.</blockquote>
+    <blockquote>“We saved 15+ hours a week just by letting the AI handle customer rate follow-ups and appointment scheduling.” — Danielle R.</blockquote>
+  </section>
+  <section class="card" id="pricing" data-aos="fade-up">
+    <h3>Simple, Scalable Pricing</h3>
+    <p>Whether you run 5 trucks or 500 containers a month — we tailor the platform to your operation.</p>
+    <p><strong>Let’s build a plan that fits your workflow.</strong></p>
+    <div style="margin-top: 2rem;">
+      <button onclick="document.getElementById('contact').scrollIntoView({ behavior: 'smooth' })">📅 Book a Demo</button>
+      <button onclick="document.getElementById('contact').scrollIntoView({ behavior: 'smooth' })">📩 Contact Sales</button>
+    </div>
+  </section>
+  <section class="card" id="contact" data-aos="fade-up">
+    <h3>Get Early Access</h3>
+    <form action="https://formspree.io/f/mnqegwyo" method="POST">
+      <input name="company" placeholder="Company Name" required />
+      <input name="email" type="email" placeholder="Email Address" required />
+      <input name="port" placeholder="Preferred Port(s)" />
+      <input name="volume" placeholder="Monthly Shipment Volume" />
+      <button type="submit">Submit</button>
+    </form>
+  </section>
+  <footer>
+    &copy; 2025 DrayageDirect.io – All rights reserved.
+  </footer>
+  <script>
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme');
+      document.documentElement.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+    }
+    function toggleMenu() {
+      document.querySelector("nav").classList.toggle("show");
+    }
+  </script>
+  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+  <script>
+    AOS.init({ duration: 1000, easing: 'ease-out-cubic', once: true });
+  </script>
+  <script type="text/javascript">
+  var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+  (function(){
+    var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+    s1.async=true;
+    s1.src='https://embed.tawk.to/68280be4cc21d9190ec458d4/1ire6st9f';
+    s1.charset='UTF-8';
+    s1.setAttribute('crossorigin','*');
+    s0.parentNode.insertBefore(s1,s0);
+  })();
+  </script>
 </body>
 </html>
