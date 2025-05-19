@@ -1,36 +1,53 @@
+
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DrayageDirect</title>
+  <title>DrayageDirect.io</title>
   <link rel="icon" href="favicon.png" type="image/png" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet" />
   <style>
+    :root {
+      --bg: #f3f4f6;
+      --text: #1f2937;
+      --accent: #3b82f6;
+      --box: #f9fafb;
+    }
+    html[data-theme='dark'] {
+      --bg: #1f2937;
+      --text: #f9fafb;
+      --accent: #60a5fa;
+      --box: #111827;
+    }
     body {
-      font-family: Arial, sans-serif;
       margin: 0;
-      padding: 0;
-      background: #f4f4f4;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
     }
     nav {
       display: flex;
-      align-items: center;
       justify-content: space-between;
+      align-items: center;
       background: white;
       padding: 1rem 2rem;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
     nav img {
-      height: auto;
-      width: 200px;
+      height: 70px;
+      max-height: 80px;
+      width: auto;
+      object-fit: contain;
     }
     nav a {
       margin-left: 1.5rem;
       text-decoration: none;
-      color: #333;
-      font-weight: bold;
+      color: var(--text);
+      font-weight: 600;
     }
-    section.hero {
+    .hero {
       text-align: center;
       background: linear-gradient(135deg, #1e3a8a, #3b82f6);
       color: white;
@@ -46,17 +63,41 @@
       border-radius: 5px;
       cursor: pointer;
     }
+    .card {
+      background: var(--box);
+      border-radius: 12px;
+      padding: 2rem;
+      margin: 2rem auto;
+      max-width: 960px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+    }
+    .features-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+    }
+    .features-grid ul {
+      flex: 1;
+      min-width: 300px;
+      list-style: none;
+      padding: 0;
+    }
+    .features-grid li::before {
+      content: "✓";
+      margin-right: 0.5rem;
+      color: #10b981;
+    }
     footer {
       text-align: center;
       padding: 2rem;
-      background: #222;
+      background: #111827;
       color: white;
     }
   </style>
 </head>
 <body>
   <nav>
-    <img src="logo-navbar.png" alt="DrayageDirect Logo" />
+    <img src="logo-navbar.png" alt="DrayageDirect Logo">
     <div>
       <a href="#features">Features</a>
       <a href="#testimonials">Testimonials</a>
@@ -64,12 +105,72 @@
       <a href="#contact">Contact</a>
     </div>
   </nav>
+
   <section class="hero">
     <h1>Port to Door. Simplified.</h1>
     <p>Real-time quoting, dispatching, and tracking from one platform.</p>
     <button>Request a Demo</button>
     <button>Sign Up for Beta</button>
   </section>
+
+  <section class="card" id="features">
+    <h2>Why Drayage Teams Choose Us</h2>
+    <ol>
+      <li><strong>Built for Asset & Non-Asset Providers:</strong> Tailored tools for every operation model</li>
+      <li><strong>Track Drivers, Containers, and Pay:</strong> Stay on top of what moves and what matters</li>
+      <li><strong>Automate the Busy Work:</strong> Let AI handle emails, billing, and rate communication</li>
+    </ol>
+  </section>
+
+  <section class="card">
+    <h2>Key Features</h2>
+    <div class="features-grid">
+      <ul>
+        <li>🚚 Order Entry</li>
+        <li>📱 Driver Mobile App</li>
+        <li>📦 Container Tracking</li>
+        <li>🗓️ Driver Planner</li>
+        <li>📍 Dispatch</li>
+        <li>💳 Driver Pay</li>
+        <li>🧾 Accounts Payable/Receivable</li>
+        <li>🗂️ Electronic Documentation</li>
+      </ul>
+      <ul>
+        <li>🌐 Customer Portal</li>
+        <li>✉️ Email Notifications</li>
+        <li>🤖 Embedded Email Inbox + AI</li>
+        <li>💡 Automated Customer Rates</li>
+        <li>📊 Reporting & Analytics</li>
+        <li>📆 Per Diem Monitoring</li>
+        <li>🧠 AI Agents</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="card" id="testimonials">
+    <h2>What Our Users Say</h2>
+    <blockquote>“We were juggling spreadsheets, texts, and endless emails before DrayageDirect. Now we run everything in one place — and our dispatchers sleep at night.” — Sergio P.</blockquote>
+    <blockquote>“We saved 15+ hours a week just by letting the AI handle customer rate follow-ups and appointment scheduling.” — Danielle R.</blockquote>
+  </section>
+
+  <section class="card" id="pricing">
+    <h2>Simple, Scalable Pricing</h2>
+    <p>Whether you run 5 trucks or 500 containers a month — we tailor the platform to your operation.</p>
+    <button onclick="document.getElementById('contact').scrollIntoView({ behavior: 'smooth' })">📅 Book a Demo</button>
+    <button onclick="document.getElementById('contact').scrollIntoView({ behavior: 'smooth' })">📩 Contact Sales</button>
+  </section>
+
+  <section class="card" id="contact">
+    <h2>Get Early Access</h2>
+    <form action="https://formspree.io/f/mnqegwyo" method="POST">
+      <input name="company" placeholder="Company Name" required />
+      <input name="email" type="email" placeholder="Email Address" required />
+      <input name="port" placeholder="Preferred Port(s)" />
+      <input name="volume" placeholder="Monthly Shipment Volume" />
+      <button type="submit">Submit</button>
+    </form>
+  </section>
+
   <footer>
     &copy; 2025 DrayageDirect.io – All rights reserved.
   </footer>
