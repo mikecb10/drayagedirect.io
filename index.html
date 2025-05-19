@@ -27,14 +27,15 @@
       background: var(--bg);
       color: var(--text);
     }
-    nav {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: white;
-      padding: 1rem 2rem;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
+  nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  padding: 0.5rem 2rem;
+  height: 70px; /* explicit height to match */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
     nav img {
       height: 70px;
       max-height: 80px;
@@ -93,11 +94,18 @@
       background: #111827;
       color: white;
     }
-    .logo {
-  height: 60px;
+.logo {
+  height: 64px; /* Fits nicely in your 70px tall nav bar */
+  padding-left: 0.5rem; /* Optional: shifts slightly right */
   object-fit: contain;
   display: block;
 }
+    @media (max-width: 600px) {
+  .logo {
+    height: 48px;
+  }
+}
+
   </style>
 </head>
 <body>
