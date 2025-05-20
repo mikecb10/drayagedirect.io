@@ -14,59 +14,13 @@
       --text: #1f2937;
       --primary: #111827;
       --secondary: #6b7280;
+      --accent: #3b82f6;
     }
     body {
       margin: 0;
       font-family: 'Inter', sans-serif;
       background-color: var(--bg);
       color: var(--text);
-    }
-    header, section, footer {
-      padding: 3rem 2rem;
-      max-width: 1100px;
-      margin: auto;
-    }
-    header.hero {
-      text-align: center;
-      background: white;
-    }
-    .cta-buttons a {
-      margin: 0.5rem;
-      padding: 0.75rem 1.5rem;
-      background-color: var(--primary);
-      color: white;
-      text-decoration: none;
-      border-radius: 8px;
-    }
-    .section-title {
-      text-align: center;
-      margin-bottom: 2rem;
-    }
-    .features, .testimonials, .pricing {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 1.5rem;
-    }
-    .card {
-      background: white;
-      padding: 1.5rem;
-      border-radius: 10px;
-      box-shadow: 0 6px 12px rgba(0,0,0,0.06);
-    }
-    form input, form textarea {
-      width: 100%;
-      padding: 0.75rem;
-      margin-bottom: 1rem;
-      border: 1px solid #d1d5db;
-      border-radius: 6px;
-    }
-    form button {
-      background-color: var(--primary);
-      color: white;
-      border: none;
-      padding: 0.75rem 1.5rem;
-      border-radius: 6px;
-      cursor: pointer;
     }
     nav {
       display: flex;
@@ -85,6 +39,84 @@
       color: var(--primary);
       font-weight: 600;
     }
+    section.hero {
+      text-align: center;
+      background: white;
+      padding: 4rem 2rem 2rem;
+      position: relative;
+    }
+    .coming-soon {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background-color: var(--accent);
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    .cta-buttons a, section.hero button {
+      margin: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      text-decoration: none;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+    p { font-size: 1.2rem; margin-bottom: 2rem; }
+    .section-title {
+      text-align: center;
+      margin-bottom: 2rem;
+      color: var(--primary);
+    }
+    .features, .testimonials, .pricing {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+    }
+    .card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 10px;
+      box-shadow: 0 6px 12px rgba(0,0,0,0.06);
+      margin: 2rem auto;
+      max-width: 1100px;
+    }
+    .features-grid {
+      display: flex;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+    .features-grid ul {
+      flex: 1;
+      min-width: 250px;
+    }
+    form input, form textarea {
+      width: 100%;
+      padding: 0.75rem;
+      margin-bottom: 1rem;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+    }
+    form button {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    footer {
+      text-align: center;
+      padding: 2rem;
+      font-size: 0.875rem;
+      color: var(--secondary);
+    }
   </style>
 </head>
 <body>
@@ -96,156 +128,88 @@
     <a href="#pricing">Pricing</a>
     <a href="#contact">Contact</a>
     <a href="login.html">Login</a>
-<a href="signup.html">Sign Up</a>
+    <a href="signup.html">Sign Up</a>
   </div>
 </nav>
 
 <section class="hero">
-<h1>
-    Port to Door. Simplified.
-   </h1>
-<p>
-    Real-time quoting, dispatching, and tracking from one platform.
-   </p>
-<button>
-    Request a Demo
-   </button>
-<button>
-    Sign Up for Beta
-   </button>
+  <div class="coming-soon">Beta Launch – Coming Soon</div>
+  <h1>Port to Door. Simplified.</h1>
+  <p>Real-time quoting, dispatching, and tracking from one platform.</p>
+  <button>Request a Demo</button>
+  <button>Sign Up for Beta</button>
 </section>
+
 <section class="card" data-aos="fade-up" id="features">
-<h2>
-    Why Drayage Teams Choose Us
-   </h2>
-<ol>
-<li>
-<strong>
-      Built for Asset &amp; Non-Asset Providers:
-     </strong>
-     Tailored tools for every operation model
-    </li>
-<li>
-<strong>
-      Track Drivers, Containers, and Pay:
-     </strong>
-     Stay on top of what moves and what matters
-    </li>
-<li>
-<strong>
-      Automate the Busy Work:
-     </strong>
-     Let AI handle emails, billing, and rate communication
-    </li>
-</ol>
+  <h2 class="section-title">Why Drayage Teams Choose Us</h2>
+  <ol>
+    <li><strong>Built for Asset & Non-Asset Providers:</strong> Tailored tools for every operation model</li>
+    <li><strong>Track Drivers, Containers, and Pay:</strong> Stay on top of what moves and what matters</li>
+    <li><strong>Automate the Busy Work:</strong> Let AI handle emails, billing, and rate communication</li>
+  </ol>
 </section>
+
 <section class="card">
-<h2>
-    Key Features
-   </h2>
-<div class="features-grid">
-<ul>
-<li>
-      🚚 Order Entry
-     </li>
-<li>
-      📱 Driver Mobile App
-     </li>
-<li>
-      📦 Container Tracking
-     </li>
-<li>
-      🗓️ Driver Planner
-     </li>
-<li>
-      📍 Dispatch
-     </li>
-<li>
-      💳 Driver Pay
-     </li>
-<li>
-      🧾 Accounts Payable/Receivable
-     </li>
-<li>
-      🗂️ Electronic Documentation
-     </li>
-</ul>
-<ul>
-<li>
-      🌐 Customer Portal
-     </li>
-<li>
-      ✉️ Email Notifications
-     </li>
-<li>
-      🤖 Embedded Email Inbox + AI
-     </li>
-<li>
-      💡 Automated Customer Rates
-     </li>
-<li>
-      📊 Reporting &amp; Analytics
-     </li>
-<li>
-      📆 Per Diem Monitoring
-     </li>
-<li>
-      🧠 AI Agents
-     </li>
-</ul>
-</div>
+  <h2 class="section-title">Key Features</h2>
+  <div class="features-grid">
+    <ul>
+      <li>🚚 Order Entry</li>
+      <li>📱 Driver Mobile App</li>
+      <li>📦 Container Tracking</li>
+      <li>🗓️ Driver Planner</li>
+      <li>📍 Dispatch</li>
+      <li>💳 Driver Pay</li>
+      <li>🧾 Accounts Payable/Receivable</li>
+      <li>🗂️ Electronic Documentation</li>
+    </ul>
+    <ul>
+      <li>🌐 Customer Portal</li>
+      <li>✉️ Email Notifications</li>
+      <li>🤖 Embedded Email Inbox + AI</li>
+      <li>💡 Automated Customer Rates</li>
+      <li>📊 Reporting & Analytics</li>
+      <li>📆 Per Diem Monitoring</li>
+      <li>🧠 AI Agents</li>
+    </ul>
+  </div>
 </section>
+
 <section class="card" data-aos="fade-up" id="testimonials">
-<h2>
-    What Our Users Say
-   </h2>
-<blockquote>
-    “We were juggling spreadsheets, texts, and endless emails before DrayageDirect. Now we run everything in one place — and our dispatchers sleep at night.” — Sergio P.
-   </blockquote>
-<blockquote>
-    “We saved 15+ hours a week just by letting the AI handle customer rate follow-ups and appointment scheduling.” — Danielle R.
-   </blockquote>
+  <h2 class="section-title">What Our Users Say</h2>
+  <blockquote>“We were juggling spreadsheets, texts, and endless emails before DrayageDirect. Now we run everything in one place — and our dispatchers sleep at night.” — Sergio P.</blockquote>
+  <blockquote>“We saved 15+ hours a week just by letting the AI handle customer rate follow-ups and appointment scheduling.” — Danielle R.</blockquote>
 </section>
+
 <section class="card" data-aos="fade-up" id="pricing">
-<h2>
-    Simple, Scalable Pricing
-   </h2>
-<p>
-    Whether you run 5 trucks or 500 containers a month — we tailor the platform to your operation.
-   </p>
-<button onclick="document.getElementById('contact').scrollIntoView({ behavior: 'smooth' })">
-    📅 Book a Demo
-   </button>
-<button onclick="document.getElementById('contact').scrollIntoView({ behavior: 'smooth' })">
-    📩 Contact Sales
-   </button>
+  <h2 class="section-title">Simple, Scalable Pricing</h2>
+  <p>Whether you run 5 trucks or 500 containers a month — we tailor the platform to your operation.</p>
+  <button onclick="document.getElementById('contact').scrollIntoView({ behavior: 'smooth' })">📅 Book a Demo</button>
+  <button onclick="document.getElementById('contact').scrollIntoView({ behavior: 'smooth' })">📩 Contact Sales</button>
 </section>
+
 <section class="card" data-aos="fade-up" id="contact">
-<h2>
-    Get Early Access
-   </h2>
-<form action="https://formspree.io/f/mnqegwyo" method="POST">
-<input name="company" placeholder="Company Name" required=""/>
-<input name="email" placeholder="Email Address" required="" type="email"/>
-<input name="port" placeholder="Preferred Port(s)"/>
-<input name="volume" placeholder="Monthly Shipment Volume"/>
-<button type="submit">
-     Submit
-    </button>
-</form>
+  <h2 class="section-title">Get Early Access</h2>
+  <form action="https://formspree.io/f/mnqegwyo" method="POST">
+    <input name="company" placeholder="Company Name" required />
+    <input name="email" placeholder="Email Address" required type="email" />
+    <input name="port" placeholder="Preferred Port(s)" />
+    <input name="volume" placeholder="Monthly Shipment Volume" />
+    <button type="submit">Submit</button>
+  </form>
 </section>
+
 <footer>
-   © 2025 DrayageDirect.io – All rights reserved.
-  </footer>
-<script src="https://unpkg.com/aos@2.3.1/dist/aos.js">
-</script>
+  © 2025 DrayageDirect.io – All rights reserved.
+</footer>
+
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
 <script>
-   AOS.init({
-  duration: 1000,
-  easing: 'ease-out-cubic',
-  once: true
-});
-  </script>
+  AOS.init({
+    duration: 1000,
+    easing: 'ease-out-cubic',
+    once: true
+  });
+</script>
 
 </body>
 </html>
