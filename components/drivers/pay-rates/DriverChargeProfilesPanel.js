@@ -184,16 +184,16 @@ export default function DriverChargeProfilesPanel() {
     setModalOpen(true);
   }
 
-  // Reconstruct a location object {type, id, value} from the tier's flat
-  // legacy columns (event_location_type + event_location_id + event_location_value,
-  // or leg_from_location_*, etc.).
+  // Reconstruct a location object {type, id, value, meta} from the tier's
+  // flat legacy columns + JSONB meta column added in migration 072.
   function reconstructLocation(tier, prefix) {
     const type = tier[`${prefix}location_type`];
     if (!type) return null;
     const id = tier[`${prefix}location_id`] || null;
     const value = tier[`${prefix}location_value`] || '';
+    const meta = tier[`${prefix}location_meta`] || null;
     if (!id && !value) return null;
-    return { type, id, value };
+    return { type, id, value, meta };
   }
 
   async function handleSave(e) {
@@ -220,7 +220,10 @@ export default function DriverChargeProfilesPanel() {
         event_location_type: mode === 'by_event' ? (evLoc?.type || null) : null,
         event_location_id: mode === 'by_event' ? (evLoc?.id || null) : null,
         event_location_value: mode === 'by_event' ? (evLoc?.value || null) : null,
-        // By Move — store stacked events in move_events JSONB
+        event_location_meta: mode === 'by_event' ? (evLoc?.meta || null) : null,
+        // By Move — store stacked events in move_events JSONB. Each entry
+        // carries its own {type,id,value,meta} location object for
+        // forward compatibility.
         move_events: mode === 'by_move'
           ? (form.move_events || []).filter((me) => me.event_type).map((me) => ({
               event_type: me.event_type,
@@ -236,9 +239,11 @@ export default function DriverChargeProfilesPanel() {
         leg_from_location_type: mode === 'by_leg' ? (legFromLoc?.type || null) : null,
         leg_from_location_id: mode === 'by_leg' ? (legFromLoc?.id || null) : null,
         leg_from_location_value: mode === 'by_leg' ? (legFromLoc?.value || null) : null,
+        leg_from_location_meta: mode === 'by_leg' ? (legFromLoc?.meta || null) : null,
         leg_to_location_type: mode === 'by_leg' ? (legToLoc?.type || null) : null,
         leg_to_location_id: mode === 'by_leg' ? (legToLoc?.id || null) : null,
         leg_to_location_value: mode === 'by_leg' ? (legToLoc?.value || null) : null,
+        leg_to_location_meta: mode === 'by_leg' ? (legToLoc?.meta || null) : null,
       };
 
       const rows = tiers.map((t, idx) => ({
