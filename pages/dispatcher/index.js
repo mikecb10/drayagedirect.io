@@ -365,15 +365,30 @@ export default function DispatcherIndex() {
 
   // Date filter: check if ANY of the load's key dates match the selected filter.
   // This makes the date dropdown actually filter the board, not just KPI stats.
+  //
+  // Must include appointment windows (pickup_apt_from/to, delivery_apt_from/to,
+  // return_apt_from/to) in addition to base dates — otherwise a load with only
+  // appointment dates set (no pickup_date / delivery_date / etc.) gets filtered
+  // out here before KPI card predicates can evaluate it, producing the symptom
+  // where a KPI card counts N loads but clicking the card shows an empty board.
   function applyDateFilter(loadList) {
     if (!dateFilter || dateFilter === 'all') return loadList;
     return loadList.filter((load) =>
+      // Base dates
       isInDateRange(load.pickup_date, dateFilter) ||
       isInDateRange(load.delivery_date, dateFilter) ||
       isInDateRange(load.ready_to_return_date, dateFilter) ||
       isInDateRange(load.last_free_day, dateFilter) ||
       isInDateRange(load.cutoff_date, dateFilter) ||
-      isInDateRange(load.per_diem_free_day, dateFilter)
+      isInDateRange(load.per_diem_free_day, dateFilter) ||
+      // Appointment windows — KPI cards count loads via these, so the
+      // board-level filter must include them too.
+      isInDateRange(load.pickup_apt_from, dateFilter) ||
+      isInDateRange(load.pickup_apt_to, dateFilter) ||
+      isInDateRange(load.delivery_apt_from, dateFilter) ||
+      isInDateRange(load.delivery_apt_to, dateFilter) ||
+      isInDateRange(load.return_apt_from, dateFilter) ||
+      isInDateRange(load.return_apt_to, dateFilter)
     );
   }
 
