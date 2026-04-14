@@ -136,10 +136,33 @@ body {
    running multiple windows on one monitor.
    ============================================================ */
 
-/* Base font shrink */
+/* Base font shrink + semantic token overrides.
+   Every design-system token shrinks in compact mode via CSS-var
+   override. Primitives using arbitrary values (p-[var(--space-...)])
+   or @utility classes (text-page-title) automatically pick these
+   up, since CSS variables inherit through the cascade. */
 [data-compact] {
   font-size: 13px;
   line-height: 1.4;
+
+  /* Spacing shrink */
+  --space-page-x: 1rem;
+  --space-page-y: 1rem;
+  --space-section: 1rem;
+  --space-section-pad: 0.75rem;
+  --space-section-head-x: 0.75rem;
+  --space-section-head-y: 0.5rem;
+  --space-field: 0.625rem;
+  --space-field-label: 0.25rem;
+  --space-row: 0.5rem;
+  --space-inline: 0.375rem;
+
+  /* Typography shrink — sizes only; weights/transforms don't change. */
+  --text-page-title-size: 1.25rem;
+  --text-section-title-size: 0.8125rem;
+  --text-field-label-size: 0.6875rem;
+  --text-body-size: 0.8125rem;
+  --text-helper-size: 0.6875rem;
 }
 
 /* Horizontal padding reductions */
