@@ -1,18 +1,19 @@
 import {
   Ship, Package, Truck, ArrowDownToLine, Send, CheckCircle2,
   ChevronRight, Unlock, Lock, Calendar, MapPin, Warehouse, Building2,
-  CheckSquare, XSquare, FileCheck,
+  CheckSquare, XSquare, FileCheck, Navigation,
 } from 'lucide-react';
 
 const KPI_CARDS = [
   {
     key: 'arriving_on_vessel',
-    label: 'Arriving On Vessel',
+    label: 'Arriving On Vessel/Rail',
     icon: Ship,
     color: 'sky',
     subCards: [
+      { key: 'arriving_no_arrival_yet', label: 'No Arrival Yet', color: 'slate' },
+      { key: 'arriving_arrived_on_hold', label: 'Arrived - On Hold', color: 'red' },
       { key: 'arriving_released', label: 'Released', color: 'emerald' },
-      { key: 'arriving_on_hold', label: 'On Hold', color: 'red' },
     ],
   },
   {
@@ -33,6 +34,16 @@ const KPI_CARDS = [
     subCards: [
       { key: 'need_delivery_at_port', label: 'At Port', color: 'amber' },
       { key: 'need_delivery_in_yard', label: 'In Yard', color: 'amber' },
+    ],
+  },
+  {
+    key: 'in_transit',
+    label: 'In Transit',
+    icon: Navigation,
+    color: 'teal',
+    subCards: [
+      { key: 'in_transit_to_yard', label: 'To Yard', color: 'slate' },
+      { key: 'in_transit_to_customer', label: 'To Customer', color: 'teal' },
     ],
   },
   {
