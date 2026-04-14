@@ -176,7 +176,7 @@ export default function UserDetail() {
       <div className="max-w-4xl">
         <Link
           href="/settings/team"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4"
+          className="inline-flex items-center gap-1 text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 mb-4"
         >
           <ArrowLeft className="w-4 h-4" strokeWidth={1.75} />
           Back to Team
@@ -192,9 +192,9 @@ export default function UserDetail() {
           <>
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{user.name}</h1>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">{user.name}</h1>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-sm text-gray-500">{user.email}</span>
+                  <span className="text-sm text-gray-500 dark:text-slate-400">{user.email}</span>
                   <Badge variant={user.status === 'active' ? 'green' : 'red'}>
                     {user.status}
                   </Badge>
@@ -212,8 +212,8 @@ export default function UserDetail() {
 
             <div className="space-y-6">
               {/* Profile */}
-              <section className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                <h2 className="text-base font-semibold text-gray-900 mb-4">Profile</h2>
+              <section className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
+                <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100 mb-4">Profile</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Input
                     label="Full Name"
@@ -242,8 +242,8 @@ export default function UserDetail() {
               </section>
 
               {/* Role & status */}
-              <section className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                <h2 className="text-base font-semibold text-gray-900 mb-4">
+              <section className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
+                <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100 mb-4">
                   Role & Status
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -268,9 +268,9 @@ export default function UserDetail() {
               </section>
 
               {/* Permissions */}
-              <section className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                <h2 className="text-base font-semibold text-gray-900 mb-1">Permissions</h2>
-                <p className="text-xs text-gray-500 mb-4">
+              <section className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
+                <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100 mb-1">Permissions</h2>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">
                   Super Admins bypass all permission checks. For regular users, toggle the
                   specific areas they should access.
                 </p>
@@ -278,19 +278,19 @@ export default function UserDetail() {
                   {PERMISSION_OPTIONS.map((p) => (
                     <label
                       key={p}
-                      className="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-gray-50 border border-transparent hover:border-gray-200"
+                      className="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800/60 border border-transparent hover:border-gray-200 dark:hover:border-slate-700"
                     >
                       <input
                         type="checkbox"
                         checked={user.permissions.includes(p)}
                         onChange={() => togglePermission(p)}
-                        className="mt-0.5 rounded text-blue-600 focus:ring-blue-500 border-gray-300"
+                        className="mt-0.5 rounded text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-slate-700"
                       />
                       <div>
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
                           {PERMISSION_META[p].label}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-500 dark:text-slate-400">
                           {PERMISSION_META[p].description}
                         </div>
                       </div>
@@ -318,7 +318,7 @@ export default function UserDetail() {
 
               {/* Save bar */}
               <div className="flex justify-end gap-3 sticky bottom-4">
-                <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-lg flex gap-3">
+                <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-3 shadow-lg flex gap-3">
                   <Button variant="secondary" onClick={() => load()}>
                     Reset
                   </Button>
@@ -344,11 +344,11 @@ export default function UserDetail() {
             message="Password has been reset. The user will be prompted to change it at next login."
           />
           <div>
-            <p className="text-sm text-gray-600 mb-2">
+            <p className="text-sm text-gray-600 dark:text-slate-300 mb-2">
               Share this temporary password with <strong>{user?.email}</strong>:
             </p>
-            <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg p-3">
-              <code className="flex-1 text-sm font-mono text-gray-900">
+            <div className="flex items-center gap-2 bg-gray-50 dark:bg-slate-800/50 border border-gray-200 dark:border-slate-800 rounded-lg p-3">
+              <code className="flex-1 text-sm font-mono text-gray-900 dark:text-slate-100">
                 {newTempPassword}
               </code>
               <button
@@ -380,7 +380,7 @@ export default function UserDetail() {
         title="Remove User?"
       >
         <div className="space-y-4">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 dark:text-slate-300">
             Are you sure you want to remove <strong>{user?.name}</strong> from your team?
             They will be immediately signed out and will not be able to log back in.
           </p>
