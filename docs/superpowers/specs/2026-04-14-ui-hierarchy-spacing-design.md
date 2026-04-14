@@ -215,6 +215,37 @@ Scope: 20 files under `components/loads/` (incl. `tabs/` and `routing/`). Totals
 - 11 `text-slate-*`-only lines in `routing/RailSlipPreviewModal.js` — dark phone mockup, exclude.
 - Real gap is duplication: 63x muted pairs + 57x strong pairs inline → fold into the two tokens.
 
+### 5.2 `pages/settings/**`
+
+Scope: 29 files under `pages/settings/` (incl. `communications/`, `tariffs/`, `charge-profiles/`, `team/` subfolders). Totals: 1264 spacing-class occurrences, 719 typography-class occurrences, 83 `<label>` elements, 269 `text-gray-*`/`bg-gray-*` lines missing a `dark:` pairing on the same line. Unlike §5.1, the dark-mode column is non-trivial here — several older pages predate the `dark:` convention. Top 5 files chosen by combined spacing+typography density.
+
+| File | Spacing drift (sample) | Typography drift | Label pattern | Dark-mode gaps |
+|---|---|---|---|---|
+| `tariffs/[id].js` (88 spacing hits) | `px-3 py-2`, `py-2.5`, `gap-3/4`, `mb-1/2/3`, `space-y-1/3/4`, `mt-0.5/2/3` | `text-xs`, `text-sm`, `font-medium/semibold`, `text-[11px]` | `block text-xs font-medium text-gray-600 dark:text-slate-300 mb-1` (19x inline) | 0 (all gray paired) |
+| `charge-profiles/[id].js` (92 spacing hits) | `px-2/3`, `py-1/1.5/2`, `gap-1.5/3/4`, `mb-1/1.5`, `space-y-1.5/4/5` | `text-[10px]`, `text-[11px]`, `text-xs`, `text-sm`, `font-medium/semibold` | `block text-xs font-medium text-gray-600 dark:text-slate-300 mb-1` (8x) + `text-xs font-semibold text-gray-700` (1x) | 0 (all gray paired) |
+| `communications/umbrellas/[id].js` (96 spacing hits) | `px-2/3/4`, `py-1/1.5/2/2.5`, `gap-1.5/2/3/4`, `mb-1/2/3`, `p-3/4/5` | `text-xs`, `text-sm`, `font-medium/semibold`, mixed uppercase | `block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1` — diverges from tariffs (sm vs xs) | 0 (all gray paired) |
+| `communications/templates/[id].js` (78 spacing hits) | `px-3 py-2`, `px-4 py-2.5`, `gap-2/3`, `mb-1/1.5`, `space-y-3/4` | `text-xs`, `text-sm`, `font-medium/semibold` | `text-sm font-medium mb-1` + `text-xs font-semibold mb-1.5` (two variants in one file) | 0 (all gray paired) |
+| `communications/trigger-activity/index.js` (65 spacing hits) | `px-3 py-2`, `px-4 py-2.5`, `gap-2/3`, `mb-1/2`, `py-10` empty state | `text-[11px]`, `text-xs`, `text-sm`, `font-semibold/medium` | `block text-[11px] font-semibold text-gray-600 dark:text-slate-300 mb-1` (5x) — third distinct label variant | 0 (all gray paired) |
+
+**Recurring patterns to map to tokens:**
+- `text-xs` (302x) + `text-sm` (237x) — two dominant body sizes → `text-helper` / `text-body`
+- `font-semibold` (246x) vs `font-medium` (111x) — pick one per role (label vs title)
+- `px-3 py-2` (100x) form-input padding, plus `py-2.5` (54x) and `px-4 py-2` (41x) variants
+- `gap-3` (102x) and `gap-2` (98x) — split between section rhythm and inline controls
+- `mb-4` (74x), `mt-1` (68x), `mb-1` (62x), `mt-0.5` (49x) — offsets drift 0.5/1/1.5
+- `space-y-4` (29x) card-internal stacks → `space-section-pad` / internal stack token
+- 335 half-step spacings (`0.5/1.5/2.5`) across 29 files — primary source of visual drift
+- 134 arbitrary `text-[10/11/13/15]px` off-token sizes — mostly badges/pills
+- 83 `<label>` elements across 14 files, at least 4 distinct class combos → `Field`
+- 149x `text-gray-900 dark:text-slate-100` + 170x `text-gray-500 dark:text-slate-400` → tokens
+
+**Notable inconsistencies:**
+- `profile.js` uses raw `<section>` + manual classes, not `FormSection`. Phase 5 refactor target.
+- `company.js` uses 6 raw `<section>` blocks, no `dark:` pairs — 37 unpaired lines (top gap).
+- Label size differs: `tariffs` `text-xs`, `umbrellas` `text-sm`, `trigger-activity` `text-[11px]`.
+- `mb-1` (62x) vs `mb-1.5` (17x) on label→input — §2 picks `mb-1.5` (`space-field-label`).
+- 7 files hold >20 unpaired `text-gray-*` lines (company, team, terminals, per-diem, +3 indexes).
+
 ---
 
 ## 6. Rollout Plan
