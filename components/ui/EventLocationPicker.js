@@ -102,10 +102,12 @@ export default function EventLocationPicker({
 
   // Auto-detect the most likely type from the current query so we can
   // suggest the right commit option first.
+  // Profile Group is deferred until the profile_groups table/admin UI
+  // exists, so it's not surfaced as a commit option here.
   const trimmed = query.trim();
   const isZip = /^\d{5}(-\d{4})?$/.test(trimmed);
   const isCityState = /,\s*[A-Za-z]{2}$/.test(trimmed) || trimmed.includes(',');
-  const autoType = isZip ? 'zip' : isCityState ? 'city_state' : 'profile_group';
+  const autoType = isZip ? 'zip' : 'city_state';
 
   const hasValue = value && value.value;
 
@@ -196,7 +198,9 @@ export default function EventLocationPicker({
             </div>
           )}
 
-          {/* Free-text commit options */}
+          {/* Free-text commit options — profile_group intentionally omitted;
+              see autoType logic above. Restore it when the profile_groups
+              feature ships. */}
           {trimmed.length >= 2 && (
             <div className={results.length > 0 ? 'border-t border-gray-100 dark:border-slate-800' : ''}>
               <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-500">
@@ -206,8 +210,6 @@ export default function EventLocationPicker({
                 suggested={autoType === 'city_state'} onClick={() => commitFreeText('city_state')} />
               <FreeTextOption icon={<Hash className="w-4 h-4" />} label="Zip Code" value={trimmed}
                 suggested={autoType === 'zip'} onClick={() => commitFreeText('zip')} />
-              <FreeTextOption icon={<Users className="w-4 h-4" />} label="Profile Group" value={trimmed}
-                suggested={autoType === 'profile_group'} onClick={() => commitFreeText('profile_group')} />
             </div>
           )}
 
@@ -229,14 +231,22 @@ function FreeTextOption({ icon, label, value, suggested, onClick }) {
       type="button"
       onClick={onClick}
       className={`w-full px-3 py-2 text-left hover:bg-blue-50 dark:hover:bg-blue-950/40 flex items-center gap-2 ${
-        suggested ? 'bg-blue-50/50 dark:bg-blue-950/20' : ''
+        suggested
+          ? 'bg-blue-100 dark:bg-blue-950/60 ring-1 ring-inset ring-blue-300 dark:ring-blue-800'
+          : ''
       }`}
     >
-      <span className="text-gray-400 dark:text-slate-500">{icon}</span>
-      <span className="text-xs text-gray-500 dark:text-slate-400 w-24 shrink-0">{label}</span>
+      <span className={suggested ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-slate-500'}>
+        {icon}
+      </span>
+      <span className={`text-xs w-24 shrink-0 ${
+        suggested ? 'text-blue-700 dark:text-blue-300 font-semibold' : 'text-gray-500 dark:text-slate-400'
+      }`}>
+        {label}
+      </span>
       <span className="text-sm text-gray-900 dark:text-slate-100 truncate">{value}</span>
       {suggested && (
-        <span className="ml-auto text-[9px] font-semibold uppercase text-blue-600 dark:text-blue-400 tracking-wide">
+        <span className="ml-auto text-[9px] font-bold uppercase text-white bg-blue-600 px-1.5 py-0.5 rounded tracking-wide">
           Suggested
         </span>
       )}
