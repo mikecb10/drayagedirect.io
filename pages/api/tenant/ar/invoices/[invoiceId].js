@@ -1,0 +1,120 @@
+import {
+  requireTenantUser,
+  requirePermission,
+  getServiceClient,
+} from '../../../../../lib/tenant-api';
+import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
+import { PERMISSIONS } from '../../../../../lib/permissions';
+
+/**
+ * /api/tenant/ar/invoices/[invoiceId]
+ *
+ * GET — single invoice with line items, charge sets, payments
+ * PUT — update status (draft→sent→paid→void)
+ */
+export default async function handler(req, res) {
+  const ctx = await requireTenantUser(req, res);
+  if (!ctx) return;
+  if (!requirePermission(ctx, [PERMISSIONS.ACCOUNTS_RECEIVABLE, PERMISSIONS.ALL], res)) return;
+
+  const { invoiceId } = req.query;
+  const svc = getServiceClient();
+
+  if (req.method === 'GET') {
+    const { data, error } = await svc
+      .from('invoices')
+      .select(`
+        *,
+        customer:customers!customer_id(id, name, billing_email),
+        line_items:invoice_line_items(*),
+        charge_sets:invoice_charge_sets(
+          charge_set:order_charge_sets(id, charge_set_number, order_id, total_cents, status,
+            order:orders(id, order_number)
+          )
+        ),
+        payments:payment_applications(id, amount_cents, created_at,
+          payment:payments_received(id, amount_cents, payment_method, payment_date, reference_number)
+        ),
+        credits:credit_memos(id, amount_cents, reason, status, applied_at)
+      `)
+      .eq('id', invoiceId)
+      .eq('tenant_id', ctx.tenantId)
+      .is('deleted_at', null)
+      .single();
+
+    if (error || !data) return res.status(404).json({ error: 'Invoice not found' });
+    return res.status(200).json({ invoice: data });
+  }
+
+  if (req.method === 'PUT') {
+    const { status, void_reason } = req.body || {};
+
+    // Fetch existing
+    const { data: existing } = await svc
+      .from('invoices')
+      .select('*')
+      .eq('id', invoiceId)
+      .eq('tenant_id', ctx.tenantId)
+      .is('deleted_at', null)
+      .single();
+
+    if (!existing) return res.status(404).json({ error: 'Invoice not found' });
+
+    const updates = {};
+
+    if (status === 'sent') {
+      updates.status = 'sent';
+      updates.sent_at = new Date().toISOString();
+    } else if (status === 'paid') {
+      if (existing.balance_due_cents > 0) {
+        return res.status(400).json({ error: 'Cannot mark as paid — balance is not zero' });
+      }
+      updates.status = 'paid';
+      updates.paid_at = new Date().toISOString();
+    } else if (status === 'void') {
+      updates.status = 'void';
+      updates.void_reason = void_reason || null;
+      // Restore charge sets to approved
+      const { data: junctions } = await svc
+        .from('invoice_charge_sets')
+        .select('charge_set_id')
+        .eq('invoice_id', invoiceId)
+        .eq('tenant_id', ctx.tenantId);
+      if (junctions?.length) {
+        await svc
+          .from('order_charge_sets')
+          .update({ status: 'approved', invoice_id: null })
+          .in('id', junctions.map((j) => j.charge_set_id));
+      }
+    } else if (status === 'overdue') {
+      updates.status = 'overdue';
+    } else {
+      return res.status(400).json({ error: `Invalid status transition: ${status}` });
+    }
+
+    const { data, error } = await svc
+      .from('invoices')
+      .update(updates)
+      .eq('id', invoiceId)
+      .eq('tenant_id', ctx.tenantId)
+      .select()
+      .single();
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    await logTenantAction(svc, {
+      tenantId: ctx.tenantId,
+      userId: ctx.userId,
+      action: `invoice.${status}`,
+      entityType: 'invoice',
+      entityId: invoiceId,
+      oldValues: { status: existing.status },
+      newValues: { status },
+      ipAddress: getClientIp(req),
+    });
+
+    return res.status(200).json({ invoice: data });
+  }
+
+  return res.status(405).json({ error: 'Method not allowed' });
+}

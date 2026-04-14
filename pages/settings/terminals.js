@@ -1,0 +1,297 @@
+import { useEffect, useState, useMemo } from 'react';
+import { Search, Ship, Train, Check, X, Pencil } from 'lucide-react';
+import SettingsLayout from '../../components/settings/SettingsLayout';
+import Alert from '../../components/ui/Alert';
+
+
+export default function TerminalsPage() {
+  const [terminals, setTerminals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [search, setSearch] = useState('');
+  const [filterMarket, setFilterMarket] = useState('');
+  const [filterType, setFilterType] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState('');
+
+  async function fetchTerminals() {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/tenant/terminals?all=true');
+      if (!res.ok) throw new Error('Failed to load terminals');
+      const data = await res.json();
+      setTerminals(data.terminals || []);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchTerminals();
+  }, []);
+
+  async function saveCustomName(id) {
+    try {
+      const res = await fetch(`/api/tenant/terminals/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ custom_name: editName || null }),
+      });
+      if (!res.ok) throw new Error('Failed to save');
+      setEditingId(null);
+      await fetchTerminals();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function toggleTerminal(id, enabled) {
+    setTerminals((ts) =>
+      ts.map((t) => (t.id === id ? { ...t, effective_enabled: enabled } : t))
+    );
+    try {
+      const res = await fetch(`/api/tenant/terminals/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled }),
+      });
+      if (!res.ok) throw new Error('Failed to toggle');
+    } catch (e) {
+      setError(e.message);
+      fetchTerminals();
+    }
+  }
+
+  const markets = useMemo(() => {
+    const set = new Set(terminals.map((t) => t.market));
+    return [...set].sort();
+  }, [terminals]);
+
+  const filtered = useMemo(() => {
+    let list = terminals;
+    if (filterMarket) list = list.filter((t) => t.market === filterMarket);
+    if (filterType) list = list.filter((t) => t.type === filterType);
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (t) =>
+          t.label.toLowerCase().includes(q) ||
+          t.effective_name.toLowerCase().includes(q) ||
+          t.city?.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [terminals, filterMarket, filterType, search]);
+
+  const stats = useMemo(() => {
+    const total = terminals.length;
+    const marine = terminals.filter((t) => t.type === 'MARINE').length;
+    const rail = terminals.filter((t) => t.type === 'RAIL').length;
+    const enabled = terminals.filter((t) => t.effective_enabled && t.market_enabled).length;
+    const customized = terminals.filter((t) => t.custom_name).length;
+    return { total, marine, rail, enabled, customized };
+  }, [terminals]);
+
+  return (
+    <SettingsLayout title="Terminals">
+      <div className="space-y-5 max-w-7xl">
+        {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
+
+        <div>
+          <h1 className="text-lg font-semibold text-gray-900">Terminals</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Marine ports and rail ramps from your enabled markets. The Label/Key is fixed for backend
+            integrations. You can customize the Profile Name for your team's preferred naming.
+          </p>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <StatCard label="Total" value={stats.total} />
+          <StatCard label="Marine" value={stats.marine} icon={<Ship className="w-4 h-4 text-blue-400" />} />
+          <StatCard label="Rail" value={stats.rail} icon={<Train className="w-4 h-4 text-amber-500" />} />
+          <StatCard label="Active" value={stats.enabled} />
+          <StatCard label="Customized" value={stats.customized} />
+        </div>
+
+        {/* Filters */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search terminals…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="block w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
+          </div>
+          <select
+            value={filterMarket}
+            onChange={(e) => setFilterMarket(e.target.value)}
+            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+          >
+            <option value="">All Markets</option>
+            {markets.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+          >
+            <option value="">All Types</option>
+            <option value="MARINE">Marine</option>
+            <option value="RAIL">Rail</option>
+          </select>
+        </div>
+
+        {/* Table */}
+        {loading ? (
+          <div className="py-16 text-center text-sm text-gray-400">Loading terminals…</div>
+        ) : (
+          <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50/60">
+                    <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Market</th>
+                    <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Type</th>
+                    <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Label / Key</th>
+                    <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Profile Name</th>
+                    <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">City</th>
+                    <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">State</th>
+                    <th className="text-center px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Enabled</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((t) => (
+                    <tr key={t.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-1.5">
+                          {!t.market_enabled && (
+                            <span className="text-[9px] uppercase tracking-wide font-semibold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
+                              market off
+                            </span>
+                          )}
+                          <span className="text-xs text-gray-700">{t.market}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                            t.type === 'MARINE'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-amber-100 text-amber-700'
+                          }`}
+                        >
+                          {t.type === 'MARINE' ? (
+                            <Ship className="w-3 h-3" />
+                          ) : (
+                            <Train className="w-3 h-3" />
+                          )}
+                          {t.type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 font-mono text-xs text-gray-500">{t.label}</td>
+                      <td className="px-4 py-2.5">
+                        {editingId === t.id ? (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="text"
+                              value={editName}
+                              onChange={(e) => setEditName(e.target.value)}
+                              className="block w-48 rounded border border-blue-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') saveCustomName(t.id);
+                                if (e.key === 'Escape') setEditingId(null);
+                              }}
+                            />
+                            <button
+                              onClick={() => saveCustomName(t.id)}
+                              className="p-1 text-emerald-600 hover:bg-emerald-50 rounded"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setEditingId(null)}
+                              className="p-1 text-gray-400 hover:bg-gray-100 rounded"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 group">
+                            <span className="text-xs text-gray-900">
+                              {t.effective_name}
+                            </span>
+                            {t.custom_name && (
+                              <span className="text-[9px] uppercase tracking-wide font-semibold bg-purple-100 text-purple-600 px-1 py-0.5 rounded">
+                                custom
+                              </span>
+                            )}
+                            <button
+                              onClick={() => {
+                                setEditingId(t.id);
+                                setEditName(t.effective_name);
+                              }}
+                              className="p-0.5 text-gray-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-gray-600">{t.city || '—'}</td>
+                      <td className="px-4 py-2.5 text-xs text-gray-600">{t.state || '—'}</td>
+                      <td className="px-4 py-2.5 text-center">
+                        <button
+                          type="button"
+                          onClick={() => toggleTerminal(t.id, !t.effective_enabled)}
+                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                            t.effective_enabled ? 'bg-blue-600' : 'bg-gray-200'
+                          }`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                              t.effective_enabled ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {filtered.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-sm text-gray-400">
+                        No terminals found
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </SettingsLayout>
+  );
+}
+
+function StatCard({ label, value, icon }) {
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
+      <div className="flex items-center gap-2">
+        {icon}
+        <div className="text-2xl font-semibold text-gray-900">{value}</div>
+      </div>
+      <div className="text-xs text-gray-500 mt-0.5">{label}</div>
+    </div>
+  );
+}

@@ -1,0 +1,617 @@
+import { useRef, useState, useEffect } from 'react';
+import {
+  ArrowLeftRight,
+  FileEdit,
+  Calendar,
+  Clock,
+  Hash,
+  Package,
+  Upload,
+  DollarSign,
+  PackagePlus,
+  Share2,
+  Copy,
+  Printer,
+  X,
+  Check,
+  RotateCcw,
+} from 'lucide-react';
+import CellPopover from './CellPopover';
+import OrgPicker from '../ui/OrgPicker';
+import DateTimePicker from '../ui/DateTimePicker';
+import { useTenantTimeFormat } from '../../hooks/useTenantSettings';
+
+/**
+ * BulkActionBar — fixed bar at the bottom of the Dispatcher when one or more
+ * loads are selected. Each button opens a popover (or runs an instant action)
+ * and calls `onApply(patch)` which bulk-updates every selected load.
+ *
+ * Actions supported:
+ *   Ready For Return       — instant (sets ready_to_return_date = today)
+ *   Edit Load Info         — Terminal, Warehouse, Container Return, Load Notes, Driver Notes
+ *   Edit Dates             — LFD, Empty, Per Diem Free, CUT, ETA
+ *   Edit Pick Up APT       — From/To datetime
+ *   Edit Delivery APT      — From/To datetime
+ *   Edit Return APT        — From/To datetime
+ *   Edit Reference #s      — all 14 reference fields
+ *   Edit Equipment Info    — big grid of equipment/flag fields
+ *   Add Documents          — (stub)
+ *   Add Charges            — (stub — needs charge set logic)
+ *   Add to Order           — (stub)
+ *   Live Share             — (stub)
+ *   Copy Container         — instant (copies container #s to clipboard)
+ *   Print                  — (stub)
+ */
+export default function BulkActionBar({
+  selectedIds,
+  loads,
+  onApply,
+  onClear,
+  onFlash,
+}) {
+  const [openAction, setOpenAction] = useState(null);
+  const anchorRefs = useRef({});
+
+  if (!selectedIds || selectedIds.size === 0) return null;
+
+  const selectedLoads = loads.filter((l) => selectedIds.has(l.id));
+  const count = selectedIds.size;
+
+  // ===== Instant action handlers =====
+
+  // Toggle: if ALL selected loads already have ready_to_return_date set,
+  // clear it (mark as NOT ready). Otherwise set the timestamp on all of
+  // them and ensure the status is 'dropped' so the load filters into the
+  // "Need To Be Returned → Ready" sub-card on the KPI strip.
+  async function handleReadyForReturn() {
+    const allMarked = selectedLoads.every((l) => !!l.ready_to_return_date);
+
+    if (allMarked) {
+      // TOGGLE OFF — clear the timestamp on all selected
+      await onApply({ ready_to_return_date: null });
+      onFlash?.(`Cleared ready for return on ${count} load${count !== 1 ? 's' : ''}`);
+    } else {
+      // TOGGLE ON — set timestamp + force status to 'dropped'
+      const now = new Date().toISOString();
+      await onApply({ ready_to_return_date: now, status: 'dropped' });
+      onFlash?.(`Marked ${count} load${count !== 1 ? 's' : ''} ready for return`);
+    }
+  }
+
+  async function handleCopyContainers() {
+    const list = selectedLoads.map((l) => l.container_number).filter(Boolean);
+    if (list.length === 0) {
+      onFlash?.('No container numbers on selected loads', 'error');
+      return;
+    }
+    const containers = list.join(', ');
+    try {
+      await navigator.clipboard.writeText(containers);
+      onFlash?.(`Copied ${list.length} container #s`);
+    } catch {
+      onFlash?.('Copy failed', 'error');
+    }
+  }
+
+  function handleStub(name) {
+    onFlash?.(`${name} coming soon`, 'info');
+  }
+
+  function handleOpen(actionKey, e) {
+    e?.stopPropagation();
+    setOpenAction(openAction === actionKey ? null : actionKey);
+  }
+
+  // ===== Button config =====
+
+  // Hint the user when clicking will TOGGLE OFF (all selected are already marked)
+  const allReadyForReturn = selectedLoads.every((l) => !!l.ready_to_return_date);
+
+  const buttons = [
+    {
+      key: 'ready_for_return',
+      label: allReadyForReturn ? 'Mark Not Ready' : 'Ready For Return',
+      icon: RotateCcw,
+      onClick: handleReadyForReturn,
+      active: allReadyForReturn,
+    },
+    { key: 'load_info', label: 'Edit Load Info', icon: FileEdit, hasPopover: true },
+    { key: 'dates', label: 'Edit Dates', icon: Calendar, hasPopover: true },
+    { key: 'pickup_apt', label: 'Edit Pick Up APT', icon: Clock, hasPopover: true },
+    { key: 'delivery_apt', label: 'Edit Delivery APT', icon: Clock, hasPopover: true },
+    { key: 'return_apt', label: 'Edit Return APT', icon: Clock, hasPopover: true },
+    { key: 'references', label: 'Edit Reference #s', icon: Hash, hasPopover: true },
+    { key: 'equipment', label: 'Edit Equipment Info', icon: Package, hasPopover: true },
+    { key: 'documents', label: 'Add Documents', icon: Upload, onClick: () => handleStub('Add Documents') },
+    { key: 'charges', label: 'Add Charges', icon: DollarSign, onClick: () => handleStub('Add Charges') },
+    { key: 'add_to_order', label: 'Add to Order', icon: PackagePlus, onClick: () => handleStub('Add to Order'), disabled: true },
+    { key: 'live_share', label: 'Live Share', icon: Share2, onClick: () => handleStub('Live Share'), disabled: true },
+    { key: 'copy_container', label: 'Copy Container', icon: Copy, onClick: handleCopyContainers },
+    { key: 'print', label: 'Print', icon: Printer, onClick: () => handleStub('Print') },
+  ];
+
+  // ===== Popover content per action =====
+
+  async function applyAndClose(patch) {
+    await onApply(patch);
+    setOpenAction(null);
+  }
+
+  function renderOpenPopover() {
+    if (!openAction) return null;
+    const anchor = anchorRefs.current[openAction];
+    if (!anchor) return null;
+
+    switch (openAction) {
+      case 'dates':
+        return (
+          <CellPopover anchorEl={anchor} onClose={() => setOpenAction(null)} width={280}>
+            <DatesForm onSubmit={applyAndClose} />
+          </CellPopover>
+        );
+      case 'pickup_apt':
+        return (
+          <CellPopover anchorEl={anchor} onClose={() => setOpenAction(null)} width={260}>
+            <AptWindowForm
+              fromField="pickup_apt_from"
+              toField="pickup_apt_to"
+              submitLabel="Add Pick Up Times"
+              onSubmit={applyAndClose}
+            />
+          </CellPopover>
+        );
+      case 'delivery_apt':
+        return (
+          <CellPopover anchorEl={anchor} onClose={() => setOpenAction(null)} width={260}>
+            <AptWindowForm
+              fromField="delivery_apt_from"
+              toField="delivery_apt_to"
+              submitLabel="Add Delivery Times"
+              onSubmit={applyAndClose}
+            />
+          </CellPopover>
+        );
+      case 'return_apt':
+        return (
+          <CellPopover anchorEl={anchor} onClose={() => setOpenAction(null)} width={260}>
+            <AptWindowForm
+              fromField="return_apt_from"
+              toField="return_apt_to"
+              submitLabel="Add Return Times"
+              onSubmit={applyAndClose}
+            />
+          </CellPopover>
+        );
+      case 'references':
+        return (
+          <CellPopover anchorEl={anchor} onClose={() => setOpenAction(null)} width={320}>
+            <ReferencesForm onSubmit={applyAndClose} />
+          </CellPopover>
+        );
+      case 'equipment':
+        return (
+          <CellPopover anchorEl={anchor} onClose={() => setOpenAction(null)} width={420}>
+            <EquipmentInfoForm onSubmit={applyAndClose} />
+          </CellPopover>
+        );
+      case 'load_info':
+        return (
+          <CellPopover anchorEl={anchor} onClose={() => setOpenAction(null)} width={320}>
+            <LoadInfoForm onSubmit={applyAndClose} />
+          </CellPopover>
+        );
+      default:
+        return null;
+    }
+  }
+
+  return (
+    <>
+      <div className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none flex justify-center pb-4 lg:pl-60">
+        <div className="pointer-events-auto bg-slate-800 text-white rounded-xl shadow-2xl flex items-center gap-1 px-3 py-2 overflow-x-auto max-w-[95vw]">
+          {/* Count badge */}
+          <div className="flex items-center gap-2 pr-2 border-r border-white/10 mr-1 shrink-0">
+            <div className="bg-blue-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+              {count}
+            </div>
+            <span className="text-xs font-medium">Selected</span>
+          </div>
+
+          {/* Action buttons */}
+          {buttons.map((btn) => {
+            const Icon = btn.icon;
+            return (
+              <button
+                key={btn.key}
+                ref={(el) => {
+                  anchorRefs.current[btn.key] = el;
+                }}
+                type="button"
+                disabled={btn.disabled}
+                onClick={(e) => {
+                  if (btn.hasPopover) {
+                    handleOpen(btn.key, e);
+                  } else if (btn.onClick) {
+                    btn.onClick();
+                  }
+                }}
+                className={`flex flex-col items-center gap-0.5 px-2.5 py-1 rounded text-[10px] font-medium whitespace-nowrap transition-colors ${
+                  btn.disabled
+                    ? 'text-white/30 cursor-not-allowed'
+                    : btn.active
+                    ? 'bg-emerald-500/30 text-white ring-1 ring-emerald-400/60 hover:bg-emerald-500/40'
+                    : 'text-white/80 hover:bg-white/10 hover:text-white'
+                } ${openAction === btn.key ? 'bg-white/15 text-white' : ''}`}
+                title={btn.active ? 'All selected loads are already marked — click to unmark' : undefined}
+              >
+                <Icon className="w-3.5 h-3.5" strokeWidth={1.75} />
+                <span>{btn.label}</span>
+              </button>
+            );
+          })}
+
+          {/* Close */}
+          <button
+            type="button"
+            onClick={onClear}
+            className="ml-1 text-white/60 hover:text-white rounded p-1"
+            title="Clear selection"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {renderOpenPopover()}
+    </>
+  );
+}
+
+// ============================================================
+// Form components for each popover
+// ============================================================
+
+function FormBtn({ children, onClick, disabled }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="w-full rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-slate-600 text-white py-2 text-sm font-medium transition-colors mt-2"
+    >
+      {children}
+    </button>
+  );
+}
+
+function TextField({ label, value, onChange, placeholder }) {
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={label || placeholder}
+      className="block w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40"
+    />
+  );
+}
+
+function SelectField({ label, value, options, onChange }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-gray-600 dark:text-slate-300 mb-0.5">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="block w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm text-gray-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40"
+      >
+        <option value="">— Select —</option>
+        {(options || []).map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function DateField({ label, value, onChange, type = 'date' }) {
+  const use24h = useTenantTimeFormat();
+  const showTime = type === 'datetime-local';
+  return (
+    <DateTimePicker
+      label={label}
+      value={value || null}
+      onChange={(v) => onChange(v || '')}
+      showTime={showTime}
+      use24h={use24h}
+    />
+  );
+}
+
+// ===== Edit Dates popover =====
+function DatesForm({ onSubmit }) {
+  const [form, setForm] = useState({
+    last_free_day: '',
+    empty_date: '',
+    per_diem_free_day: '',
+    cutoff_date: '',
+    container_eta: '',
+  });
+
+  function patch() {
+    const out = {};
+    if (form.last_free_day) out.last_free_day = form.last_free_day;
+    if (form.empty_date) out.empty_date = form.empty_date;
+    if (form.per_diem_free_day) out.per_diem_free_day = form.per_diem_free_day;
+    if (form.cutoff_date) out.cutoff_date = form.cutoff_date;
+    if (form.container_eta) out.container_eta = form.container_eta;
+    return out;
+  }
+
+  return (
+    <div className="space-y-2">
+      <DateField label="Last Free Day" value={form.last_free_day} onChange={(v) => setForm({ ...form, last_free_day: v })} />
+      <DateField label="Empty Date" value={form.empty_date} onChange={(v) => setForm({ ...form, empty_date: v })} />
+      <DateField label="Per Diem Free Day" value={form.per_diem_free_day} onChange={(v) => setForm({ ...form, per_diem_free_day: v })} />
+      <DateField label="CUT" value={form.cutoff_date} onChange={(v) => setForm({ ...form, cutoff_date: v })} type="datetime-local" />
+      <DateField label="ETA Date" value={form.container_eta} onChange={(v) => setForm({ ...form, container_eta: v })} type="datetime-local" />
+      <FormBtn
+        disabled={Object.keys(patch()).length === 0}
+        onClick={() => onSubmit(patch())}
+      >
+        Add Load Times
+      </FormBtn>
+    </div>
+  );
+}
+
+// ===== Appointment window form (used for pickup/delivery/return) =====
+function AptWindowForm({ fromField, toField, submitLabel, onSubmit }) {
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+
+  function patch() {
+    const out = {};
+    if (from) out[fromField] = from;
+    if (to) out[toField] = to;
+    return out;
+  }
+
+  return (
+    <div className="space-y-2">
+      <DateField label="From" value={from} onChange={setFrom} type="datetime-local" />
+      <DateField label="To" value={to} onChange={setTo} type="datetime-local" />
+      <FormBtn disabled={Object.keys(patch()).length === 0} onClick={() => onSubmit(patch())}>
+        {submitLabel}
+      </FormBtn>
+    </div>
+  );
+}
+
+// ===== Edit Reference #s popover =====
+function ReferencesForm({ onSubmit }) {
+  const [form, setForm] = useState({
+    bill_of_lading: '',
+    booking_number: '',
+    house_bol: '',
+    pickup_number: '',
+    customer_reference: '',
+    return_number: '',
+    shipment_number: '',
+    seal_number: '',
+    vessel_name: '',
+    voyage_number: '',
+    appointment_number: '',
+    reservation_number: '',
+  });
+
+  function patch() {
+    const out = {};
+    for (const [k, v] of Object.entries(form)) {
+      if (v && v.trim()) out[k] = v.trim();
+    }
+    return out;
+  }
+
+  return (
+    <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+      <TextField label="Master Bill of Lading" value={form.bill_of_lading} onChange={(v) => setForm({ ...form, bill_of_lading: v })} />
+      <TextField label="Booking #" value={form.booking_number} onChange={(v) => setForm({ ...form, booking_number: v })} />
+      <TextField label="House Bill of Lading" value={form.house_bol} onChange={(v) => setForm({ ...form, house_bol: v })} />
+      <TextField label="Pick Up #" value={form.pickup_number} onChange={(v) => setForm({ ...form, pickup_number: v })} />
+      <TextField label="Reference #" value={form.customer_reference} onChange={(v) => setForm({ ...form, customer_reference: v })} />
+      <TextField label="Return #" value={form.return_number} onChange={(v) => setForm({ ...form, return_number: v })} />
+      <TextField label="Shipment #" value={form.shipment_number} onChange={(v) => setForm({ ...form, shipment_number: v })} />
+      <TextField label="Seal #" value={form.seal_number} onChange={(v) => setForm({ ...form, seal_number: v })} />
+      <TextField label="Vessel Name" value={form.vessel_name} onChange={(v) => setForm({ ...form, vessel_name: v })} />
+      <TextField label="Voyage" value={form.voyage_number} onChange={(v) => setForm({ ...form, voyage_number: v })} />
+      <TextField label="Appointment #" value={form.appointment_number} onChange={(v) => setForm({ ...form, appointment_number: v })} />
+      <TextField label="Reservation #" value={form.reservation_number} onChange={(v) => setForm({ ...form, reservation_number: v })} />
+      <FormBtn disabled={Object.keys(patch()).length === 0} onClick={() => onSubmit(patch())}>
+        Add References
+      </FormBtn>
+    </div>
+  );
+}
+
+// ===== Edit Equipment Info popover =====
+function EquipmentInfoForm({ onSubmit }) {
+  const [form, setForm] = useState({
+    genset_temperature: '',
+    container_type: '',
+    container_size: '',
+    chassis_number: '',
+    chassis_type: '',
+    chassis_size: '',
+    genset_number: '',
+    chassis_owner: '',
+    genset_route: '',
+    steamship_line_scac: '',
+    is_liquor: false,
+    is_overweight: false,
+    is_hot: false,
+    is_bonded: false,
+    is_double: false,
+    is_hazmat: false,
+    is_oog: false,
+    is_ev: false,
+    is_tanker: false,
+  });
+  const [sizeOpts, setSizeOpts] = useState([]);
+  const [typeOpts, setTypeOpts] = useState([]);
+  const [chassisSizeOpts, setChassisSizeOpts] = useState([]);
+  const [chassisTypeOpts, setChassisTypeOpts] = useState([]);
+
+  // Fetch reference data once on mount
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/tenant/container-sizes?enabled=true').then((r) => r.ok ? r.json() : { items: [] }),
+      fetch('/api/tenant/container-types?enabled=true').then((r) => r.ok ? r.json() : { items: [] }),
+      fetch('/api/tenant/chassis-sizes?enabled=true').then((r) => r.ok ? r.json() : { items: [] }),
+      fetch('/api/tenant/chassis-types?enabled=true').then((r) => r.ok ? r.json() : { items: [] }),
+    ]).then(([sizes, types, cSizes, cTypes]) => {
+      setSizeOpts((sizes.items || []).map((s) => ({ value: s.code, label: s.label })));
+      setTypeOpts((types.items || []).map((s) => ({ value: s.label, label: s.label })));
+      setChassisSizeOpts((cSizes.items || []).map((s) => ({ value: s.code, label: s.label })));
+      setChassisTypeOpts((cTypes.items || []).map((s) => ({ value: s.label, label: s.label })));
+    }).catch(() => {});
+  }, []);
+
+  function patch() {
+    const out = {};
+    for (const [k, v] of Object.entries(form)) {
+      if (typeof v === 'boolean' && v === true) out[k] = true;
+      else if (typeof v === 'string' && v.trim()) out[k] = v.trim();
+      else if (typeof v === 'number') out[k] = v;
+    }
+    return out;
+  }
+
+  function flagBtn(key, label) {
+    const active = form[key];
+    return (
+      <button
+        type="button"
+        onClick={() => setForm({ ...form, [key]: !active })}
+        className={`text-[11px] px-2 py-1 rounded border ${
+          active
+            ? 'bg-blue-500 text-white border-blue-500'
+            : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-300 border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500'
+        }`}
+      >
+        {label}
+      </button>
+    );
+  }
+
+  return (
+    <div className="space-y-2 max-h-[65vh] overflow-y-auto">
+      <div className="grid grid-cols-2 gap-2">
+        <TextField label="Temperature" value={form.genset_temperature} onChange={(v) => setForm({ ...form, genset_temperature: v })} />
+        <SelectField label="Container Size" value={form.container_size} options={sizeOpts} onChange={(v) => setForm({ ...form, container_size: v })} />
+        <SelectField label="Container Type" value={form.container_type} options={typeOpts} onChange={(v) => setForm({ ...form, container_type: v })} />
+        <TextField label="SSL SCAC" value={form.steamship_line_scac} onChange={(v) => setForm({ ...form, steamship_line_scac: v })} />
+        <TextField label="Chassis #" value={form.chassis_number} onChange={(v) => setForm({ ...form, chassis_number: v })} />
+        <SelectField label="Chassis Size" value={form.chassis_size} options={chassisSizeOpts} onChange={(v) => setForm({ ...form, chassis_size: v })} />
+        <SelectField label="Chassis Type" value={form.chassis_type} options={chassisTypeOpts} onChange={(v) => setForm({ ...form, chassis_type: v })} />
+        <TextField label="Chassis Owner" value={form.chassis_owner} onChange={(v) => setForm({ ...form, chassis_owner: v })} />
+        <TextField label="Genset #" value={form.genset_number} onChange={(v) => setForm({ ...form, genset_number: v })} />
+        <TextField label="Genset Route" value={form.genset_route} onChange={(v) => setForm({ ...form, genset_route: v })} />
+      </div>
+      <div className="pt-2 border-t border-gray-100 dark:border-slate-800">
+        <div className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-slate-400 mb-1.5">
+          Toggle flags (only enabled flags will be set to true)
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {flagBtn('is_liquor', 'Liquor')}
+          {flagBtn('is_overweight', 'Overweight')}
+          {flagBtn('is_hot', 'Hot')}
+          {flagBtn('is_bonded', 'Bonded')}
+          {flagBtn('is_double', 'Double')}
+          {flagBtn('is_hazmat', 'Hazmat')}
+          {flagBtn('is_oog', 'OOG')}
+          {flagBtn('is_ev', 'EV')}
+          {flagBtn('is_tanker', 'Tanker')}
+        </div>
+      </div>
+      <FormBtn disabled={Object.keys(patch()).length === 0} onClick={() => onSubmit(patch())}>
+        Add Equipment Info
+      </FormBtn>
+    </div>
+  );
+}
+
+// ===== Edit Load Info popover =====
+function LoadInfoForm({ onSubmit }) {
+  const [form, setForm] = useState({
+    pickup_location_id: null,
+    delivery_location_id: null,
+    return_location_id: null,
+    notes: '',
+    internal_notes: '',
+  });
+  const [labels, setLabels] = useState({});
+
+  function patch() {
+    const out = {};
+    if (form.pickup_location_id) out.pickup_location_id = form.pickup_location_id;
+    if (form.delivery_location_id) out.delivery_location_id = form.delivery_location_id;
+    if (form.return_location_id) out.return_location_id = form.return_location_id;
+    if (form.notes && form.notes.trim()) out.notes = form.notes.trim();
+    if (form.internal_notes && form.internal_notes.trim())
+      out.internal_notes = form.internal_notes.trim();
+    return out;
+  }
+
+  return (
+    <div className="space-y-2 max-h-[65vh] overflow-y-auto">
+      <OrgPicker
+        placeholder="Terminal"
+        type="terminal"
+        value={form.pickup_location_id}
+        valueLabel={labels.pickup}
+        onChange={(org) => {
+          setForm({ ...form, pickup_location_id: org?.id || null });
+          setLabels({ ...labels, pickup: org?.name || '' });
+        }}
+      />
+      <OrgPicker
+        placeholder="Warehouse"
+        type="warehouse"
+        value={form.delivery_location_id}
+        valueLabel={labels.delivery}
+        onChange={(org) => {
+          setForm({ ...form, delivery_location_id: org?.id || null });
+          setLabels({ ...labels, delivery: org?.name || '' });
+        }}
+      />
+      <OrgPicker
+        placeholder="Container Return"
+        type="terminal"
+        value={form.return_location_id}
+        valueLabel={labels.return_}
+        onChange={(org) => {
+          setForm({ ...form, return_location_id: org?.id || null });
+          setLabels({ ...labels, return_: org?.name || '' });
+        }}
+      />
+      <textarea
+        value={form.notes}
+        onChange={(e) => setForm({ ...form, notes: e.target.value })}
+        placeholder="Load Notes"
+        rows={2}
+        className="block w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40 resize-none"
+      />
+      <textarea
+        value={form.internal_notes}
+        onChange={(e) => setForm({ ...form, internal_notes: e.target.value })}
+        placeholder="Driver Notes"
+        rows={2}
+        className="block w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40 resize-none"
+      />
+      <FormBtn disabled={Object.keys(patch()).length === 0} onClick={() => onSubmit(patch())}>
+        Add Load Info
+      </FormBtn>
+    </div>
+  );
+}

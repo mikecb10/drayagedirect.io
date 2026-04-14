@@ -1,0 +1,379 @@
+import {
+  requireTenantUser,
+  requirePermission,
+  getServiceClient,
+} from '../../../../../lib/tenant-api';
+import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
+import { PERMISSIONS } from '../../../../../lib/permissions';
+import { fireFieldChangeTriggers, fireStatusChangeTriggers } from '../../../../../lib/email-dispatch';
+import { findMatchingCharges, applyChargesToLoad } from '../../../../../lib/tariff-engine';
+
+// NOTE: load_type is intentionally NOT editable — the load number has the
+// type letter baked in (M/N/E/O/R/B), so changing the type would make the
+// load number misleading. Users must delete + recreate to change load type.
+const EDITABLE_FIELDS = [
+  'customer_id',
+  'status',
+  'routing_template_id',
+  'routing_template_name',
+  'pickup_location_id',
+  'delivery_location_id',
+  'return_location_id',
+  'final_delivery_location_id',
+  'trailer_id',
+  'container_owner_id',
+  'container_type_id',
+  'container_size_id',
+  'chassis_type_id',
+  'chassis_size_id',
+  // Cargo metrics
+  'piece_count',
+  'pallet_count',
+  'weight_kg',
+  'commodity_description',
+  // Dates
+  'pickup_date',
+  'delivery_date',
+  'cutoff_date',
+  'last_free_day',
+  'vessel_eta',
+  'discharge_date',
+  'outgate_date',
+  'empty_date',
+  'per_diem_free_day',
+  'ingate_date',
+  'ready_to_return_date',
+  // Container / equipment
+  'container_number',
+  'container_size',
+  'container_type',
+  'seal_number',
+  'chassis_number',
+  'chassis_size',
+  'chassis_type',
+  'chassis_owner',
+  'steamship_line',
+  'steamship_line_scac',
+  'genset_number',
+  'genset_temperature',
+  'genset_route',
+  'genset_scac',
+  'weight_lbs',
+  // Flags
+  'is_hazmat',
+  'is_overweight',
+  'is_overheight',
+  'is_liquor',
+  'is_hot',
+  'is_genset',
+  'is_scale',
+  'is_ev',
+  'is_street_turn',
+  'is_oog',
+  'is_bonded',
+  'is_double',
+  'is_tanker',
+  'is_bill_only',
+  // References
+  'bill_of_lading',
+  'house_bol',
+  'booking_number',
+  'customer_reference',
+  'po_numbers',
+  'vessel_name',
+  'voyage_number',
+  'shipment_number',
+  'pickup_number',
+  'appointment_number',
+  'return_number',
+  'reservation_number',
+  'delivery_reference',
+  'work_order',
+  // Appointment windows
+  'pickup_apt_from',
+  'pickup_apt_to',
+  'delivery_apt_from',
+  'delivery_apt_to',
+  'return_apt_from',
+  'return_apt_to',
+  // Chassis locations
+  'hook_chassis_location_id',
+  'terminate_chassis_location_id',
+  // Assignment
+  'driver_id',
+  'dispatched_at',
+  'branch_id',
+  // Notes
+  'notes',
+  'internal_notes',
+];
+
+export default async function handler(req, res) {
+  const ctx = await requireTenantUser(req, res);
+  if (!ctx) return;
+
+  const { id } = req.query;
+  const svc = getServiceClient();
+
+  if (req.method === 'GET') {
+    if (
+      !requirePermission(
+        ctx,
+        [PERMISSIONS.DISPATCHING, PERMISSIONS.ORDER_ENTRY, PERMISSIONS.ALL],
+        res
+      )
+    )
+      return;
+
+    const { data, error } = await svc
+      .from('orders')
+      .select(
+        `
+        *,
+        customer:customers!orders_customer_id_fkey(id, name, main_phone, main_contact_name),
+        pickup_org:customers!orders_pickup_location_id_fkey(id, name, address_line1, city, state, zip),
+        delivery_org:customers!orders_delivery_location_id_fkey(id, name, address_line1, city, state, zip),
+        return_org:customers!orders_return_location_id_fkey(id, name, address_line1, city, state, zip),
+        final_delivery_org:customers!orders_final_delivery_location_id_fkey(id, name, address_line1, city, state, zip),
+        driver:drivers(id, first_name, last_name, name, phone),
+        container_owner:container_owners(id, name, label, scac_code),
+        created_by_user:users!orders_created_by_fkey(id, name, email)
+      `
+      )
+      .eq('tenant_id', ctx.tenantId)
+      .eq('id', id)
+      .is('deleted_at', null)
+      .single();
+
+    if (error || !data) return res.status(404).json({ error: 'Load not found' });
+
+    // Fetch holds
+    const { data: holds } = await svc
+      .from('order_holds')
+      .select('*')
+      .eq('tenant_id', ctx.tenantId)
+      .eq('order_id', id);
+
+    return res.status(200).json({ load: data, holds: holds || [] });
+  }
+
+  if (req.method === 'PUT') {
+    if (!requirePermission(ctx, [PERMISSIONS.ORDER_ENTRY, PERMISSIONS.ALL], res)) return;
+
+    const updates = {};
+    for (const field of EDITABLE_FIELDS) {
+      if (req.body[field] !== undefined) {
+        updates[field] = req.body[field];
+      }
+    }
+
+    // If pickup/delivery location changed, refresh denormalized snapshot fields
+    if (updates.pickup_location_id !== undefined) {
+      if (updates.pickup_location_id) {
+        const { data: loc } = await svc
+          .from('customers')
+          .select('address_line1, city, state, zip')
+          .eq('tenant_id', ctx.tenantId)
+          .eq('id', updates.pickup_location_id)
+          .maybeSingle();
+        if (loc) {
+          updates.origin_address = loc.address_line1;
+          updates.origin_city = loc.city;
+          updates.origin_state = loc.state;
+          updates.origin_zip = loc.zip;
+        }
+      }
+    }
+    if (updates.delivery_location_id !== undefined) {
+      if (updates.delivery_location_id) {
+        const { data: loc } = await svc
+          .from('customers')
+          .select('address_line1, city, state, zip')
+          .eq('tenant_id', ctx.tenantId)
+          .eq('id', updates.delivery_location_id)
+          .maybeSingle();
+        if (loc) {
+          updates.destination_address = loc.address_line1;
+          updates.destination_city = loc.city;
+          updates.destination_state = loc.state;
+          updates.destination_zip = loc.zip;
+        }
+      }
+    }
+
+    const { data: oldLoad } = await svc
+      .from('orders')
+      .select('*')
+      .eq('tenant_id', ctx.tenantId)
+      .eq('id', id)
+      .is('deleted_at', null)
+      .single();
+
+    if (!oldLoad) return res.status(404).json({ error: 'Load not found' });
+
+    // ================================================================
+    // Rail/Port Check-In Slip auto-unverify cascade
+    // ================================================================
+    //
+    // The slip is the 6 fields the dispatcher gives the driver to read
+    // off at rail/port check-in. Once verified (rail_slip_verified_at
+    // is set), any change to ANY of those fields invalidates the
+    // verification — the dispatcher needs to re-verify against the
+    // updated values to make sure the new value still matches the BOL.
+    //
+    // Only fires when:
+    //   - The load is currently verified (rail_slip_verified_at != null)
+    //   - At least one of the 6 slip fields is in the incoming patch
+    //   - The new value actually differs from the old value
+    // ================================================================
+    const SLIP_FIELDS = [
+      'container_number',
+      'seal_number',
+      'piece_count',
+      'weight_lbs',
+      'customer_reference',
+      'final_delivery_location_id',
+    ];
+    if (oldLoad.rail_slip_verified_at) {
+      const slipFieldChanged = SLIP_FIELDS.some(
+        (f) => f in updates && updates[f] !== oldLoad[f]
+      );
+      if (slipFieldChanged) {
+        updates.rail_slip_verified_at = null;
+        updates.rail_slip_verified_by = null;
+      }
+    }
+
+    const { data, error } = await svc
+      .from('orders')
+      .update(updates)
+      .eq('tenant_id', ctx.tenantId)
+      .eq('id', id)
+      .is('deleted_at', null)
+      .select()
+      .single();
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    await logTenantAction(svc, {
+      tenantId: ctx.tenantId,
+      userId: ctx.userId,
+      action: 'load.update',
+      entityType: 'order',
+      entityId: id,
+      oldValues: oldLoad,
+      newValues: data,
+      ipAddress: getClientIp(req),
+    });
+
+    // If the cascade just unverified the slip, log a separate audit
+    // entry so the timeline shows WHY verification was lost.
+    if (
+      oldLoad.rail_slip_verified_at &&
+      'rail_slip_verified_at' in updates &&
+      updates.rail_slip_verified_at === null
+    ) {
+      await logTenantAction(svc, {
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        action: 'load.rail_slip_auto_unverified',
+        entityType: 'order',
+        entityId: id,
+        oldValues: { rail_slip_verified_at: oldLoad.rail_slip_verified_at },
+        newValues: {
+          changed_fields: SLIP_FIELDS.filter(
+            (f) => f in updates && updates[f] !== oldLoad[f]
+          ),
+        },
+        ipAddress: getClientIp(req),
+      });
+    }
+
+    // Fire any field-change email triggers — fire-and-forget so the PUT
+    // never fails if the trigger engine hiccups. Bulk updates do NOT run
+    // this path (see pages/api/tenant/loads/bulk-update.js header comment).
+    fireFieldChangeTriggers(svc, {
+      tenantId: ctx.tenantId,
+      loadId: id,
+      oldLoad,
+      newLoad: data,
+      userId: ctx.userId,
+    }).catch((e) => console.error('fireFieldChangeTriggers error:', e));
+
+    // Fire status-change triggers when the load's status transitions.
+    // Also writes to order_status_history for the polled worker to
+    // evaluate delayed triggers later.
+    if (oldLoad.status !== data.status) {
+      fireStatusChangeTriggers(svc, {
+        tenantId: ctx.tenantId,
+        loadId: id,
+        oldStatus: oldLoad.status,
+        newStatus: data.status,
+        userId: ctx.userId,
+      }).catch((e) => console.error('fireStatusChangeTriggers error:', e));
+    }
+
+    // Auto-recalculate tariff charges when pricing-relevant fields change.
+    // "Replace auto, keep manual" — only is_auto=true lines get replaced.
+    const PRICING_FIELDS = [
+      'customer_id', 'pickup_location_id', 'delivery_location_id', 'return_location_id',
+      'container_type', 'container_size', 'container_type_id', 'container_size_id',
+      'container_owner_id', 'chassis_type', 'chassis_size', 'chassis_owner',
+      'is_hazmat', 'is_overweight', 'is_overheight', 'is_hot', 'is_genset',
+      'is_scale', 'is_ev', 'is_street_turn', 'is_oog', 'is_bonded',
+      'is_double', 'is_tanker', 'is_liquor', 'load_type', 'branch_id',
+    ];
+    const pricingChanged = PRICING_FIELDS.some((f) => f in updates && updates[f] !== oldLoad[f]);
+    if (pricingChanged) {
+      findMatchingCharges(svc, data, ctx.tenantId)
+        .then((charges) => {
+          if (charges.length > 0) {
+            return applyChargesToLoad(svc, id, ctx.tenantId, charges);
+          }
+        })
+        .catch((e) => console.error('tariff auto-apply error:', e));
+    }
+
+    // Auto-generate driver pay when driver is assigned
+    if ('driver_id' in updates && updates.driver_id && updates.driver_id !== oldLoad.driver_id) {
+      import('../../../../../lib/driver-tariff-engine')
+        .then(({ findMatchingDriverCharges, applyDriverPayToLoad }) =>
+          findMatchingDriverCharges(svc, data, updates.driver_id, ctx.tenantId)
+            .then((charges) => {
+              if (charges.length > 0) {
+                return applyDriverPayToLoad(svc, id, updates.driver_id, ctx.tenantId, charges);
+              }
+            })
+        )
+        .catch((e) => console.error('driver tariff auto-apply error:', e));
+    }
+
+    return res.status(200).json({ load: data });
+  }
+
+  if (req.method === 'DELETE') {
+    if (!requirePermission(ctx, [PERMISSIONS.ALL], res)) return;
+
+    const { error } = await svc
+      .from('orders')
+      .update({ deleted_at: new Date().toISOString(), status: 'cancelled' })
+      .eq('tenant_id', ctx.tenantId)
+      .eq('id', id)
+      .is('deleted_at', null);
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    await logTenantAction(svc, {
+      tenantId: ctx.tenantId,
+      userId: ctx.userId,
+      action: 'load.delete',
+      entityType: 'order',
+      entityId: id,
+      ipAddress: getClientIp(req),
+    });
+
+    return res.status(200).json({ success: true });
+  }
+
+  return res.status(405).json({ error: 'Method not allowed' });
+}

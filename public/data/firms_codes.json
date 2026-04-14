@@ -1,0 +1,1780 @@
+[
+  {
+    "name": "AIR FREIGHT EXPRESS",
+    "facilityType": "TERMINAL",
+    "city": "ATLANTA",
+    "state": "GA",
+    "firmsCode": "N035"
+  },
+  {
+    "name": "PORTS AMERICA / SEAGIRT MARINE",
+    "facilityType": "TERMINAL",
+    "city": "BALTIMORE",
+    "state": "MD",
+    "firmsCode": "C324"
+  },
+  {
+    "name": "UNIVERSAL MARITIME SERVICE",
+    "facilityType": "TERMINAL",
+    "city": "BALTIMORE",
+    "state": "MD",
+    "firmsCode": "C588"
+  },
+  {
+    "name": "CONLEY MARINE TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "BOSTON",
+    "state": "MA",
+    "firmsCode": "A295"
+  },
+  {
+    "name": "APM TERMINALS",
+    "facilityType": "TERMINAL",
+    "city": "ELIZABETH",
+    "state": "NJ",
+    "firmsCode": "E425"
+  },
+  {
+    "name": "E-RAIL TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "ELIZABETH",
+    "state": "NJ",
+    "firmsCode": "E962"
+  },
+  {
+    "name": "MAHER TERMINAL- TRIPOLI",
+    "facilityType": "TERMINAL",
+    "city": "ELIZABETH",
+    "state": "NJ",
+    "firmsCode": "E592"
+  },
+  {
+    "name": "MAHER TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "ELIZABETH",
+    "state": "NJ",
+    "firmsCode": "E416"
+  },
+  {
+    "name": "PORT TO PORT INC TERMINAL ELK",
+    "facilityType": "GROVE",
+    "city": "VILLAGE",
+    "state": "IL",
+    "firmsCode": "J930"
+  },
+  {
+    "name": "FLORIDA INTERNATIONAL TERM LLC TERMINAL",
+    "facilityType": "FORT",
+    "city": "LAUDERDALE",
+    "state": "FL",
+    "firmsCode": "N751"
+  },
+  {
+    "name": "VIRGINIA INLAND PORT TERMINAL",
+    "facilityType": "FRONT",
+    "city": "ROYAL",
+    "state": "VA",
+    "firmsCode": "LAQ5"
+  },
+  {
+    "name": "PORT EVERGLADES TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "HOLLYWOOD",
+    "state": "FL",
+    "firmsCode": "O664"
+  },
+  {
+    "name": "HAWAII STEVEDORES INC",
+    "facilityType": "TERMINAL",
+    "city": "HONOLULU",
+    "state": "HI",
+    "firmsCode": "Y170"
+  },
+  {
+    "name": "MATSON TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "HONOLULU",
+    "state": "HI",
+    "firmsCode": "X973"
+  },
+  {
+    "name": "PASHA HAWAII",
+    "facilityType": "TERMINAL",
+    "city": "HONOLULU",
+    "state": "HI",
+    "firmsCode": "X803"
+  },
+  {
+    "name": "BARBOURS CUT TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "HOUSTON",
+    "state": "TX",
+    "firmsCode": "S787"
+  },
+  {
+    "name": "CONTAINER MAINTENANCE CORP",
+    "facilityType": "TERMINAL",
+    "city": "JACKSONVILLE",
+    "state": "FL",
+    "firmsCode": "L107"
+  },
+  {
+    "name": "APM TERMINAL JACKSONVILLE",
+    "facilityType": "TERMINAL",
+    "city": "JACKSONVILLE",
+    "state": "FL",
+    "firmsCode": "N296"
+  },
+  {
+    "name": "TRAPAC TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "JACKSONVILLE",
+    "state": "FL",
+    "firmsCode": "M029"
+  },
+  {
+    "name": "JACKSONVILLE INT GATEWAY",
+    "facilityType": "TERMINAL",
+    "city": "JACKSONVILLE",
+    "state": "FL",
+    "firmsCode": "N296"
+  },
+  {
+    "name": "NAVIOTEX",
+    "facilityType": "TERMINAL",
+    "city": "LAREDO",
+    "state": "TX",
+    "firmsCode": "U251"
+  },
+  {
+    "name": "LONG BEACH CONTAINER TERMINAL (LBCTI) TERMINAL",
+    "facilityType": "LONG",
+    "city": "BEACH",
+    "state": "CA",
+    "firmsCode": "W183"
+  },
+  {
+    "name": "TOTAL TERMINALS INTERNATIONAL TERMINAL",
+    "facilityType": "LONG",
+    "city": "BEACH",
+    "state": "CA",
+    "firmsCode": "Z952"
+  },
+  {
+    "name": "PRICE TRANSFER TERMINAL",
+    "facilityType": "LONG",
+    "city": "BEACH",
+    "state": "CA",
+    "firmsCode": "Y091"
+  },
+  {
+    "name": "PACIFIC CONTAINER TERMINAL (PCT) TERMINAL",
+    "facilityType": "LONG",
+    "city": "BEACH",
+    "state": "CA",
+    "firmsCode": "W182"
+  },
+  {
+    "name": "UPRR - ICTF TERMINAL",
+    "facilityType": "LONG",
+    "city": "BEACH",
+    "state": "CA",
+    "firmsCode": "Y381"
+  },
+  {
+    "name": "SSA PIER A TERMINAL",
+    "facilityType": "LONG",
+    "city": "BEACH",
+    "state": "CA",
+    "firmsCode": "Z978"
+  },
+  {
+    "name": "LONG BEACH CONTAINER TERM TERMINAL",
+    "facilityType": "LONG",
+    "city": "BEACH",
+    "state": "CA",
+    "firmsCode": "WAC8"
+  },
+  {
+    "name": "FENIX MARINE TERMINAL TERMINAL",
+    "facilityType": "LOS",
+    "city": "ANGELES",
+    "state": "CA",
+    "firmsCode": "Y257"
+  },
+  {
+    "name": "YUSE TERMINALS, INC. (YTI) TERMINAL",
+    "facilityType": "LOS",
+    "city": "ANGELES",
+    "state": "CA",
+    "firmsCode": "Y790"
+  },
+  {
+    "name": "APM TERMINALS PACIFIC LTD TERMINAL",
+    "facilityType": "LOS",
+    "city": "ANGELES",
+    "state": "CA",
+    "firmsCode": "W185"
+  },
+  {
+    "name": "CALIFORNIA UNITED TERMINALS TERMINAL",
+    "facilityType": "LOS",
+    "city": "ANGELES",
+    "state": "CA",
+    "firmsCode": "W347"
+  },
+  {
+    "name": "TRANS PACIFIC CONTAINER SERVICE CORP (TRAPAC) L.A. TERMINAL",
+    "facilityType": "LOS",
+    "city": "ANGELES",
+    "state": "CA",
+    "firmsCode": "Y258"
+  },
+  {
+    "name": "WEST BASIN CONTAINER TERMINAL TERMINAL",
+    "facilityType": "LOS",
+    "city": "ANGELES",
+    "state": "CA",
+    "firmsCode": "Y773"
+  },
+  {
+    "name": "IN-TRANSIT CONTAINER",
+    "facilityType": "TERMINAL",
+    "city": "MANSFIELD",
+    "state": "MA",
+    "firmsCode": "D304"
+  },
+  {
+    "name": "SOUTH FLORIDA CONTAINER TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "MIAMI",
+    "state": "FL",
+    "firmsCode": "N775"
+  },
+  {
+    "name": "POMTOC",
+    "facilityType": "TERMINAL",
+    "city": "MIAMI",
+    "state": "FL",
+    "firmsCode": "L239"
+  },
+  {
+    "name": "SOUTHERN INTERMODAL EXPRESS",
+    "facilityType": "TERMINAL",
+    "city": "MOBILE",
+    "state": "AL",
+    "firmsCode": "Q944"
+  },
+  {
+    "name": "APM TERMINALS MOBILE ALABAMA",
+    "facilityType": "TERMINAL",
+    "city": "MOBILE",
+    "state": "AL",
+    "firmsCode": "R103"
+  },
+  {
+    "name": "WANDO WELCH TERMINAL TERMINAL",
+    "facilityType": "MOUNT",
+    "city": "PLEASANT",
+    "state": "SC",
+    "firmsCode": "N598"
+  },
+  {
+    "name": "NORTH CHARLESTON TERMINAL TERMINAL",
+    "facilityType": "N",
+    "city": "CHARLESTON",
+    "state": "SC",
+    "firmsCode": "L391"
+  },
+  {
+    "name": "NAPOLEON TERMINAL TERMINAL",
+    "facilityType": "NEW",
+    "city": "ORLEANS",
+    "state": "LA",
+    "firmsCode": "P260"
+  },
+  {
+    "name": "P&O PORTS- LOUISIANA TERMINAL",
+    "facilityType": "NEW",
+    "city": "ORLEANS",
+    "state": "LA",
+    "firmsCode": "P280"
+  },
+  {
+    "name": "PORT NEWARK CONTAINER TERMINAL (PNCT) TERMINAL",
+    "facilityType": "NEW",
+    "city": "YORK",
+    "state": "NJ",
+    "firmsCode": "F577"
+  },
+  {
+    "name": "GLOBAL TERM. & CONTAINER SERV. INC. TERMINAL",
+    "facilityType": "NEW",
+    "city": "YORK",
+    "state": "NJ",
+    "firmsCode": "E364"
+  },
+  {
+    "name": "NEW YORK CONTAINER TERMINAL INC. (GCT) TERMINAL",
+    "facilityType": "NEW",
+    "city": "YORK",
+    "state": "NY",
+    "firmsCode": "E005"
+  },
+  {
+    "name": "RED HOOK CONTAINER TER NEWARK",
+    "facilityType": "TERMINAL",
+    "city": "NEWARK",
+    "state": "NJ",
+    "firmsCode": "E026"
+  },
+  {
+    "name": "NEWPORT NEWS MARINE TERMINAL TERMINAL",
+    "facilityType": "NEWPORT",
+    "city": "NEWS",
+    "state": "VA",
+    "firmsCode": "N778"
+  },
+  {
+    "name": "NIT TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "NORFOLK",
+    "state": "VA",
+    "firmsCode": "L005"
+  },
+  {
+    "name": "TRANS PACIFIC CONTAINER SERVICE CORP(TRAPAC) OAKLAND",
+    "facilityType": "TERMINAL",
+    "city": "OAKLAND",
+    "state": "CA",
+    "firmsCode": "Y549"
+  },
+  {
+    "name": "TOTAL TERMINALS INTERNATIONAL (TTI)",
+    "facilityType": "TERMINAL",
+    "city": "OAKLAND",
+    "state": "CA",
+    "firmsCode": "Z855"
+  },
+  {
+    "name": "STEVEDORING SERVICES OF AMERICA - Berth 58",
+    "facilityType": "TERMINAL",
+    "city": "OAKLAND",
+    "state": "CA",
+    "firmsCode": "Z985"
+  },
+  {
+    "name": "EVERPORT TERMINAL SERVICES",
+    "facilityType": "TERMINAL",
+    "city": "OAKLAND",
+    "state": "CA",
+    "firmsCode": "WBA5"
+  },
+  {
+    "name": "PORTS AMERICA OUTER HARBOR",
+    "facilityType": "TERMINAL",
+    "city": "OAKLAND",
+    "state": "CA",
+    "firmsCode": "W297"
+  },
+  {
+    "name": "MATSON (BERTH 63)",
+    "facilityType": "TERMINAL",
+    "city": "OAKLAND",
+    "state": "CA",
+    "firmsCode": "W614"
+  },
+  {
+    "name": "BAYPORT CONTAINER TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "PASADENA",
+    "state": "TX",
+    "firmsCode": "V136"
+  },
+  {
+    "name": "PACKER AVENUE MARINE TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "PHILADELPHIA",
+    "state": "PA",
+    "firmsCode": "C095"
+  },
+  {
+    "name": "KNIGHT TRANSPORTATION",
+    "facilityType": "TERMINAL",
+    "city": "PHOENIX",
+    "state": "AZ",
+    "firmsCode": "V391"
+  },
+  {
+    "name": "INTERNATIONAL MARITIME TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "PORTLAND",
+    "state": "ME",
+    "firmsCode": "B760"
+  },
+  {
+    "name": "NORTHWEST CONTAINER",
+    "facilityType": "TERMINAL",
+    "city": "PORTLAND",
+    "state": "OR",
+    "firmsCode": "X100"
+  },
+  {
+    "name": "TERMINAL 6",
+    "facilityType": "TERMINAL",
+    "city": "PORTLAND",
+    "state": "OR",
+    "firmsCode": "X005"
+  },
+  {
+    "name": "CONGLOBAL INDUSTRIES",
+    "facilityType": "TERMINAL",
+    "city": "PORTLAND",
+    "state": "WA",
+    "firmsCode": "W114"
+  },
+  {
+    "name": "APM TERMINALS VIRGINIA",
+    "facilityType": "TERMINAL",
+    "city": "PORTSMOUTH",
+    "state": "VA",
+    "firmsCode": "N195"
+  },
+  {
+    "name": "PORTSMOUTH MARINE TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "PORTSMOUTH",
+    "state": "VA",
+    "firmsCode": "L045"
+  },
+  {
+    "name": "PORT OF RICHMOND",
+    "facilityType": "TERMINAL",
+    "city": "RICHMOND",
+    "state": "VA",
+    "firmsCode": "LAQ4"
+  },
+  {
+    "name": "EVERPORT TERMINAL SERVICES TERMINAL",
+    "facilityType": "SAN",
+    "city": "PEDRO",
+    "state": "CA",
+    "firmsCode": "Y124"
+  },
+  {
+    "name": "MARINE TERMINAL YANG MING TERMINAL",
+    "facilityType": "SAN",
+    "city": "PEDRO",
+    "state": "CA",
+    "firmsCode": "Y773"
+  },
+  {
+    "name": "GARDEN CITY TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "SAVANNAH",
+    "state": "GA",
+    "firmsCode": "L737"
+  },
+  {
+    "name": "NORTHLAND SERVICE/SAMSON TUG & BARGE",
+    "facilityType": "TERMINAL",
+    "city": "SEATTLE",
+    "state": "WA",
+    "firmsCode": "Z037"
+  },
+  {
+    "name": "ALASKA MARITIME LINES/BARGE OP",
+    "facilityType": "TERMINAL",
+    "city": "SEATTLE",
+    "state": "WA",
+    "firmsCode": "Y636"
+  },
+  {
+    "name": "NORTHWEST CONTAINER SERVICE INC",
+    "facilityType": "TERMINAL",
+    "city": "SEATTLE",
+    "state": "WA",
+    "firmsCode": "Y765"
+  },
+  {
+    "name": "CONGLOBAL INDUSTRIES",
+    "facilityType": "TERMINAL",
+    "city": "SEATTLE",
+    "state": "WA",
+    "firmsCode": "Y559"
+  },
+  {
+    "name": "NAME FACILITY",
+    "facilityType": "CITY",
+    "city": "STATE",
+    "state": "FIRMS",
+    "firmsCode": "CODE"
+  },
+  {
+    "name": "COASTAL TRANSPORTATION",
+    "facilityType": "TERMINAL",
+    "city": "SEATTLE",
+    "state": "WA",
+    "firmsCode": "Y936"
+  },
+  {
+    "name": "BOYER ALASKA BARGE LINE",
+    "facilityType": "TERMINAL",
+    "city": "SEATTLE",
+    "state": "WA",
+    "firmsCode": "X135"
+  },
+  {
+    "name": "SSA TERMINAL 30",
+    "facilityType": "TERMINAL",
+    "city": "SEATTLE",
+    "state": "WA",
+    "firmsCode": "Y197"
+  },
+  {
+    "name": "SSA TERMINAL 18",
+    "facilityType": "TERMINAL",
+    "city": "SEATTLE",
+    "state": "WA",
+    "firmsCode": "X117"
+  },
+  {
+    "name": "WASHINGTON UNITED TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "TACOMA",
+    "state": "WA",
+    "firmsCode": "Z705"
+  },
+  {
+    "name": "TACOMA TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "TACOMA",
+    "state": "WA",
+    "firmsCode": "X215"
+  },
+  {
+    "name": "MARINE TERMINAL CORPORATION TACOMA",
+    "facilityType": "TERMINAL",
+    "city": "TACOMA",
+    "state": "WA",
+    "firmsCode": "X209"
+  },
+  {
+    "name": "PORT OF TAMPA",
+    "facilityType": "TERMINAL",
+    "city": "TAMPA",
+    "state": "FL",
+    "firmsCode": "M669"
+  },
+  {
+    "name": "UPRR - NEW ORLEANS RAIL RAMP",
+    "facilityType": "NEW",
+    "city": "ORLEANS",
+    "state": "LA",
+    "firmsCode": "P996"
+  },
+  {
+    "name": "BNSF - ALBUQUERQUE RAIL",
+    "facilityType": "RAMP",
+    "city": "ALBUQUERQUE",
+    "state": "NM",
+    "firmsCode": "S478"
+  },
+  {
+    "name": "BNSF - AMARILLO RAIL",
+    "facilityType": "RAMP",
+    "city": "AMARILLO",
+    "state": "TX",
+    "firmsCode": "T344"
+  },
+  {
+    "name": "CSX - HULSLEY RAIL",
+    "facilityType": "RAMP",
+    "city": "ATLANTA",
+    "state": "GA",
+    "firmsCode": "N440"
+  },
+  {
+    "name": "NSRR - ATLANTA RAIL",
+    "facilityType": "RAMP",
+    "city": "ATLANTA",
+    "state": "GA",
+    "firmsCode": "L810"
+  },
+  {
+    "name": "CSX FAIRBURN RAIL",
+    "facilityType": "RAMP",
+    "city": "ATLANTA",
+    "state": "GA",
+    "firmsCode": "O083"
+  },
+  {
+    "name": "BNSF FAIRBURN RAIL",
+    "facilityType": "RAMP",
+    "city": "ATLANTA",
+    "state": "GA",
+    "firmsCode": "O083"
+  },
+  {
+    "name": "NSRR - AUSTELL RAIL",
+    "facilityType": "RAMP",
+    "city": "AUSTELL",
+    "state": "GA",
+    "firmsCode": "L690"
+  },
+  {
+    "name": "NORFOLK SOUTHERN RR AYER RAIL",
+    "facilityType": "RAMP",
+    "city": "AYER",
+    "state": "MA",
+    "firmsCode": "D071"
+  },
+  {
+    "name": "NSRR - BALTIMORE RAIL",
+    "facilityType": "RAMP",
+    "city": "BALTIMORE",
+    "state": "MD",
+    "firmsCode": "C407"
+  },
+  {
+    "name": "CSX-BALTIMORE-ICTF RAIL",
+    "facilityType": "RAMP",
+    "city": "BALTIMORE",
+    "state": "MD",
+    "firmsCode": "C204"
+  },
+  {
+    "name": "CSX - BESSEMER RAIL",
+    "facilityType": "RAMP",
+    "city": "BESSEMER",
+    "state": "AL",
+    "firmsCode": "Q536"
+  },
+  {
+    "name": "BNSF - BIRMINGHAM RAIL",
+    "facilityType": "RAMP",
+    "city": "BIRMINGHAM",
+    "state": "AL",
+    "firmsCode": "P170"
+  },
+  {
+    "name": "CSX BOSTON RAIL",
+    "facilityType": "RAMP",
+    "city": "BOSTON",
+    "state": "MA",
+    "firmsCode": "D158"
+  },
+  {
+    "name": "CSX BUFFALO ICTF RAIL",
+    "facilityType": "RAMP",
+    "city": "BUFFALO",
+    "state": "NY",
+    "firmsCode": "D059"
+  },
+  {
+    "name": "CSX RR CHARLESTON RAIL",
+    "facilityType": "RAMP",
+    "city": "CHARLESTON",
+    "state": "SC",
+    "firmsCode": "L436"
+  },
+  {
+    "name": "NSRR - CHARLESTON RAIL",
+    "facilityType": "RAMP",
+    "city": "CHARLESTON",
+    "state": "SC",
+    "firmsCode": "L437"
+  },
+  {
+    "name": "FSI INC RAIL",
+    "facilityType": "RAMP",
+    "city": "CHARLOTTE",
+    "state": "NC",
+    "firmsCode": "L916"
+  },
+  {
+    "name": "CSX RAILROAD CHARLOTTE NC RAIL",
+    "facilityType": "RAMP",
+    "city": "CHARLOTTE",
+    "state": "NC",
+    "firmsCode": "L326"
+  },
+  {
+    "name": "NSRR - CHARLOTTE RAIL",
+    "facilityType": "RAMP",
+    "city": "CHARLOTTE",
+    "state": "NC",
+    "firmsCode": "L909"
+  },
+  {
+    "name": "NORFOLK SOUTHERN NSRR RAIL",
+    "facilityType": "RAMP",
+    "city": "CHARLOTTE",
+    "state": "NC",
+    "firmsCode": "N481"
+  },
+  {
+    "name": "BNSF - CORWITH RAIL",
+    "facilityType": "RAMP",
+    "city": "CHICAGO",
+    "state": "IL",
+    "firmsCode": "I145"
+  },
+  {
+    "name": "BNSF CICERO RAIL",
+    "facilityType": "RAMP",
+    "city": "CHICAGO",
+    "state": "IL",
+    "firmsCode": "J791"
+  },
+  {
+    "name": "NSRR - 47TH CHICAGO RAIL",
+    "facilityType": "RAMP",
+    "city": "CHICAGO",
+    "state": "IL",
+    "firmsCode": "I104"
+  },
+  {
+    "name": "CN RAIL - CHICAGO RAIL",
+    "facilityType": "RAMP",
+    "city": "CHICAGO",
+    "state": "IL",
+    "firmsCode": "I092"
+  },
+  {
+    "name": "NSRR - LANDERS CHICAGO RAIL",
+    "facilityType": "RAMP",
+    "city": "CHICAGO",
+    "state": "IL",
+    "firmsCode": "I104"
+  },
+  {
+    "name": "CPRR -SCHILLER PARK RAIL",
+    "facilityType": "RAMP",
+    "city": "CHICAGO",
+    "state": "IL",
+    "firmsCode": "I217"
+  },
+  {
+    "name": "CPRR -BENSENVILLE RAIL",
+    "facilityType": "RAMP",
+    "city": "CHICAGO",
+    "state": "IL",
+    "firmsCode": "J830"
+  },
+  {
+    "name": "NAME FACILITY",
+    "facilityType": "CITY",
+    "city": "STATE",
+    "state": "FIRMS",
+    "firmsCode": "CODE"
+  },
+  {
+    "name": "CSX -59TH ST. TERMINAL, CHICAGO RAIL",
+    "facilityType": "RAMP",
+    "city": "CHICAGO",
+    "state": "IL",
+    "firmsCode": "J054"
+  },
+  {
+    "name": "CSX BEDFORD PARK RAIL",
+    "facilityType": "RAMP",
+    "city": "CHICAGO",
+    "state": "IL",
+    "firmsCode": "J470"
+  },
+  {
+    "name": "BNSF - CHI/REEFER RAIL",
+    "facilityType": "RAMP",
+    "city": "CHICAGO",
+    "state": "IL",
+    "firmsCode": "J791"
+  },
+  {
+    "name": "CSX RR CINCINNATI RAIL",
+    "facilityType": "RAMP",
+    "city": "CINCINNATI",
+    "state": "OH",
+    "firmsCode": "J614"
+  },
+  {
+    "name": "NS - CINCINNATI RAIL",
+    "facilityType": "RAMP",
+    "city": "CINCINNATI",
+    "state": "OH",
+    "firmsCode": "J404"
+  },
+  {
+    "name": "UPRR - CITY OF INDUSTRY RAIL RAMP CITY",
+    "facilityType": "OF",
+    "city": "INDUSTRY",
+    "state": "CA",
+    "firmsCode": "W201"
+  },
+  {
+    "name": "CSX CLEVELAND RAIL",
+    "facilityType": "RAMP",
+    "city": "CLEVELAND",
+    "state": "OH",
+    "firmsCode": "J745"
+  },
+  {
+    "name": "NSRR - CLEVELAND RAIL",
+    "facilityType": "RAMP",
+    "city": "CLEVELAND",
+    "state": "OH",
+    "firmsCode": "J037"
+  },
+  {
+    "name": "CSX COLUMBUS RAIL",
+    "facilityType": "RAMP",
+    "city": "COLUMBUS",
+    "state": "OH",
+    "firmsCode": "I699"
+  },
+  {
+    "name": "NSRR - CMH RICKENBACKER RAIL",
+    "facilityType": "RAMP",
+    "city": "COLUMBUS",
+    "state": "OH",
+    "firmsCode": "H367"
+  },
+  {
+    "name": "UP - COUNCIL BLUFF RAIL RAMP",
+    "facilityType": "COUNCIL",
+    "city": "BLUFFS",
+    "state": "IA",
+    "firmsCode": "H043"
+  },
+  {
+    "name": "BNSF - ALLIANCE RAIL",
+    "facilityType": "RAMP",
+    "city": "DALLAS",
+    "state": "TX",
+    "firmsCode": "T926"
+  },
+  {
+    "name": "UPRR - DALLAS RAIL",
+    "facilityType": "RAMP",
+    "city": "DALLAS",
+    "state": "TX",
+    "firmsCode": "U419"
+  },
+  {
+    "name": "KCSR RAMP DALLAS TX RAIL",
+    "facilityType": "RAMP",
+    "city": "DALLAS",
+    "state": "TX",
+    "firmsCode": "T929"
+  },
+  {
+    "name": "UPRR - DENVER RAIL",
+    "facilityType": "RAMP",
+    "city": "DENVER",
+    "state": "CO",
+    "firmsCode": "H099"
+  },
+  {
+    "name": "BNSF - DENVER RAIL",
+    "facilityType": "RAMP",
+    "city": "DENVER",
+    "state": "CO",
+    "firmsCode": "H096"
+  },
+  {
+    "name": "NSRR - LIVERNOIS DETROIT RAIL",
+    "facilityType": "RAMP",
+    "city": "DETROIT",
+    "state": "MI",
+    "firmsCode": "H796"
+  },
+  {
+    "name": "CSX DETROIT RAIL",
+    "facilityType": "RAMP",
+    "city": "DETROIT",
+    "state": "MI",
+    "firmsCode": "H797"
+  },
+  {
+    "name": "NSRR - DELRAY DETROIT RAIL",
+    "facilityType": "RAMP",
+    "city": "DETROIT",
+    "state": "MI",
+    "firmsCode": "I760"
+  },
+  {
+    "name": "CN RAIL (FERNDALE) RAIL",
+    "facilityType": "RAMP",
+    "city": "DETROIT",
+    "state": "MI",
+    "firmsCode": "H798"
+  },
+  {
+    "name": "CPRR - DETROIT RAIL",
+    "facilityType": "RAMP",
+    "city": "DETROIT",
+    "state": "MI",
+    "firmsCode": "H729"
+  },
+  {
+    "name": "GTW RAILROAD DETROIT RAIL",
+    "facilityType": "RAMP",
+    "city": "DETROIT",
+    "state": "MI",
+    "firmsCode": "H798"
+  },
+  {
+    "name": "CSX- EAST ST LOUIS RAIL RAMP EAST",
+    "facilityType": "ST",
+    "city": "LOUIS",
+    "state": "IL",
+    "firmsCode": "J313"
+  },
+  {
+    "name": "CSX- SYRACUSE RAIL RAMP",
+    "facilityType": "EAST",
+    "city": "SYRACUSE",
+    "state": "NY",
+    "firmsCode": "D706"
+  },
+  {
+    "name": "BNSF - KANSAS CITY RAIL",
+    "facilityType": "RAMP",
+    "city": "EDGERTON",
+    "state": "KS",
+    "firmsCode": "J177"
+  },
+  {
+    "name": "BNSF RAIL RAMP",
+    "facilityType": "EL",
+    "city": "PASO",
+    "state": "TX",
+    "firmsCode": "S390"
+  },
+  {
+    "name": "UP- EL PASO RAIL RAMP",
+    "facilityType": "EL",
+    "city": "PASO",
+    "state": "TX",
+    "firmsCode": "S389"
+  },
+  {
+    "name": "BNSF LOGISTICS PARK RAIL",
+    "facilityType": "RAMP",
+    "city": "ELWOOD",
+    "state": "IL",
+    "firmsCode": "H572"
+  },
+  {
+    "name": "KANSAS CITY SOUTHERN RR (MISS) RAIL",
+    "facilityType": "RAMP",
+    "city": "FLOWOOD",
+    "state": "MS",
+    "firmsCode": "R266"
+  },
+  {
+    "name": "NS - GREENSBORO RAIL",
+    "facilityType": "RAMP",
+    "city": "GREENSBORO",
+    "state": "NC",
+    "firmsCode": "O119"
+  },
+  {
+    "name": "NORFOLK SOUTHERN RAIL",
+    "facilityType": "RAMP",
+    "city": "GREER",
+    "state": "SC",
+    "firmsCode": "M682"
+  },
+  {
+    "name": "BNSF RAIL",
+    "facilityType": "RAMP",
+    "city": "HOUSTON",
+    "state": "TX",
+    "firmsCode": "S639"
+  },
+  {
+    "name": "UPRR - ENGLEWOOD RAIL",
+    "facilityType": "RAMP",
+    "city": "HOUSTON",
+    "state": "TX",
+    "firmsCode": "S640"
+  },
+  {
+    "name": "UPRR - BARBOURS CUT RAIL",
+    "facilityType": "RAMP",
+    "city": "HOUSTON",
+    "state": "TX",
+    "firmsCode": "S834"
+  },
+  {
+    "name": "UPRR - HOUSTON RAIL",
+    "facilityType": "RAMP",
+    "city": "HOUSTON",
+    "state": "TX",
+    "firmsCode": "S637"
+  },
+  {
+    "name": "NSRR - HUNTSVILLE RAIL",
+    "facilityType": "RAMP",
+    "city": "HUNTSVILLE",
+    "state": "AL",
+    "firmsCode": "Q165"
+  },
+  {
+    "name": "NAME FACILITY",
+    "facilityType": "CITY",
+    "city": "STATE",
+    "state": "FIRMS",
+    "firmsCode": "CODE"
+  },
+  {
+    "name": "CSX INDIANAPOLIS RAIL",
+    "facilityType": "RAMP",
+    "city": "INDIANAPOLIS",
+    "state": "IN",
+    "firmsCode": "I950"
+  },
+  {
+    "name": "CN- INDIANAPOLIS RAIL",
+    "facilityType": "RAMP",
+    "city": "INDIANAPOLIS",
+    "state": "IN",
+    "firmsCode": "H913"
+  },
+  {
+    "name": "CSX RR RAIL",
+    "facilityType": "RAMP",
+    "city": "JACKSONVILLE",
+    "state": "FL",
+    "firmsCode": "N760"
+  },
+  {
+    "name": "FEC RR RAIL",
+    "facilityType": "RAMP",
+    "city": "JACKSONVILLE",
+    "state": "FL",
+    "firmsCode": "N298"
+  },
+  {
+    "name": "NSRR - JACKSONVILLE RAIL",
+    "facilityType": "RAMP",
+    "city": "JACKSONVILLE",
+    "state": "FL",
+    "firmsCode": "N321"
+  },
+  {
+    "name": "NEW JERSEY INTERMODAL TERMINAL RAIL RAMP",
+    "facilityType": "JERSEY",
+    "city": "CITY",
+    "state": "NJ",
+    "firmsCode": "E611"
+  },
+  {
+    "name": "CN RAIL JOLIET RAIL",
+    "facilityType": "RAMP",
+    "city": "JOLIET",
+    "state": "IL",
+    "firmsCode": "H903"
+  },
+  {
+    "name": "UNION PACIFIC GLOBAL RAMP IV RAIL",
+    "facilityType": "RAMP",
+    "city": "JOLIET",
+    "state": "IL",
+    "firmsCode": "I206"
+  },
+  {
+    "name": "BNSF - ARGENTINE YARD RAIL RAMP",
+    "facilityType": "KANSAS",
+    "city": "CITY",
+    "state": "KS",
+    "firmsCode": "J177"
+  },
+  {
+    "name": "CSX KANSAS CITY RAIL RAMP",
+    "facilityType": "KANSAS",
+    "city": "CITY",
+    "state": "KS",
+    "firmsCode": "J166"
+  },
+  {
+    "name": "NORFOLK SOUTHERN RAILROAD RAIL RAMP",
+    "facilityType": "KANSAS",
+    "city": "CITY",
+    "state": "MO",
+    "firmsCode": "J176"
+  },
+  {
+    "name": "KANSAS CITY RAMP RAIL RAMP",
+    "facilityType": "KANSAS",
+    "city": "CITY",
+    "state": "MO",
+    "firmsCode": "J178"
+  },
+  {
+    "name": "UPRR - LAREDO RAIL",
+    "facilityType": "RAMP",
+    "city": "LAREDO",
+    "state": "TX",
+    "firmsCode": "V551"
+  },
+  {
+    "name": "UP- LAREDO RAIL",
+    "facilityType": "RAMP",
+    "city": "LAREDO",
+    "state": "TX",
+    "firmsCode": "U351"
+  },
+  {
+    "name": "UPRR - LATC RAIL RAMP",
+    "facilityType": "LOS",
+    "city": "ANGELES",
+    "state": "CA",
+    "firmsCode": "W202"
+  },
+  {
+    "name": "BNSF - LOS ANGELES RAIL RAMP",
+    "facilityType": "LOS",
+    "city": "ANGELES",
+    "state": "CA",
+    "firmsCode": "Y386"
+  },
+  {
+    "name": "UPRR - LOS ANGELES RAIL RAMP",
+    "facilityType": "LOS",
+    "city": "ANGELES",
+    "state": "CA",
+    "firmsCode": "W201"
+  },
+  {
+    "name": "NSRR - LOUISVILLE RAIL",
+    "facilityType": "RAMP",
+    "city": "LOUISVILLE",
+    "state": "KY",
+    "firmsCode": "J060"
+  },
+  {
+    "name": "NSRR - LOUISVILLE APPLICANCE PARK RAIL",
+    "facilityType": "RAMP",
+    "city": "LOUISVILLE",
+    "state": "KY",
+    "firmsCode": "H879"
+  },
+  {
+    "name": "CSX LOUISVILLE RAIL",
+    "facilityType": "RAMP",
+    "city": "LOUISVILLE",
+    "state": "KY",
+    "firmsCode": "I399"
+  },
+  {
+    "name": "UP- MARION RAIL",
+    "facilityType": "RAMP",
+    "city": "MARION",
+    "state": "AR",
+    "firmsCode": "P279"
+  },
+  {
+    "name": "CSX-MCKEES ROCKS RAIL RAMP",
+    "facilityType": "MCKEES",
+    "city": "ROCKS",
+    "state": "PA",
+    "firmsCode": "AAE1"
+  },
+  {
+    "name": "INTERMODAL CARTAGE RAIL",
+    "facilityType": "RAMP",
+    "city": "MEMPHIS",
+    "state": "TN",
+    "firmsCode": "Q211"
+  },
+  {
+    "name": "NSRR -MEMPHIS RAIL",
+    "facilityType": "RAMP",
+    "city": "MEMPHIS",
+    "state": "TN",
+    "firmsCode": "P487"
+  },
+  {
+    "name": "BNSF - MEMPHIS RAIL",
+    "facilityType": "RAMP",
+    "city": "MEMPHIS",
+    "state": "TN",
+    "firmsCode": "P486"
+  },
+  {
+    "name": "CN RAMP MEMPHIS RAIL",
+    "facilityType": "RAMP",
+    "city": "MEMPHIS",
+    "state": "TN",
+    "firmsCode": "P484"
+  },
+  {
+    "name": "CSXT RAILROAD MEMPHIS RAMP RAIL",
+    "facilityType": "RAMP",
+    "city": "MEMPHIS",
+    "state": "TN",
+    "firmsCode": "Q172"
+  },
+  {
+    "name": "UPRR - MARION RAIL",
+    "facilityType": "RAMP",
+    "city": "MEMPHIS",
+    "state": "TN",
+    "firmsCode": "P485"
+  },
+  {
+    "name": "FLORIDA EAST COAST RAILROAD RAIL",
+    "facilityType": "RAMP",
+    "city": "MIAMI",
+    "state": "FL",
+    "firmsCode": "M601"
+  },
+  {
+    "name": "BNSF - MINNEAPOLIS RAIL",
+    "facilityType": "RAMP",
+    "city": "MINNEAPOLIS",
+    "state": "MN",
+    "firmsCode": "J828"
+  },
+  {
+    "name": "CPRR - MINNEAPOLIS RAIL",
+    "facilityType": "RAMP",
+    "city": "MINNEAPOLIS",
+    "state": "MN",
+    "firmsCode": "J554"
+  },
+  {
+    "name": "CSX RR MOBILE RAIL",
+    "facilityType": "RAMP",
+    "city": "MOBILE",
+    "state": "AL",
+    "firmsCode": "Q096"
+  },
+  {
+    "name": "CSX RR NASHVILLE RAIL",
+    "facilityType": "RAMP",
+    "city": "NASHVILLE",
+    "state": "TN",
+    "firmsCode": "P587"
+  },
+  {
+    "name": "CSX RR NEW ORLEANS LA RAIL RAMP",
+    "facilityType": "NEW",
+    "city": "ORLEANS",
+    "state": "LA",
+    "firmsCode": "Q072"
+  },
+  {
+    "name": "NSRR - NEW ORLEANS RAIL RAMP",
+    "facilityType": "NEW",
+    "city": "ORLEANS",
+    "state": "LA",
+    "firmsCode": "P979"
+  },
+  {
+    "name": "CN RAMP NEW ORLEANS RAIL RAMP",
+    "facilityType": "NEW",
+    "city": "ORLEANS",
+    "state": "LA",
+    "firmsCode": "P989"
+  },
+  {
+    "name": "NAME FACILITY",
+    "facilityType": "CITY",
+    "city": "STATE",
+    "state": "FIRMS",
+    "firmsCode": "CODE"
+  },
+  {
+    "name": "BNSF - NEW ORLEANS RAIL RAMP",
+    "facilityType": "NEW",
+    "city": "ORLEANS",
+    "state": "LA",
+    "firmsCode": "Q819"
+  },
+  {
+    "name": "UPRR NINE MILE POINT RAIL RAMP",
+    "facilityType": "NEW",
+    "city": "ORLEANS",
+    "state": "LA",
+    "firmsCode": "Q222"
+  },
+  {
+    "name": "CN- NEW ORLEANS RAIL RAMP",
+    "facilityType": "NEW",
+    "city": "ORLEANS",
+    "state": "LA",
+    "firmsCode": "P989"
+  },
+  {
+    "name": "NSRR - NORFOLK RAIL",
+    "facilityType": "RAMP",
+    "city": "NORFOLK",
+    "state": "VA",
+    "firmsCode": "N725"
+  },
+  {
+    "name": "CSX-NORTH BERGEN RAIL RAMP",
+    "facilityType": "NORTH",
+    "city": "BERGEN",
+    "state": "NJ",
+    "firmsCode": "E381"
+  },
+  {
+    "name": "CSX-LITTLE FERRY RAIL RAMP",
+    "facilityType": "NORTH",
+    "city": "BERGEN",
+    "state": "NJ",
+    "firmsCode": "E608"
+  },
+  {
+    "name": "UPRR - OAKLAND RAIL",
+    "facilityType": "RAMP",
+    "city": "OAKLAND",
+    "state": "CA",
+    "firmsCode": "W581"
+  },
+  {
+    "name": "OAKLAND INTERNATIONAL GATEWAY RAIL",
+    "facilityType": "RAMP",
+    "city": "OAKLAND",
+    "state": "CA",
+    "firmsCode": "Z944"
+  },
+  {
+    "name": "BNSF RAILROAD RAIL",
+    "facilityType": "RAMP",
+    "city": "OMAHA",
+    "state": "NE",
+    "firmsCode": "H397"
+  },
+  {
+    "name": "CSX-ORLANDO RAIL",
+    "facilityType": "RAMP",
+    "city": "ORLANDO",
+    "state": "FL",
+    "firmsCode": "N344"
+  },
+  {
+    "name": "TRANSMARITIME INC RAIL",
+    "facilityType": "RAMP",
+    "city": "PHARR",
+    "state": "TX",
+    "firmsCode": "V956"
+  },
+  {
+    "name": "CSX GREENWICH RAIL",
+    "facilityType": "RAMP",
+    "city": "PHILADELPHIA",
+    "state": "PA",
+    "firmsCode": "B326"
+  },
+  {
+    "name": "UPRR - PHOENIX RAIL",
+    "facilityType": "RAMP",
+    "city": "PHOENIX",
+    "state": "AZ",
+    "firmsCode": "V030"
+  },
+  {
+    "name": "NSRR -PITTSBURG RAIL",
+    "facilityType": "RAMP",
+    "city": "PITTSBURGH",
+    "state": "PA",
+    "firmsCode": "D106"
+  },
+  {
+    "name": "BNSF - PORTLAND RAIL",
+    "facilityType": "RAMP",
+    "city": "PORTLAND",
+    "state": "OR",
+    "firmsCode": "X086"
+  },
+  {
+    "name": "UPRR - BROOKLYN RAIL",
+    "facilityType": "RAMP",
+    "city": "PORTLAND",
+    "state": "OR",
+    "firmsCode": "W975"
+  },
+  {
+    "name": "UPRR - PORTLAND RAIL",
+    "facilityType": "RAMP",
+    "city": "PORTLAND",
+    "state": "OR",
+    "firmsCode": "W977"
+  },
+  {
+    "name": "CSX- PORTSMOUTH RAIL",
+    "facilityType": "RAMP",
+    "city": "PORTSMOUTH",
+    "state": "VA",
+    "firmsCode": "N727"
+  },
+  {
+    "name": "CONTAINER MAINTENANCE CORP. RAIL",
+    "facilityType": "RAMP",
+    "city": "RINCON",
+    "state": "GA",
+    "firmsCode": "O625"
+  },
+  {
+    "name": "ROCHELLE RAMP GLOBAL RAIL",
+    "facilityType": "RAMP",
+    "city": "ROCHELLE",
+    "state": "IL",
+    "firmsCode": "J323"
+  },
+  {
+    "name": "ILLINOIS CENTRAL GULF RAILROAD RAIL RAMP",
+    "facilityType": "SAINT",
+    "city": "LOUIS",
+    "state": "IL",
+    "firmsCode": "J315"
+  },
+  {
+    "name": "UPRR - DUPPO ST LOUIS RAIL RAMP",
+    "facilityType": "SAINT",
+    "city": "LOUIS",
+    "state": "IL",
+    "firmsCode": "K078"
+  },
+  {
+    "name": "BNSF \u2013 ST. LOUIS RAIL RAMP",
+    "facilityType": "SAINT",
+    "city": "LOUIS",
+    "state": "MO",
+    "firmsCode": "J300"
+  },
+  {
+    "name": "NSRR - ST. LOUIS RAIL RAMP",
+    "facilityType": "SAINT",
+    "city": "LOUIS",
+    "state": "MO",
+    "firmsCode": "J288"
+  },
+  {
+    "name": "UPRR - SALT LAKE CITY RAIL RAMP SALT",
+    "facilityType": "LAKE",
+    "city": "CITY",
+    "state": "UT",
+    "firmsCode": "K961"
+  },
+  {
+    "name": "UP RAIL RAMP",
+    "facilityType": "SAN",
+    "city": "ANTONIO",
+    "state": "TX",
+    "firmsCode": "S518"
+  },
+  {
+    "name": "UPRR - SANTA TERESA (NEAR EL PASO, TX) RAIL RAMP",
+    "facilityType": "SANTA",
+    "city": "TERESA",
+    "state": "NM",
+    "firmsCode": "T571"
+  },
+  {
+    "name": "CSX RR RAIL",
+    "facilityType": "RAMP",
+    "city": "SAVANNAH",
+    "state": "GA",
+    "firmsCode": "L613"
+  },
+  {
+    "name": "NSRR - SAV ITCF RAIL",
+    "facilityType": "RAMP",
+    "city": "SAVANNAH",
+    "state": "GA",
+    "firmsCode": "L710"
+  },
+  {
+    "name": "BNSF - SEATTLE RAIL",
+    "facilityType": "RAMP",
+    "city": "SEATTLE",
+    "state": "WA",
+    "firmsCode": "Y498"
+  },
+  {
+    "name": "BNSF - SOUTH SEATTLE RAIL",
+    "facilityType": "RAMP",
+    "city": "SEATTLE",
+    "state": "WA",
+    "firmsCode": "Y371"
+  },
+  {
+    "name": "UPRR - SEATTLE RAIL",
+    "facilityType": "RAMP",
+    "city": "SEATTLE",
+    "state": "WA",
+    "firmsCode": "X161"
+  },
+  {
+    "name": "NSRR - SHARONVILLE RAIL",
+    "facilityType": "RAMP",
+    "city": "SHARONVILLE",
+    "state": "OH",
+    "firmsCode": "H897"
+  },
+  {
+    "name": "CSX-SOUTH KEARNY RAIL RAMP",
+    "facilityType": "SOUTH",
+    "city": "KEARNY",
+    "state": "NJ",
+    "firmsCode": "E389"
+  },
+  {
+    "name": "BNSF - SPOKANE RAIL",
+    "facilityType": "RAMP",
+    "city": "SPOKANE",
+    "state": "WA",
+    "firmsCode": "Y799"
+  },
+  {
+    "name": "CSX RAIL RAMP RAIL",
+    "facilityType": "RAMP",
+    "city": "TAMPA",
+    "state": "FL",
+    "firmsCode": "L894"
+  },
+  {
+    "name": "NAME FACILITY",
+    "facilityType": "CITY",
+    "city": "STATE",
+    "state": "FIRMS",
+    "firmsCode": "CODE"
+  },
+  {
+    "name": "CSX- TAMPA RAIL",
+    "facilityType": "RAMP",
+    "city": "TAMPA",
+    "state": "FL",
+    "firmsCode": "N093"
+  },
+  {
+    "name": "UP- DIT RAIL",
+    "facilityType": "RAMP",
+    "city": "WILMER",
+    "state": "TX",
+    "firmsCode": "V963"
+  },
+  {
+    "name": "CSX WINTER HAVEN RAIL RAMP",
+    "facilityType": "WINTER",
+    "city": "HAVEN",
+    "state": "FL",
+    "firmsCode": "N110"
+  },
+  {
+    "name": "CSX - WORCESTER, MA RAIL",
+    "facilityType": "RAMP",
+    "city": "WORCESTER",
+    "state": "MA",
+    "firmsCode": "C358"
+  },
+  {
+    "name": "KCS-WYLIE RAIL",
+    "facilityType": "RAMP",
+    "city": "WYLIE",
+    "state": "TX",
+    "firmsCode": "U178"
+  },
+  {
+    "name": "ROMAR TERMINALS",
+    "facilityType": "DEPOT",
+    "city": "ALLSTON",
+    "state": "MA",
+    "firmsCode": "A393"
+  },
+  {
+    "name": "LANPORT INCORPORATED",
+    "facilityType": "DEPOT",
+    "city": "ATLANTA",
+    "state": "GA",
+    "firmsCode": "N423"
+  },
+  {
+    "name": "CALEXICO CROSS BORDER",
+    "facilityType": "DEPOT",
+    "city": "CALEXICO",
+    "state": "CA",
+    "firmsCode": "Z377"
+  },
+  {
+    "name": "DAVIDSON TRANSPORTATION MARKETING INC DEPOT",
+    "facilityType": "COLLEGE",
+    "city": "PARK",
+    "state": "GA",
+    "firmsCode": "O361"
+  },
+  {
+    "name": "CPG- COLUMBUS",
+    "facilityType": "DEPOT",
+    "city": "COLUMBUS",
+    "state": "OH",
+    "firmsCode": "J633"
+  },
+  {
+    "name": "UNIVERSAL INTERMODAL SERVICES",
+    "facilityType": "DEPOT",
+    "city": "DALLAS",
+    "state": "TX",
+    "firmsCode": "V341"
+  },
+  {
+    "name": "SCIP DILLON",
+    "facilityType": "DEPOT",
+    "city": "DILLON",
+    "state": "SC",
+    "firmsCode": "LA73"
+  },
+  {
+    "name": "TWIN CITIES DEPOT",
+    "facilityType": "EL",
+    "city": "PASO",
+    "state": "TX",
+    "firmsCode": "V014"
+  },
+  {
+    "name": "FRONT ROYAL RAIL DEPOT",
+    "facilityType": "FRONT",
+    "city": "ROYAL",
+    "state": "VA",
+    "firmsCode": "LAQ5"
+  },
+  {
+    "name": "CONTAINER PORT GROUP",
+    "facilityType": "DEPOT",
+    "city": "INDIANAPOLIS",
+    "state": "IN",
+    "firmsCode": "K794"
+  },
+  {
+    "name": "H AND M CES",
+    "facilityType": "DEPOT",
+    "city": "KEARNY",
+    "state": "NJ",
+    "firmsCode": "E355"
+  },
+  {
+    "name": "TRANSMARITIME INC.",
+    "facilityType": "DEPOT",
+    "city": "LAREDO",
+    "state": "TX",
+    "firmsCode": "V419"
+  },
+  {
+    "name": "CONTAINER MAINTENANCE DEPOT",
+    "facilityType": "NORTH",
+    "city": "CHARLESTON",
+    "state": "SC",
+    "firmsCode": "O054"
+  },
+  {
+    "name": "NAKNEK",
+    "facilityType": "DEPOT",
+    "city": "NAKNEK",
+    "state": "AK",
+    "firmsCode": "3126"
+  },
+  {
+    "name": "INTERMODAL CARTAGE",
+    "facilityType": "DEPOT",
+    "city": "NASHVILLE",
+    "state": "TN",
+    "firmsCode": "Q087"
+  },
+  {
+    "name": "BRIDGE TERMINAL TRANSPORT",
+    "facilityType": "DEPOT",
+    "city": "NASHVILLE",
+    "state": "TN",
+    "firmsCode": "Q683"
+  },
+  {
+    "name": "COMTRAK LOGISTICS INC (NASH)",
+    "facilityType": "DEPOT",
+    "city": "NASHVILLE",
+    "state": "TN",
+    "firmsCode": "Q618"
+  },
+  {
+    "name": "HUNTER TRANSPORTATION DEPOT",
+    "facilityType": "NORTH",
+    "city": "CHARLESTON",
+    "state": "SC",
+    "firmsCode": "O702"
+  },
+  {
+    "name": "BRIDGE TERMINAL TRANSPORT (MEMPHIS) DEPOT",
+    "facilityType": "OLIVE",
+    "city": "BRANCH",
+    "state": "MS",
+    "firmsCode": "N541"
+  },
+  {
+    "name": "INDEPENDENT PIER COMPANY",
+    "facilityType": "DEPOT",
+    "city": "PHILADELPHIA",
+    "state": "PA",
+    "firmsCode": "B199"
+  },
+  {
+    "name": "EVANS DELIVERY",
+    "facilityType": "DEPOT",
+    "city": "PHILADELPHIA",
+    "state": "PA",
+    "firmsCode": "B297"
+  },
+  {
+    "name": "H&M INTERNATIONAL TRANSPORTATION",
+    "facilityType": "DEPOT",
+    "city": "PHILADELPHIA",
+    "state": "PA",
+    "firmsCode": "C753"
+  },
+  {
+    "name": "LINCOLN TRANSPORTATION SERVICES INC",
+    "facilityType": "DEPOT",
+    "city": "PHOENIX",
+    "state": "AZ",
+    "firmsCode": "S818"
+  },
+  {
+    "name": "DOCKSIDE EMT RAIL DEPOT",
+    "facilityType": "PORT",
+    "city": "ELIZABETH",
+    "state": "NJ",
+    "firmsCode": "E416"
+  },
+  {
+    "name": "PORTLAND CONTAINER REPAIR",
+    "facilityType": "DEPOT",
+    "city": "PORTLAND",
+    "state": "OR",
+    "firmsCode": "X071"
+  },
+  {
+    "name": "WINSTON SALEM DEPOT",
+    "facilityType": "WINSTON",
+    "city": "SALEM",
+    "state": "NC",
+    "firmsCode": "L687"
+  },
+  {
+    "name": "ICI - WORCESTER",
+    "facilityType": "DEPOT",
+    "city": "WORCESTER",
+    "state": "MA",
+    "firmsCode": "C358"
+  },
+  {
+    "name": "INTRANSIT CONTAINER, INC -REAL POOL",
+    "facilityType": "DEPOT",
+    "city": "WORCESTER",
+    "state": "MA",
+    "firmsCode": "C358"
+  }
+]

@@ -1,0 +1,2243 @@
+[
+  {
+    "name": "AIR FREIGHT EXPRESS",
+    "facilityType": "TERMINAL",
+    "city": "ATLANTA",
+    "state": "GA",
+    "firmsCode": "N035",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/N035",
+    "address": ""
+  },
+  {
+    "name": "PORTS AMERICA / SEAGIRT MARINE",
+    "facilityType": "TERMINAL",
+    "city": "BALTIMORE",
+    "state": "MD",
+    "firmsCode": "C324",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/C324",
+    "address": ""
+  },
+  {
+    "name": "UNIVERSAL MARITIME SERVICE",
+    "facilityType": "TERMINAL",
+    "city": "BALTIMORE",
+    "state": "MD",
+    "firmsCode": "C588",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/C588",
+    "address": ""
+  },
+  {
+    "name": "CONLEY MARINE TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "BOSTON",
+    "state": "MA",
+    "firmsCode": "A295",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/A295",
+    "address": ""
+  },
+  {
+    "name": "APM TERMINALS",
+    "facilityType": "TERMINAL",
+    "city": "ELIZABETH",
+    "state": "NJ",
+    "firmsCode": "E425",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/E425",
+    "address": ""
+  },
+  {
+    "name": "E-RAIL TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "ELIZABETH",
+    "state": "NJ",
+    "firmsCode": "E962",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/E962",
+    "address": ""
+  },
+  {
+    "name": "MAHER TERMINAL- TRIPOLI",
+    "facilityType": "TERMINAL",
+    "city": "ELIZABETH",
+    "state": "NJ",
+    "firmsCode": "E592",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/E592",
+    "address": ""
+  },
+  {
+    "name": "MAHER TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "ELIZABETH",
+    "state": "NJ",
+    "firmsCode": "E416",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/E416",
+    "address": ""
+  },
+  {
+    "name": "PORT TO PORT INC TERMINAL ELK",
+    "facilityType": "GROVE",
+    "city": "VILLAGE",
+    "state": "IL",
+    "firmsCode": "J930",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/J930",
+    "address": ""
+  },
+  {
+    "name": "FLORIDA INTERNATIONAL TERM LLC TERMINAL",
+    "facilityType": "FORT",
+    "city": "LAUDERDALE",
+    "state": "FL",
+    "firmsCode": "N751",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/N751",
+    "address": ""
+  },
+  {
+    "name": "VIRGINIA INLAND PORT TERMINAL",
+    "facilityType": "FRONT",
+    "city": "ROYAL",
+    "state": "VA",
+    "firmsCode": "LAQ5",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/LAQ5",
+    "address": ""
+  },
+  {
+    "name": "PORT EVERGLADES TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "HOLLYWOOD",
+    "state": "FL",
+    "firmsCode": "O664",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/O664",
+    "address": ""
+  },
+  {
+    "name": "HAWAII STEVEDORES INC",
+    "facilityType": "TERMINAL",
+    "city": "HONOLULU",
+    "state": "HI",
+    "firmsCode": "Y170",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Y170",
+    "address": ""
+  },
+  {
+    "name": "MATSON TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "HONOLULU",
+    "state": "HI",
+    "firmsCode": "X973",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/X973",
+    "address": ""
+  },
+  {
+    "name": "PASHA HAWAII",
+    "facilityType": "TERMINAL",
+    "city": "HONOLULU",
+    "state": "HI",
+    "firmsCode": "X803",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/X803",
+    "address": ""
+  },
+  {
+    "name": "BARBOURS CUT TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "HOUSTON",
+    "state": "TX",
+    "firmsCode": "S787",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/S787",
+    "address": ""
+  },
+  {
+    "name": "CONTAINER MAINTENANCE CORP",
+    "facilityType": "TERMINAL",
+    "city": "JACKSONVILLE",
+    "state": "FL",
+    "firmsCode": "L107",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/L107",
+    "address": ""
+  },
+  {
+    "name": "APM TERMINAL JACKSONVILLE",
+    "facilityType": "TERMINAL",
+    "city": "JACKSONVILLE",
+    "state": "FL",
+    "firmsCode": "N296",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/N296",
+    "address": ""
+  },
+  {
+    "name": "TRAPAC TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "JACKSONVILLE",
+    "state": "FL",
+    "firmsCode": "M029",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/M029",
+    "address": ""
+  },
+  {
+    "name": "JACKSONVILLE INT GATEWAY",
+    "facilityType": "TERMINAL",
+    "city": "JACKSONVILLE",
+    "state": "FL",
+    "firmsCode": "N296",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/N296",
+    "address": ""
+  },
+  {
+    "name": "NAVIOTEX",
+    "facilityType": "TERMINAL",
+    "city": "LAREDO",
+    "state": "TX",
+    "firmsCode": "U251",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/U251",
+    "address": ""
+  },
+  {
+    "name": "LONG BEACH CONTAINER TERMINAL (LBCTI) TERMINAL",
+    "facilityType": "LONG",
+    "city": "BEACH",
+    "state": "CA",
+    "firmsCode": "W183",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/W183",
+    "address": ""
+  },
+  {
+    "name": "TOTAL TERMINALS INTERNATIONAL TERMINAL",
+    "facilityType": "LONG",
+    "city": "BEACH",
+    "state": "CA",
+    "firmsCode": "Z952",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Z952",
+    "address": ""
+  },
+  {
+    "name": "PRICE TRANSFER TERMINAL",
+    "facilityType": "LONG",
+    "city": "BEACH",
+    "state": "CA",
+    "firmsCode": "Y091",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Y091",
+    "address": ""
+  },
+  {
+    "name": "PACIFIC CONTAINER TERMINAL (PCT) TERMINAL",
+    "facilityType": "LONG",
+    "city": "BEACH",
+    "state": "CA",
+    "firmsCode": "W182",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/W182",
+    "address": ""
+  },
+  {
+    "name": "UPRR - ICTF TERMINAL",
+    "facilityType": "LONG",
+    "city": "BEACH",
+    "state": "CA",
+    "firmsCode": "Y381",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Y381",
+    "address": ""
+  },
+  {
+    "name": "SSA PIER A TERMINAL",
+    "facilityType": "LONG",
+    "city": "BEACH",
+    "state": "CA",
+    "firmsCode": "Z978",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Z978",
+    "address": ""
+  },
+  {
+    "name": "LONG BEACH CONTAINER TERM TERMINAL",
+    "facilityType": "LONG",
+    "city": "BEACH",
+    "state": "CA",
+    "firmsCode": "WAC8",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/WAC8",
+    "address": ""
+  },
+  {
+    "name": "FENIX MARINE TERMINAL TERMINAL",
+    "facilityType": "LOS",
+    "city": "ANGELES",
+    "state": "CA",
+    "firmsCode": "Y257",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Y257",
+    "address": ""
+  },
+  {
+    "name": "YUSE TERMINALS, INC. (YTI) TERMINAL",
+    "facilityType": "LOS",
+    "city": "ANGELES",
+    "state": "CA",
+    "firmsCode": "Y790",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Y790",
+    "address": ""
+  },
+  {
+    "name": "APM TERMINALS PACIFIC LTD TERMINAL",
+    "facilityType": "LOS",
+    "city": "ANGELES",
+    "state": "CA",
+    "firmsCode": "W185",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/W185",
+    "address": ""
+  },
+  {
+    "name": "CALIFORNIA UNITED TERMINALS TERMINAL",
+    "facilityType": "LOS",
+    "city": "ANGELES",
+    "state": "CA",
+    "firmsCode": "W347",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/W347",
+    "address": ""
+  },
+  {
+    "name": "TRANS PACIFIC CONTAINER SERVICE CORP (TRAPAC) L.A. TERMINAL",
+    "facilityType": "LOS",
+    "city": "ANGELES",
+    "state": "CA",
+    "firmsCode": "Y258",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Y258",
+    "address": ""
+  },
+  {
+    "name": "WEST BASIN CONTAINER TERMINAL TERMINAL",
+    "facilityType": "LOS",
+    "city": "ANGELES",
+    "state": "CA",
+    "firmsCode": "Y773",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Y773",
+    "address": ""
+  },
+  {
+    "name": "IN-TRANSIT CONTAINER",
+    "facilityType": "TERMINAL",
+    "city": "MANSFIELD",
+    "state": "MA",
+    "firmsCode": "D304",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/D304",
+    "address": ""
+  },
+  {
+    "name": "SOUTH FLORIDA CONTAINER TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "MIAMI",
+    "state": "FL",
+    "firmsCode": "N775",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/N775",
+    "address": ""
+  },
+  {
+    "name": "POMTOC",
+    "facilityType": "TERMINAL",
+    "city": "MIAMI",
+    "state": "FL",
+    "firmsCode": "L239",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/L239",
+    "address": ""
+  },
+  {
+    "name": "SOUTHERN INTERMODAL EXPRESS",
+    "facilityType": "TERMINAL",
+    "city": "MOBILE",
+    "state": "AL",
+    "firmsCode": "Q944",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Q944",
+    "address": ""
+  },
+  {
+    "name": "APM TERMINALS MOBILE ALABAMA",
+    "facilityType": "TERMINAL",
+    "city": "MOBILE",
+    "state": "AL",
+    "firmsCode": "R103",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/R103",
+    "address": ""
+  },
+  {
+    "name": "WANDO WELCH TERMINAL TERMINAL",
+    "facilityType": "MOUNT",
+    "city": "PLEASANT",
+    "state": "SC",
+    "firmsCode": "N598",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/N598",
+    "address": ""
+  },
+  {
+    "name": "NORTH CHARLESTON TERMINAL TERMINAL",
+    "facilityType": "N",
+    "city": "CHARLESTON",
+    "state": "SC",
+    "firmsCode": "L391",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/L391",
+    "address": ""
+  },
+  {
+    "name": "NAPOLEON TERMINAL TERMINAL",
+    "facilityType": "NEW",
+    "city": "ORLEANS",
+    "state": "LA",
+    "firmsCode": "P260",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/P260",
+    "address": ""
+  },
+  {
+    "name": "P&O PORTS- LOUISIANA TERMINAL",
+    "facilityType": "NEW",
+    "city": "ORLEANS",
+    "state": "LA",
+    "firmsCode": "P280",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/P280",
+    "address": ""
+  },
+  {
+    "name": "PORT NEWARK CONTAINER TERMINAL (PNCT) TERMINAL",
+    "facilityType": "NEW",
+    "city": "YORK",
+    "state": "NJ",
+    "firmsCode": "F577",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/F577",
+    "address": ""
+  },
+  {
+    "name": "GLOBAL TERM. & CONTAINER SERV. INC. TERMINAL",
+    "facilityType": "NEW",
+    "city": "YORK",
+    "state": "NJ",
+    "firmsCode": "E364",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/E364",
+    "address": ""
+  },
+  {
+    "name": "NEW YORK CONTAINER TERMINAL INC. (GCT) TERMINAL",
+    "facilityType": "NEW",
+    "city": "YORK",
+    "state": "NY",
+    "firmsCode": "E005",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/E005",
+    "address": ""
+  },
+  {
+    "name": "RED HOOK CONTAINER TER NEWARK",
+    "facilityType": "TERMINAL",
+    "city": "NEWARK",
+    "state": "NJ",
+    "firmsCode": "E026",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/E026",
+    "address": ""
+  },
+  {
+    "name": "NEWPORT NEWS MARINE TERMINAL TERMINAL",
+    "facilityType": "NEWPORT",
+    "city": "NEWS",
+    "state": "VA",
+    "firmsCode": "N778",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/N778",
+    "address": ""
+  },
+  {
+    "name": "NIT TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "NORFOLK",
+    "state": "VA",
+    "firmsCode": "L005",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/L005",
+    "address": ""
+  },
+  {
+    "name": "TRANS PACIFIC CONTAINER SERVICE CORP(TRAPAC) OAKLAND",
+    "facilityType": "TERMINAL",
+    "city": "OAKLAND",
+    "state": "CA",
+    "firmsCode": "Y549",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Y549",
+    "address": ""
+  },
+  {
+    "name": "TOTAL TERMINALS INTERNATIONAL (TTI)",
+    "facilityType": "TERMINAL",
+    "city": "OAKLAND",
+    "state": "CA",
+    "firmsCode": "Z855",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Z855",
+    "address": ""
+  },
+  {
+    "name": "STEVEDORING SERVICES OF AMERICA - Berth 58",
+    "facilityType": "TERMINAL",
+    "city": "OAKLAND",
+    "state": "CA",
+    "firmsCode": "Z985",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Z985",
+    "address": ""
+  },
+  {
+    "name": "EVERPORT TERMINAL SERVICES",
+    "facilityType": "TERMINAL",
+    "city": "OAKLAND",
+    "state": "CA",
+    "firmsCode": "WBA5",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/WBA5",
+    "address": ""
+  },
+  {
+    "name": "PORTS AMERICA OUTER HARBOR",
+    "facilityType": "TERMINAL",
+    "city": "OAKLAND",
+    "state": "CA",
+    "firmsCode": "W297",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/W297",
+    "address": ""
+  },
+  {
+    "name": "MATSON (BERTH 63)",
+    "facilityType": "TERMINAL",
+    "city": "OAKLAND",
+    "state": "CA",
+    "firmsCode": "W614",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/W614",
+    "address": ""
+  },
+  {
+    "name": "BAYPORT CONTAINER TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "PASADENA",
+    "state": "TX",
+    "firmsCode": "V136",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/V136",
+    "address": ""
+  },
+  {
+    "name": "PACKER AVENUE MARINE TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "PHILADELPHIA",
+    "state": "PA",
+    "firmsCode": "C095",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/C095",
+    "address": ""
+  },
+  {
+    "name": "KNIGHT TRANSPORTATION",
+    "facilityType": "TERMINAL",
+    "city": "PHOENIX",
+    "state": "AZ",
+    "firmsCode": "V391",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/V391",
+    "address": ""
+  },
+  {
+    "name": "INTERNATIONAL MARITIME TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "PORTLAND",
+    "state": "ME",
+    "firmsCode": "B760",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/B760",
+    "address": ""
+  },
+  {
+    "name": "NORTHWEST CONTAINER",
+    "facilityType": "TERMINAL",
+    "city": "PORTLAND",
+    "state": "OR",
+    "firmsCode": "X100",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/X100",
+    "address": ""
+  },
+  {
+    "name": "TERMINAL 6",
+    "facilityType": "TERMINAL",
+    "city": "PORTLAND",
+    "state": "OR",
+    "firmsCode": "X005",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/X005",
+    "address": ""
+  },
+  {
+    "name": "CONGLOBAL INDUSTRIES",
+    "facilityType": "TERMINAL",
+    "city": "PORTLAND",
+    "state": "WA",
+    "firmsCode": "W114",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/W114",
+    "address": ""
+  },
+  {
+    "name": "APM TERMINALS VIRGINIA",
+    "facilityType": "TERMINAL",
+    "city": "PORTSMOUTH",
+    "state": "VA",
+    "firmsCode": "N195",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/N195",
+    "address": ""
+  },
+  {
+    "name": "PORTSMOUTH MARINE TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "PORTSMOUTH",
+    "state": "VA",
+    "firmsCode": "L045",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/L045",
+    "address": ""
+  },
+  {
+    "name": "PORT OF RICHMOND",
+    "facilityType": "TERMINAL",
+    "city": "RICHMOND",
+    "state": "VA",
+    "firmsCode": "LAQ4",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/LAQ4",
+    "address": ""
+  },
+  {
+    "name": "EVERPORT TERMINAL SERVICES TERMINAL",
+    "facilityType": "SAN",
+    "city": "PEDRO",
+    "state": "CA",
+    "firmsCode": "Y124",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Y124",
+    "address": ""
+  },
+  {
+    "name": "MARINE TERMINAL YANG MING TERMINAL",
+    "facilityType": "SAN",
+    "city": "PEDRO",
+    "state": "CA",
+    "firmsCode": "Y773",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Y773",
+    "address": ""
+  },
+  {
+    "name": "GARDEN CITY TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "SAVANNAH",
+    "state": "GA",
+    "firmsCode": "L737",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/L737",
+    "address": ""
+  },
+  {
+    "name": "NORTHLAND SERVICE/SAMSON TUG & BARGE",
+    "facilityType": "TERMINAL",
+    "city": "SEATTLE",
+    "state": "WA",
+    "firmsCode": "Z037",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Z037",
+    "address": ""
+  },
+  {
+    "name": "ALASKA MARITIME LINES/BARGE OP",
+    "facilityType": "TERMINAL",
+    "city": "SEATTLE",
+    "state": "WA",
+    "firmsCode": "Y636",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Y636",
+    "address": ""
+  },
+  {
+    "name": "NORTHWEST CONTAINER SERVICE INC",
+    "facilityType": "TERMINAL",
+    "city": "SEATTLE",
+    "state": "WA",
+    "firmsCode": "Y765",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Y765",
+    "address": ""
+  },
+  {
+    "name": "CONGLOBAL INDUSTRIES",
+    "facilityType": "TERMINAL",
+    "city": "SEATTLE",
+    "state": "WA",
+    "firmsCode": "Y559",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Y559",
+    "address": ""
+  },
+  {
+    "name": "COASTAL TRANSPORTATION",
+    "facilityType": "TERMINAL",
+    "city": "SEATTLE",
+    "state": "WA",
+    "firmsCode": "Y936",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Y936",
+    "address": ""
+  },
+  {
+    "name": "BOYER ALASKA BARGE LINE",
+    "facilityType": "TERMINAL",
+    "city": "SEATTLE",
+    "state": "WA",
+    "firmsCode": "X135",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/X135",
+    "address": ""
+  },
+  {
+    "name": "SSA TERMINAL 30",
+    "facilityType": "TERMINAL",
+    "city": "SEATTLE",
+    "state": "WA",
+    "firmsCode": "Y197",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Y197",
+    "address": ""
+  },
+  {
+    "name": "SSA TERMINAL 18",
+    "facilityType": "TERMINAL",
+    "city": "SEATTLE",
+    "state": "WA",
+    "firmsCode": "X117",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/X117",
+    "address": ""
+  },
+  {
+    "name": "WASHINGTON UNITED TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "TACOMA",
+    "state": "WA",
+    "firmsCode": "Z705",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Z705",
+    "address": ""
+  },
+  {
+    "name": "TACOMA TERMINAL",
+    "facilityType": "TERMINAL",
+    "city": "TACOMA",
+    "state": "WA",
+    "firmsCode": "X215",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/X215",
+    "address": ""
+  },
+  {
+    "name": "MARINE TERMINAL CORPORATION TACOMA",
+    "facilityType": "TERMINAL",
+    "city": "TACOMA",
+    "state": "WA",
+    "firmsCode": "X209",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/X209",
+    "address": ""
+  },
+  {
+    "name": "PORT OF TAMPA",
+    "facilityType": "TERMINAL",
+    "city": "TAMPA",
+    "state": "FL",
+    "firmsCode": "M669",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/M669",
+    "address": ""
+  },
+  {
+    "name": "UPRR - NEW ORLEANS RAIL RAMP",
+    "facilityType": "NEW",
+    "city": "ORLEANS",
+    "state": "LA",
+    "firmsCode": "P996",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/P996",
+    "address": ""
+  },
+  {
+    "name": "BNSF - ALBUQUERQUE RAIL",
+    "facilityType": "RAMP",
+    "city": "ALBUQUERQUE",
+    "state": "NM",
+    "firmsCode": "S478",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/S478",
+    "address": ""
+  },
+  {
+    "name": "BNSF - AMARILLO RAIL",
+    "facilityType": "RAMP",
+    "city": "AMARILLO",
+    "state": "TX",
+    "firmsCode": "T344",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/T344",
+    "address": ""
+  },
+  {
+    "name": "CSX - HULSLEY RAIL",
+    "facilityType": "RAMP",
+    "city": "ATLANTA",
+    "state": "GA",
+    "firmsCode": "N440",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/N440",
+    "address": ""
+  },
+  {
+    "name": "NSRR - ATLANTA RAIL",
+    "facilityType": "RAMP",
+    "city": "ATLANTA",
+    "state": "GA",
+    "firmsCode": "L810",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/L810",
+    "address": ""
+  },
+  {
+    "name": "CSX FAIRBURN RAIL",
+    "facilityType": "RAMP",
+    "city": "ATLANTA",
+    "state": "GA",
+    "firmsCode": "O083",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/O083",
+    "address": ""
+  },
+  {
+    "name": "BNSF FAIRBURN RAIL",
+    "facilityType": "RAMP",
+    "city": "ATLANTA",
+    "state": "GA",
+    "firmsCode": "O083",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/O083",
+    "address": ""
+  },
+  {
+    "name": "NSRR - AUSTELL RAIL",
+    "facilityType": "RAMP",
+    "city": "AUSTELL",
+    "state": "GA",
+    "firmsCode": "L690",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/L690",
+    "address": ""
+  },
+  {
+    "name": "NORFOLK SOUTHERN RR AYER RAIL",
+    "facilityType": "RAMP",
+    "city": "AYER",
+    "state": "MA",
+    "firmsCode": "D071",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/D071",
+    "address": ""
+  },
+  {
+    "name": "NSRR - BALTIMORE RAIL",
+    "facilityType": "RAMP",
+    "city": "BALTIMORE",
+    "state": "MD",
+    "firmsCode": "C407",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/C407",
+    "address": ""
+  },
+  {
+    "name": "CSX-BALTIMORE-ICTF RAIL",
+    "facilityType": "RAMP",
+    "city": "BALTIMORE",
+    "state": "MD",
+    "firmsCode": "C204",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/C204",
+    "address": ""
+  },
+  {
+    "name": "CSX - BESSEMER RAIL",
+    "facilityType": "RAMP",
+    "city": "BESSEMER",
+    "state": "AL",
+    "firmsCode": "Q536",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Q536",
+    "address": ""
+  },
+  {
+    "name": "BNSF - BIRMINGHAM RAIL",
+    "facilityType": "RAMP",
+    "city": "BIRMINGHAM",
+    "state": "AL",
+    "firmsCode": "P170",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/P170",
+    "address": ""
+  },
+  {
+    "name": "CSX BOSTON RAIL",
+    "facilityType": "RAMP",
+    "city": "BOSTON",
+    "state": "MA",
+    "firmsCode": "D158",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/D158",
+    "address": ""
+  },
+  {
+    "name": "CSX BUFFALO ICTF RAIL",
+    "facilityType": "RAMP",
+    "city": "BUFFALO",
+    "state": "NY",
+    "firmsCode": "D059",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/D059",
+    "address": ""
+  },
+  {
+    "name": "CSX RR CHARLESTON RAIL",
+    "facilityType": "RAMP",
+    "city": "CHARLESTON",
+    "state": "SC",
+    "firmsCode": "L436",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/L436",
+    "address": ""
+  },
+  {
+    "name": "NSRR - CHARLESTON RAIL",
+    "facilityType": "RAMP",
+    "city": "CHARLESTON",
+    "state": "SC",
+    "firmsCode": "L437",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/L437",
+    "address": ""
+  },
+  {
+    "name": "FSI INC RAIL",
+    "facilityType": "RAMP",
+    "city": "CHARLOTTE",
+    "state": "NC",
+    "firmsCode": "L916",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/L916",
+    "address": ""
+  },
+  {
+    "name": "CSX RAILROAD CHARLOTTE NC RAIL",
+    "facilityType": "RAMP",
+    "city": "CHARLOTTE",
+    "state": "NC",
+    "firmsCode": "L326",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/L326",
+    "address": ""
+  },
+  {
+    "name": "NSRR - CHARLOTTE RAIL",
+    "facilityType": "RAMP",
+    "city": "CHARLOTTE",
+    "state": "NC",
+    "firmsCode": "L909",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/L909",
+    "address": ""
+  },
+  {
+    "name": "NORFOLK SOUTHERN NSRR RAIL",
+    "facilityType": "RAMP",
+    "city": "CHARLOTTE",
+    "state": "NC",
+    "firmsCode": "N481",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/N481",
+    "address": ""
+  },
+  {
+    "name": "BNSF - CORWITH RAIL",
+    "facilityType": "RAMP",
+    "city": "CHICAGO",
+    "state": "IL",
+    "firmsCode": "I145",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/I145",
+    "address": ""
+  },
+  {
+    "name": "BNSF CICERO RAIL",
+    "facilityType": "RAMP",
+    "city": "CHICAGO",
+    "state": "IL",
+    "firmsCode": "J791",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/J791",
+    "address": ""
+  },
+  {
+    "name": "NSRR - 47TH CHICAGO RAIL",
+    "facilityType": "RAMP",
+    "city": "CHICAGO",
+    "state": "IL",
+    "firmsCode": "I104",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/I104",
+    "address": ""
+  },
+  {
+    "name": "CN RAIL - CHICAGO RAIL",
+    "facilityType": "RAMP",
+    "city": "CHICAGO",
+    "state": "IL",
+    "firmsCode": "I092",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/I092",
+    "address": ""
+  },
+  {
+    "name": "NSRR - LANDERS CHICAGO RAIL",
+    "facilityType": "RAMP",
+    "city": "CHICAGO",
+    "state": "IL",
+    "firmsCode": "I104",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/I104",
+    "address": ""
+  },
+  {
+    "name": "CPRR -SCHILLER PARK RAIL",
+    "facilityType": "RAMP",
+    "city": "CHICAGO",
+    "state": "IL",
+    "firmsCode": "I217",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/I217",
+    "address": ""
+  },
+  {
+    "name": "CPRR -BENSENVILLE RAIL",
+    "facilityType": "RAMP",
+    "city": "CHICAGO",
+    "state": "IL",
+    "firmsCode": "J830",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/J830",
+    "address": ""
+  },
+  {
+    "name": "CSX -59TH ST. TERMINAL, CHICAGO RAIL",
+    "facilityType": "RAMP",
+    "city": "CHICAGO",
+    "state": "IL",
+    "firmsCode": "J054",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/J054",
+    "address": ""
+  },
+  {
+    "name": "CSX BEDFORD PARK RAIL",
+    "facilityType": "RAMP",
+    "city": "CHICAGO",
+    "state": "IL",
+    "firmsCode": "J470",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/J470",
+    "address": ""
+  },
+  {
+    "name": "BNSF - CHI/REEFER RAIL",
+    "facilityType": "RAMP",
+    "city": "CHICAGO",
+    "state": "IL",
+    "firmsCode": "J791",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/J791",
+    "address": ""
+  },
+  {
+    "name": "CSX RR CINCINNATI RAIL",
+    "facilityType": "RAMP",
+    "city": "CINCINNATI",
+    "state": "OH",
+    "firmsCode": "J614",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/J614",
+    "address": ""
+  },
+  {
+    "name": "NS - CINCINNATI RAIL",
+    "facilityType": "RAMP",
+    "city": "CINCINNATI",
+    "state": "OH",
+    "firmsCode": "J404",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/J404",
+    "address": ""
+  },
+  {
+    "name": "UPRR - CITY OF INDUSTRY RAIL RAMP CITY",
+    "facilityType": "OF",
+    "city": "INDUSTRY",
+    "state": "CA",
+    "firmsCode": "W201",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/W201",
+    "address": ""
+  },
+  {
+    "name": "CSX CLEVELAND RAIL",
+    "facilityType": "RAMP",
+    "city": "CLEVELAND",
+    "state": "OH",
+    "firmsCode": "J745",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/J745",
+    "address": ""
+  },
+  {
+    "name": "NSRR - CLEVELAND RAIL",
+    "facilityType": "RAMP",
+    "city": "CLEVELAND",
+    "state": "OH",
+    "firmsCode": "J037",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/J037",
+    "address": ""
+  },
+  {
+    "name": "CSX COLUMBUS RAIL",
+    "facilityType": "RAMP",
+    "city": "COLUMBUS",
+    "state": "OH",
+    "firmsCode": "I699",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/I699",
+    "address": ""
+  },
+  {
+    "name": "NSRR - CMH RICKENBACKER RAIL",
+    "facilityType": "RAMP",
+    "city": "COLUMBUS",
+    "state": "OH",
+    "firmsCode": "H367",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/H367",
+    "address": ""
+  },
+  {
+    "name": "UP - COUNCIL BLUFF RAIL RAMP",
+    "facilityType": "COUNCIL",
+    "city": "BLUFFS",
+    "state": "IA",
+    "firmsCode": "H043",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/H043",
+    "address": ""
+  },
+  {
+    "name": "BNSF - ALLIANCE RAIL",
+    "facilityType": "RAMP",
+    "city": "DALLAS",
+    "state": "TX",
+    "firmsCode": "T926",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/T926",
+    "address": ""
+  },
+  {
+    "name": "UPRR - DALLAS RAIL",
+    "facilityType": "RAMP",
+    "city": "DALLAS",
+    "state": "TX",
+    "firmsCode": "U419",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/U419",
+    "address": ""
+  },
+  {
+    "name": "KCSR RAMP DALLAS TX RAIL",
+    "facilityType": "RAMP",
+    "city": "DALLAS",
+    "state": "TX",
+    "firmsCode": "T929",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/T929",
+    "address": ""
+  },
+  {
+    "name": "UPRR - DENVER RAIL",
+    "facilityType": "RAMP",
+    "city": "DENVER",
+    "state": "CO",
+    "firmsCode": "H099",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/H099",
+    "address": ""
+  },
+  {
+    "name": "BNSF - DENVER RAIL",
+    "facilityType": "RAMP",
+    "city": "DENVER",
+    "state": "CO",
+    "firmsCode": "H096",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/H096",
+    "address": ""
+  },
+  {
+    "name": "NSRR - LIVERNOIS DETROIT RAIL",
+    "facilityType": "RAMP",
+    "city": "DETROIT",
+    "state": "MI",
+    "firmsCode": "H796",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/H796",
+    "address": ""
+  },
+  {
+    "name": "CSX DETROIT RAIL",
+    "facilityType": "RAMP",
+    "city": "DETROIT",
+    "state": "MI",
+    "firmsCode": "H797",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/H797",
+    "address": ""
+  },
+  {
+    "name": "NSRR - DELRAY DETROIT RAIL",
+    "facilityType": "RAMP",
+    "city": "DETROIT",
+    "state": "MI",
+    "firmsCode": "I760",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/I760",
+    "address": ""
+  },
+  {
+    "name": "CN RAIL (FERNDALE) RAIL",
+    "facilityType": "RAMP",
+    "city": "DETROIT",
+    "state": "MI",
+    "firmsCode": "H798",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/H798",
+    "address": ""
+  },
+  {
+    "name": "CPRR - DETROIT RAIL",
+    "facilityType": "RAMP",
+    "city": "DETROIT",
+    "state": "MI",
+    "firmsCode": "H729",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/H729",
+    "address": ""
+  },
+  {
+    "name": "GTW RAILROAD DETROIT RAIL",
+    "facilityType": "RAMP",
+    "city": "DETROIT",
+    "state": "MI",
+    "firmsCode": "H798",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/H798",
+    "address": ""
+  },
+  {
+    "name": "CSX- EAST ST LOUIS RAIL RAMP EAST",
+    "facilityType": "ST",
+    "city": "LOUIS",
+    "state": "IL",
+    "firmsCode": "J313",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/J313",
+    "address": ""
+  },
+  {
+    "name": "CSX- SYRACUSE RAIL RAMP",
+    "facilityType": "EAST",
+    "city": "SYRACUSE",
+    "state": "NY",
+    "firmsCode": "D706",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/D706",
+    "address": ""
+  },
+  {
+    "name": "BNSF - KANSAS CITY RAIL",
+    "facilityType": "RAMP",
+    "city": "EDGERTON",
+    "state": "KS",
+    "firmsCode": "J177",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/J177",
+    "address": ""
+  },
+  {
+    "name": "BNSF RAIL RAMP",
+    "facilityType": "EL",
+    "city": "PASO",
+    "state": "TX",
+    "firmsCode": "S390",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/S390",
+    "address": ""
+  },
+  {
+    "name": "UP- EL PASO RAIL RAMP",
+    "facilityType": "EL",
+    "city": "PASO",
+    "state": "TX",
+    "firmsCode": "S389",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/S389",
+    "address": ""
+  },
+  {
+    "name": "BNSF LOGISTICS PARK RAIL",
+    "facilityType": "RAMP",
+    "city": "ELWOOD",
+    "state": "IL",
+    "firmsCode": "H572",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/H572",
+    "address": ""
+  },
+  {
+    "name": "KANSAS CITY SOUTHERN RR (MISS) RAIL",
+    "facilityType": "RAMP",
+    "city": "FLOWOOD",
+    "state": "MS",
+    "firmsCode": "R266",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/R266",
+    "address": ""
+  },
+  {
+    "name": "NS - GREENSBORO RAIL",
+    "facilityType": "RAMP",
+    "city": "GREENSBORO",
+    "state": "NC",
+    "firmsCode": "O119",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/O119",
+    "address": ""
+  },
+  {
+    "name": "NORFOLK SOUTHERN RAIL",
+    "facilityType": "RAMP",
+    "city": "GREER",
+    "state": "SC",
+    "firmsCode": "M682",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/M682",
+    "address": ""
+  },
+  {
+    "name": "BNSF RAIL",
+    "facilityType": "RAMP",
+    "city": "HOUSTON",
+    "state": "TX",
+    "firmsCode": "S639",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/S639",
+    "address": ""
+  },
+  {
+    "name": "UPRR - ENGLEWOOD RAIL",
+    "facilityType": "RAMP",
+    "city": "HOUSTON",
+    "state": "TX",
+    "firmsCode": "S640",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/S640",
+    "address": ""
+  },
+  {
+    "name": "UPRR - BARBOURS CUT RAIL",
+    "facilityType": "RAMP",
+    "city": "HOUSTON",
+    "state": "TX",
+    "firmsCode": "S834",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/S834",
+    "address": ""
+  },
+  {
+    "name": "UPRR - HOUSTON RAIL",
+    "facilityType": "RAMP",
+    "city": "HOUSTON",
+    "state": "TX",
+    "firmsCode": "S637",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/S637",
+    "address": ""
+  },
+  {
+    "name": "NSRR - HUNTSVILLE RAIL",
+    "facilityType": "RAMP",
+    "city": "HUNTSVILLE",
+    "state": "AL",
+    "firmsCode": "Q165",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Q165",
+    "address": ""
+  },
+  {
+    "name": "CSX INDIANAPOLIS RAIL",
+    "facilityType": "RAMP",
+    "city": "INDIANAPOLIS",
+    "state": "IN",
+    "firmsCode": "I950",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/I950",
+    "address": ""
+  },
+  {
+    "name": "CN- INDIANAPOLIS RAIL",
+    "facilityType": "RAMP",
+    "city": "INDIANAPOLIS",
+    "state": "IN",
+    "firmsCode": "H913",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/H913",
+    "address": ""
+  },
+  {
+    "name": "CSX RR RAIL",
+    "facilityType": "RAMP",
+    "city": "JACKSONVILLE",
+    "state": "FL",
+    "firmsCode": "N760",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/N760",
+    "address": ""
+  },
+  {
+    "name": "FEC RR RAIL",
+    "facilityType": "RAMP",
+    "city": "JACKSONVILLE",
+    "state": "FL",
+    "firmsCode": "N298",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/N298",
+    "address": ""
+  },
+  {
+    "name": "NSRR - JACKSONVILLE RAIL",
+    "facilityType": "RAMP",
+    "city": "JACKSONVILLE",
+    "state": "FL",
+    "firmsCode": "N321",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/N321",
+    "address": ""
+  },
+  {
+    "name": "NEW JERSEY INTERMODAL TERMINAL RAIL RAMP",
+    "facilityType": "JERSEY",
+    "city": "CITY",
+    "state": "NJ",
+    "firmsCode": "E611",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/E611",
+    "address": ""
+  },
+  {
+    "name": "CN RAIL JOLIET RAIL",
+    "facilityType": "RAMP",
+    "city": "JOLIET",
+    "state": "IL",
+    "firmsCode": "H903",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/H903",
+    "address": ""
+  },
+  {
+    "name": "UNION PACIFIC GLOBAL RAMP IV RAIL",
+    "facilityType": "RAMP",
+    "city": "JOLIET",
+    "state": "IL",
+    "firmsCode": "I206",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/I206",
+    "address": ""
+  },
+  {
+    "name": "BNSF - ARGENTINE YARD RAIL RAMP",
+    "facilityType": "KANSAS",
+    "city": "CITY",
+    "state": "KS",
+    "firmsCode": "J177",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/J177",
+    "address": ""
+  },
+  {
+    "name": "CSX KANSAS CITY RAIL RAMP",
+    "facilityType": "KANSAS",
+    "city": "CITY",
+    "state": "KS",
+    "firmsCode": "J166",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/J166",
+    "address": ""
+  },
+  {
+    "name": "NORFOLK SOUTHERN RAILROAD RAIL RAMP",
+    "facilityType": "KANSAS",
+    "city": "CITY",
+    "state": "MO",
+    "firmsCode": "J176",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/J176",
+    "address": ""
+  },
+  {
+    "name": "KANSAS CITY RAMP RAIL RAMP",
+    "facilityType": "KANSAS",
+    "city": "CITY",
+    "state": "MO",
+    "firmsCode": "J178",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/J178",
+    "address": ""
+  },
+  {
+    "name": "UPRR - LAREDO RAIL",
+    "facilityType": "RAMP",
+    "city": "LAREDO",
+    "state": "TX",
+    "firmsCode": "V551",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/V551",
+    "address": ""
+  },
+  {
+    "name": "UP- LAREDO RAIL",
+    "facilityType": "RAMP",
+    "city": "LAREDO",
+    "state": "TX",
+    "firmsCode": "U351",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/U351",
+    "address": ""
+  },
+  {
+    "name": "UPRR - LATC RAIL RAMP",
+    "facilityType": "LOS",
+    "city": "ANGELES",
+    "state": "CA",
+    "firmsCode": "W202",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/W202",
+    "address": ""
+  },
+  {
+    "name": "BNSF - LOS ANGELES RAIL RAMP",
+    "facilityType": "LOS",
+    "city": "ANGELES",
+    "state": "CA",
+    "firmsCode": "Y386",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Y386",
+    "address": ""
+  },
+  {
+    "name": "UPRR - LOS ANGELES RAIL RAMP",
+    "facilityType": "LOS",
+    "city": "ANGELES",
+    "state": "CA",
+    "firmsCode": "W201",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/W201",
+    "address": ""
+  },
+  {
+    "name": "NSRR - LOUISVILLE RAIL",
+    "facilityType": "RAMP",
+    "city": "LOUISVILLE",
+    "state": "KY",
+    "firmsCode": "J060",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/J060",
+    "address": ""
+  },
+  {
+    "name": "NSRR - LOUISVILLE APPLICANCE PARK RAIL",
+    "facilityType": "RAMP",
+    "city": "LOUISVILLE",
+    "state": "KY",
+    "firmsCode": "H879",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/H879",
+    "address": ""
+  },
+  {
+    "name": "CSX LOUISVILLE RAIL",
+    "facilityType": "RAMP",
+    "city": "LOUISVILLE",
+    "state": "KY",
+    "firmsCode": "I399",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/I399",
+    "address": ""
+  },
+  {
+    "name": "UP- MARION RAIL",
+    "facilityType": "RAMP",
+    "city": "MARION",
+    "state": "AR",
+    "firmsCode": "P279",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/P279",
+    "address": ""
+  },
+  {
+    "name": "CSX-MCKEES ROCKS RAIL RAMP",
+    "facilityType": "MCKEES",
+    "city": "ROCKS",
+    "state": "PA",
+    "firmsCode": "AAE1",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/AAE1",
+    "address": ""
+  },
+  {
+    "name": "INTERMODAL CARTAGE RAIL",
+    "facilityType": "RAMP",
+    "city": "MEMPHIS",
+    "state": "TN",
+    "firmsCode": "Q211",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Q211",
+    "address": ""
+  },
+  {
+    "name": "NSRR -MEMPHIS RAIL",
+    "facilityType": "RAMP",
+    "city": "MEMPHIS",
+    "state": "TN",
+    "firmsCode": "P487",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/P487",
+    "address": ""
+  },
+  {
+    "name": "BNSF - MEMPHIS RAIL",
+    "facilityType": "RAMP",
+    "city": "MEMPHIS",
+    "state": "TN",
+    "firmsCode": "P486",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/P486",
+    "address": ""
+  },
+  {
+    "name": "CN RAMP MEMPHIS RAIL",
+    "facilityType": "RAMP",
+    "city": "MEMPHIS",
+    "state": "TN",
+    "firmsCode": "P484",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/P484",
+    "address": ""
+  },
+  {
+    "name": "CSXT RAILROAD MEMPHIS RAMP RAIL",
+    "facilityType": "RAMP",
+    "city": "MEMPHIS",
+    "state": "TN",
+    "firmsCode": "Q172",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Q172",
+    "address": ""
+  },
+  {
+    "name": "UPRR - MARION RAIL",
+    "facilityType": "RAMP",
+    "city": "MEMPHIS",
+    "state": "TN",
+    "firmsCode": "P485",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/P485",
+    "address": ""
+  },
+  {
+    "name": "FLORIDA EAST COAST RAILROAD RAIL",
+    "facilityType": "RAMP",
+    "city": "MIAMI",
+    "state": "FL",
+    "firmsCode": "M601",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/M601",
+    "address": ""
+  },
+  {
+    "name": "BNSF - MINNEAPOLIS RAIL",
+    "facilityType": "RAMP",
+    "city": "MINNEAPOLIS",
+    "state": "MN",
+    "firmsCode": "J828",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/J828",
+    "address": ""
+  },
+  {
+    "name": "CPRR - MINNEAPOLIS RAIL",
+    "facilityType": "RAMP",
+    "city": "MINNEAPOLIS",
+    "state": "MN",
+    "firmsCode": "J554",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/J554",
+    "address": ""
+  },
+  {
+    "name": "CSX RR MOBILE RAIL",
+    "facilityType": "RAMP",
+    "city": "MOBILE",
+    "state": "AL",
+    "firmsCode": "Q096",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Q096",
+    "address": ""
+  },
+  {
+    "name": "CSX RR NASHVILLE RAIL",
+    "facilityType": "RAMP",
+    "city": "NASHVILLE",
+    "state": "TN",
+    "firmsCode": "P587",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/P587",
+    "address": ""
+  },
+  {
+    "name": "CSX RR NEW ORLEANS LA RAIL RAMP",
+    "facilityType": "NEW",
+    "city": "ORLEANS",
+    "state": "LA",
+    "firmsCode": "Q072",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Q072",
+    "address": ""
+  },
+  {
+    "name": "NSRR - NEW ORLEANS RAIL RAMP",
+    "facilityType": "NEW",
+    "city": "ORLEANS",
+    "state": "LA",
+    "firmsCode": "P979",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/P979",
+    "address": ""
+  },
+  {
+    "name": "CN RAMP NEW ORLEANS RAIL RAMP",
+    "facilityType": "NEW",
+    "city": "ORLEANS",
+    "state": "LA",
+    "firmsCode": "P989",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/P989",
+    "address": ""
+  },
+  {
+    "name": "BNSF - NEW ORLEANS RAIL RAMP",
+    "facilityType": "NEW",
+    "city": "ORLEANS",
+    "state": "LA",
+    "firmsCode": "Q819",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Q819",
+    "address": ""
+  },
+  {
+    "name": "UPRR NINE MILE POINT RAIL RAMP",
+    "facilityType": "NEW",
+    "city": "ORLEANS",
+    "state": "LA",
+    "firmsCode": "Q222",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Q222",
+    "address": ""
+  },
+  {
+    "name": "CN- NEW ORLEANS RAIL RAMP",
+    "facilityType": "NEW",
+    "city": "ORLEANS",
+    "state": "LA",
+    "firmsCode": "P989",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/P989",
+    "address": ""
+  },
+  {
+    "name": "NSRR - NORFOLK RAIL",
+    "facilityType": "RAMP",
+    "city": "NORFOLK",
+    "state": "VA",
+    "firmsCode": "N725",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/N725",
+    "address": ""
+  },
+  {
+    "name": "CSX-NORTH BERGEN RAIL RAMP",
+    "facilityType": "NORTH",
+    "city": "BERGEN",
+    "state": "NJ",
+    "firmsCode": "E381",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/E381",
+    "address": ""
+  },
+  {
+    "name": "CSX-LITTLE FERRY RAIL RAMP",
+    "facilityType": "NORTH",
+    "city": "BERGEN",
+    "state": "NJ",
+    "firmsCode": "E608",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/E608",
+    "address": ""
+  },
+  {
+    "name": "UPRR - OAKLAND RAIL",
+    "facilityType": "RAMP",
+    "city": "OAKLAND",
+    "state": "CA",
+    "firmsCode": "W581",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/W581",
+    "address": ""
+  },
+  {
+    "name": "OAKLAND INTERNATIONAL GATEWAY RAIL",
+    "facilityType": "RAMP",
+    "city": "OAKLAND",
+    "state": "CA",
+    "firmsCode": "Z944",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Z944",
+    "address": ""
+  },
+  {
+    "name": "BNSF RAILROAD RAIL",
+    "facilityType": "RAMP",
+    "city": "OMAHA",
+    "state": "NE",
+    "firmsCode": "H397",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/H397",
+    "address": ""
+  },
+  {
+    "name": "CSX-ORLANDO RAIL",
+    "facilityType": "RAMP",
+    "city": "ORLANDO",
+    "state": "FL",
+    "firmsCode": "N344",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/N344",
+    "address": ""
+  },
+  {
+    "name": "TRANSMARITIME INC RAIL",
+    "facilityType": "RAMP",
+    "city": "PHARR",
+    "state": "TX",
+    "firmsCode": "V956",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/V956",
+    "address": ""
+  },
+  {
+    "name": "CSX GREENWICH RAIL",
+    "facilityType": "RAMP",
+    "city": "PHILADELPHIA",
+    "state": "PA",
+    "firmsCode": "B326",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/B326",
+    "address": ""
+  },
+  {
+    "name": "UPRR - PHOENIX RAIL",
+    "facilityType": "RAMP",
+    "city": "PHOENIX",
+    "state": "AZ",
+    "firmsCode": "V030",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/V030",
+    "address": ""
+  },
+  {
+    "name": "NSRR -PITTSBURG RAIL",
+    "facilityType": "RAMP",
+    "city": "PITTSBURGH",
+    "state": "PA",
+    "firmsCode": "D106",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/D106",
+    "address": ""
+  },
+  {
+    "name": "BNSF - PORTLAND RAIL",
+    "facilityType": "RAMP",
+    "city": "PORTLAND",
+    "state": "OR",
+    "firmsCode": "X086",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/X086",
+    "address": ""
+  },
+  {
+    "name": "UPRR - BROOKLYN RAIL",
+    "facilityType": "RAMP",
+    "city": "PORTLAND",
+    "state": "OR",
+    "firmsCode": "W975",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/W975",
+    "address": ""
+  },
+  {
+    "name": "UPRR - PORTLAND RAIL",
+    "facilityType": "RAMP",
+    "city": "PORTLAND",
+    "state": "OR",
+    "firmsCode": "W977",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/W977",
+    "address": ""
+  },
+  {
+    "name": "CSX- PORTSMOUTH RAIL",
+    "facilityType": "RAMP",
+    "city": "PORTSMOUTH",
+    "state": "VA",
+    "firmsCode": "N727",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/N727",
+    "address": ""
+  },
+  {
+    "name": "CONTAINER MAINTENANCE CORP. RAIL",
+    "facilityType": "RAMP",
+    "city": "RINCON",
+    "state": "GA",
+    "firmsCode": "O625",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/O625",
+    "address": ""
+  },
+  {
+    "name": "ROCHELLE RAMP GLOBAL RAIL",
+    "facilityType": "RAMP",
+    "city": "ROCHELLE",
+    "state": "IL",
+    "firmsCode": "J323",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/J323",
+    "address": ""
+  },
+  {
+    "name": "ILLINOIS CENTRAL GULF RAILROAD RAIL RAMP",
+    "facilityType": "SAINT",
+    "city": "LOUIS",
+    "state": "IL",
+    "firmsCode": "J315",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/J315",
+    "address": ""
+  },
+  {
+    "name": "UPRR - DUPPO ST LOUIS RAIL RAMP",
+    "facilityType": "SAINT",
+    "city": "LOUIS",
+    "state": "IL",
+    "firmsCode": "K078",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/K078",
+    "address": ""
+  },
+  {
+    "name": "BNSF \u2013 ST. LOUIS RAIL RAMP",
+    "facilityType": "SAINT",
+    "city": "LOUIS",
+    "state": "MO",
+    "firmsCode": "J300",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/J300",
+    "address": ""
+  },
+  {
+    "name": "NSRR - ST. LOUIS RAIL RAMP",
+    "facilityType": "SAINT",
+    "city": "LOUIS",
+    "state": "MO",
+    "firmsCode": "J288",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/J288",
+    "address": ""
+  },
+  {
+    "name": "UPRR - SALT LAKE CITY RAIL RAMP SALT",
+    "facilityType": "LAKE",
+    "city": "CITY",
+    "state": "UT",
+    "firmsCode": "K961",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/K961",
+    "address": ""
+  },
+  {
+    "name": "UP RAIL RAMP",
+    "facilityType": "SAN",
+    "city": "ANTONIO",
+    "state": "TX",
+    "firmsCode": "S518",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/S518",
+    "address": ""
+  },
+  {
+    "name": "UPRR - SANTA TERESA (NEAR EL PASO, TX) RAIL RAMP",
+    "facilityType": "SANTA",
+    "city": "TERESA",
+    "state": "NM",
+    "firmsCode": "T571",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/T571",
+    "address": ""
+  },
+  {
+    "name": "CSX RR RAIL",
+    "facilityType": "RAMP",
+    "city": "SAVANNAH",
+    "state": "GA",
+    "firmsCode": "L613",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/L613",
+    "address": ""
+  },
+  {
+    "name": "NSRR - SAV ITCF RAIL",
+    "facilityType": "RAMP",
+    "city": "SAVANNAH",
+    "state": "GA",
+    "firmsCode": "L710",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/L710",
+    "address": ""
+  },
+  {
+    "name": "BNSF - SEATTLE RAIL",
+    "facilityType": "RAMP",
+    "city": "SEATTLE",
+    "state": "WA",
+    "firmsCode": "Y498",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Y498",
+    "address": ""
+  },
+  {
+    "name": "BNSF - SOUTH SEATTLE RAIL",
+    "facilityType": "RAMP",
+    "city": "SEATTLE",
+    "state": "WA",
+    "firmsCode": "Y371",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Y371",
+    "address": ""
+  },
+  {
+    "name": "UPRR - SEATTLE RAIL",
+    "facilityType": "RAMP",
+    "city": "SEATTLE",
+    "state": "WA",
+    "firmsCode": "X161",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/X161",
+    "address": ""
+  },
+  {
+    "name": "NSRR - SHARONVILLE RAIL",
+    "facilityType": "RAMP",
+    "city": "SHARONVILLE",
+    "state": "OH",
+    "firmsCode": "H897",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/H897",
+    "address": ""
+  },
+  {
+    "name": "CSX-SOUTH KEARNY RAIL RAMP",
+    "facilityType": "SOUTH",
+    "city": "KEARNY",
+    "state": "NJ",
+    "firmsCode": "E389",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/E389",
+    "address": ""
+  },
+  {
+    "name": "BNSF - SPOKANE RAIL",
+    "facilityType": "RAMP",
+    "city": "SPOKANE",
+    "state": "WA",
+    "firmsCode": "Y799",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Y799",
+    "address": ""
+  },
+  {
+    "name": "CSX RAIL RAMP RAIL",
+    "facilityType": "RAMP",
+    "city": "TAMPA",
+    "state": "FL",
+    "firmsCode": "L894",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/L894",
+    "address": ""
+  },
+  {
+    "name": "CSX- TAMPA RAIL",
+    "facilityType": "RAMP",
+    "city": "TAMPA",
+    "state": "FL",
+    "firmsCode": "N093",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/N093",
+    "address": ""
+  },
+  {
+    "name": "UP- DIT RAIL",
+    "facilityType": "RAMP",
+    "city": "WILMER",
+    "state": "TX",
+    "firmsCode": "V963",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/V963",
+    "address": ""
+  },
+  {
+    "name": "CSX WINTER HAVEN RAIL RAMP",
+    "facilityType": "WINTER",
+    "city": "HAVEN",
+    "state": "FL",
+    "firmsCode": "N110",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/N110",
+    "address": ""
+  },
+  {
+    "name": "CSX - WORCESTER, MA RAIL",
+    "facilityType": "RAMP",
+    "city": "WORCESTER",
+    "state": "MA",
+    "firmsCode": "C358",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/C358",
+    "address": ""
+  },
+  {
+    "name": "KCS-WYLIE RAIL",
+    "facilityType": "RAMP",
+    "city": "WYLIE",
+    "state": "TX",
+    "firmsCode": "U178",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/U178",
+    "address": ""
+  },
+  {
+    "name": "ROMAR TERMINALS",
+    "facilityType": "DEPOT",
+    "city": "ALLSTON",
+    "state": "MA",
+    "firmsCode": "A393",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/A393",
+    "address": ""
+  },
+  {
+    "name": "LANPORT INCORPORATED",
+    "facilityType": "DEPOT",
+    "city": "ATLANTA",
+    "state": "GA",
+    "firmsCode": "N423",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/N423",
+    "address": ""
+  },
+  {
+    "name": "CALEXICO CROSS BORDER",
+    "facilityType": "DEPOT",
+    "city": "CALEXICO",
+    "state": "CA",
+    "firmsCode": "Z377",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Z377",
+    "address": ""
+  },
+  {
+    "name": "DAVIDSON TRANSPORTATION MARKETING INC DEPOT",
+    "facilityType": "COLLEGE",
+    "city": "PARK",
+    "state": "GA",
+    "firmsCode": "O361",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/O361",
+    "address": ""
+  },
+  {
+    "name": "CPG- COLUMBUS",
+    "facilityType": "DEPOT",
+    "city": "COLUMBUS",
+    "state": "OH",
+    "firmsCode": "J633",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/J633",
+    "address": ""
+  },
+  {
+    "name": "UNIVERSAL INTERMODAL SERVICES",
+    "facilityType": "DEPOT",
+    "city": "DALLAS",
+    "state": "TX",
+    "firmsCode": "V341",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/V341",
+    "address": ""
+  },
+  {
+    "name": "SCIP DILLON",
+    "facilityType": "DEPOT",
+    "city": "DILLON",
+    "state": "SC",
+    "firmsCode": "LA73",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/LA73",
+    "address": ""
+  },
+  {
+    "name": "TWIN CITIES DEPOT",
+    "facilityType": "EL",
+    "city": "PASO",
+    "state": "TX",
+    "firmsCode": "V014",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/V014",
+    "address": ""
+  },
+  {
+    "name": "FRONT ROYAL RAIL DEPOT",
+    "facilityType": "FRONT",
+    "city": "ROYAL",
+    "state": "VA",
+    "firmsCode": "LAQ5",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/LAQ5",
+    "address": ""
+  },
+  {
+    "name": "CONTAINER PORT GROUP",
+    "facilityType": "DEPOT",
+    "city": "INDIANAPOLIS",
+    "state": "IN",
+    "firmsCode": "K794",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/K794",
+    "address": ""
+  },
+  {
+    "name": "H AND M CES",
+    "facilityType": "DEPOT",
+    "city": "KEARNY",
+    "state": "NJ",
+    "firmsCode": "E355",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/E355",
+    "address": ""
+  },
+  {
+    "name": "TRANSMARITIME INC.",
+    "facilityType": "DEPOT",
+    "city": "LAREDO",
+    "state": "TX",
+    "firmsCode": "V419",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/V419",
+    "address": ""
+  },
+  {
+    "name": "CONTAINER MAINTENANCE DEPOT",
+    "facilityType": "NORTH",
+    "city": "CHARLESTON",
+    "state": "SC",
+    "firmsCode": "O054",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/O054",
+    "address": ""
+  },
+  {
+    "name": "NAKNEK",
+    "facilityType": "DEPOT",
+    "city": "NAKNEK",
+    "state": "AK",
+    "firmsCode": "3126",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/3126",
+    "address": ""
+  },
+  {
+    "name": "INTERMODAL CARTAGE",
+    "facilityType": "DEPOT",
+    "city": "NASHVILLE",
+    "state": "TN",
+    "firmsCode": "Q087",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Q087",
+    "address": ""
+  },
+  {
+    "name": "BRIDGE TERMINAL TRANSPORT",
+    "facilityType": "DEPOT",
+    "city": "NASHVILLE",
+    "state": "TN",
+    "firmsCode": "Q683",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Q683",
+    "address": ""
+  },
+  {
+    "name": "COMTRAK LOGISTICS INC (NASH)",
+    "facilityType": "DEPOT",
+    "city": "NASHVILLE",
+    "state": "TN",
+    "firmsCode": "Q618",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/Q618",
+    "address": ""
+  },
+  {
+    "name": "HUNTER TRANSPORTATION DEPOT",
+    "facilityType": "NORTH",
+    "city": "CHARLESTON",
+    "state": "SC",
+    "firmsCode": "O702",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/O702",
+    "address": ""
+  },
+  {
+    "name": "BRIDGE TERMINAL TRANSPORT (MEMPHIS) DEPOT",
+    "facilityType": "OLIVE",
+    "city": "BRANCH",
+    "state": "MS",
+    "firmsCode": "N541",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/N541",
+    "address": ""
+  },
+  {
+    "name": "INDEPENDENT PIER COMPANY",
+    "facilityType": "DEPOT",
+    "city": "PHILADELPHIA",
+    "state": "PA",
+    "firmsCode": "B199",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/B199",
+    "address": ""
+  },
+  {
+    "name": "EVANS DELIVERY",
+    "facilityType": "DEPOT",
+    "city": "PHILADELPHIA",
+    "state": "PA",
+    "firmsCode": "B297",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/B297",
+    "address": ""
+  },
+  {
+    "name": "H&M INTERNATIONAL TRANSPORTATION",
+    "facilityType": "DEPOT",
+    "city": "PHILADELPHIA",
+    "state": "PA",
+    "firmsCode": "C753",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/C753",
+    "address": ""
+  },
+  {
+    "name": "LINCOLN TRANSPORTATION SERVICES INC",
+    "facilityType": "DEPOT",
+    "city": "PHOENIX",
+    "state": "AZ",
+    "firmsCode": "S818",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/S818",
+    "address": ""
+  },
+  {
+    "name": "DOCKSIDE EMT RAIL DEPOT",
+    "facilityType": "PORT",
+    "city": "ELIZABETH",
+    "state": "NJ",
+    "firmsCode": "E416",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/E416",
+    "address": ""
+  },
+  {
+    "name": "PORTLAND CONTAINER REPAIR",
+    "facilityType": "DEPOT",
+    "city": "PORTLAND",
+    "state": "OR",
+    "firmsCode": "X071",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/X071",
+    "address": ""
+  },
+  {
+    "name": "WINSTON SALEM DEPOT",
+    "facilityType": "WINSTON",
+    "city": "SALEM",
+    "state": "NC",
+    "firmsCode": "L687",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/L687",
+    "address": ""
+  },
+  {
+    "name": "ICI - WORCESTER",
+    "facilityType": "DEPOT",
+    "city": "WORCESTER",
+    "state": "MA",
+    "firmsCode": "C358",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/C358",
+    "address": ""
+  },
+  {
+    "name": "INTRANSIT CONTAINER, INC -REAL POOL",
+    "facilityType": "DEPOT",
+    "city": "WORCESTER",
+    "state": "MA",
+    "firmsCode": "C358",
+    "detailsUrl": "https://gustavoleon.com/firmscodes/firms_details/C358",
+    "address": ""
+  }
+]

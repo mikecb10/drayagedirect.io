@@ -1,0 +1,200 @@
+import {
+  requireTenantUser,
+  requirePermission,
+  getServiceClient,
+} from '../../../../../lib/tenant-api';
+import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
+import { PERMISSIONS } from '../../../../../lib/permissions';
+import { assignInvoiceNumberBase } from '../../../../../lib/invoice-utils';
+import { computeInvoiceDueDate } from '../../../../../lib/ar-utils';
+
+/**
+ * /api/tenant/ar/invoices
+ *
+ * GET  — list invoices with filters
+ * POST — create invoice from approved charge set(s)
+ */
+export default async function handler(req, res) {
+  const ctx = await requireTenantUser(req, res);
+  if (!ctx) return;
+  if (!requirePermission(ctx, [PERMISSIONS.ACCOUNTS_RECEIVABLE, PERMISSIONS.ALL], res)) return;
+
+  const svc = getServiceClient();
+
+  // ── LIST ──
+  if (req.method === 'GET') {
+    const { status, customer_id, from, to, search } = req.query;
+
+    let query = svc
+      .from('invoices')
+      .select(`
+        *,
+        customer:customers!customer_id(id, name),
+        charge_sets:invoice_charge_sets(
+          charge_set:order_charge_sets(id, charge_set_number, order_id, total_cents,
+            order:orders(id, order_number)
+          )
+        )
+      `)
+      .eq('tenant_id', ctx.tenantId)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false });
+
+    if (status) query = query.eq('status', status);
+    if (customer_id) query = query.eq('customer_id', customer_id);
+    if (from) query = query.gte('created_at', from);
+    if (to) query = query.lte('created_at', to);
+    if (search) {
+      query = query.or(`invoice_number.ilike.%${search}%`);
+    }
+
+    const { data, error } = await query;
+    if (error) return res.status(500).json({ error: error.message });
+
+    // Compute stats
+    const invoices = data || [];
+    const stats = {
+      total: invoices.length,
+      draft: invoices.filter((i) => i.status === 'draft').length,
+      sent: invoices.filter((i) => i.status === 'sent').length,
+      paid: invoices.filter((i) => i.status === 'paid').length,
+      overdue: invoices.filter((i) => i.status === 'overdue').length,
+      void: invoices.filter((i) => i.status === 'void').length,
+      total_outstanding_cents: invoices
+        .filter((i) => ['sent', 'overdue'].includes(i.status))
+        .reduce((sum, i) => sum + (i.balance_due_cents || 0), 0),
+    };
+
+    return res.status(200).json({ invoices, stats });
+  }
+
+  // ── CREATE FROM CHARGE SETS ──
+  if (req.method === 'POST') {
+    const { charge_set_ids = [], is_consolidated = false } = req.body || {};
+
+    if (!charge_set_ids.length) {
+      return res.status(400).json({ error: 'At least one charge set is required' });
+    }
+
+    // Fetch the charge sets
+    const { data: chargeSets, error: csError } = await svc
+      .from('order_charge_sets')
+      .select('*, order:orders(id, order_number, customer_id, branch_id)')
+      .eq('tenant_id', ctx.tenantId)
+      .in('id', charge_set_ids);
+
+    if (csError) return res.status(500).json({ error: csError.message });
+    if (!chargeSets?.length) return res.status(404).json({ error: 'Charge sets not found' });
+
+    // Validate: all must be approved status
+    const nonApproved = chargeSets.filter((cs) => cs.status !== 'approved' && cs.status !== 'invoiced');
+    if (nonApproved.length > 0) {
+      return res.status(400).json({
+        error: `Charge sets must be approved before invoicing. Found ${nonApproved.length} non-approved.`,
+      });
+    }
+
+    // For consolidated: all must be same customer
+    const customerIds = [...new Set(chargeSets.map((cs) => cs.order?.customer_id).filter(Boolean))];
+    if (customerIds.length > 1) {
+      return res.status(400).json({ error: 'Consolidated invoices must be for the same customer' });
+    }
+
+    const customerId = chargeSets[0].bill_to_customer_id || customerIds[0];
+    if (!customerId) {
+      return res.status(400).json({ error: 'Could not determine customer for invoice' });
+    }
+
+    // Get customer payment terms
+    const { data: customer } = await svc
+      .from('customers')
+      .select('payment_terms, name')
+      .eq('id', customerId)
+      .single();
+
+    const paymentTerms = customer?.payment_terms || 30;
+
+    // Compute totals
+    const subtotalCents = chargeSets.reduce((sum, cs) => sum + (cs.total_cents || 0), 0);
+    const totalCents = subtotalCents; // No tax calc yet
+
+    // Assign invoice number
+    const invoiceNumber = await assignInvoiceNumberBase(svc, ctx.tenantId);
+
+    // Create invoice
+    const { data: invoice, error: invError } = await svc
+      .from('invoices')
+      .insert({
+        tenant_id: ctx.tenantId,
+        invoice_number: invoiceNumber,
+        customer_id: customerId,
+        status: 'draft',
+        subtotal_cents: subtotalCents,
+        total_amount_cents: totalCents,
+        balance_due_cents: totalCents,
+        due_date: computeInvoiceDueDate(new Date(), paymentTerms),
+        payment_terms_days: paymentTerms,
+        is_consolidated: charge_set_ids.length > 1,
+        branch_id: chargeSets[0].order?.branch_id || null,
+        created_by: ctx.userId,
+      })
+      .select()
+      .single();
+
+    if (invError) return res.status(500).json({ error: invError.message });
+
+    // Create junction rows
+    const junctionRows = charge_set_ids.map((csId) => ({
+      tenant_id: ctx.tenantId,
+      invoice_id: invoice.id,
+      charge_set_id: csId,
+    }));
+    await svc.from('invoice_charge_sets').insert(junctionRows);
+
+    // Update charge sets to 'invoiced' status and link invoice_id
+    await svc
+      .from('order_charge_sets')
+      .update({ status: 'invoiced', invoice_id: invoice.id, invoiced_at: new Date().toISOString() })
+      .eq('tenant_id', ctx.tenantId)
+      .in('id', charge_set_ids);
+
+    // Copy line items to invoice_line_items
+    for (const cs of chargeSets) {
+      const { data: lineItems } = await svc
+        .from('order_charge_set_line_items')
+        .select('*')
+        .eq('charge_set_id', cs.id)
+        .eq('tenant_id', ctx.tenantId);
+
+      if (lineItems?.length) {
+        await svc.from('invoice_line_items').insert(
+          lineItems.map((li, idx) => ({
+            tenant_id: ctx.tenantId,
+            invoice_id: invoice.id,
+            order_id: cs.order_id,
+            description: li.name || li.description || 'Charge',
+            charge_type: 'linehaul',
+            quantity: li.unit_count || 1,
+            unit_amount_cents: li.per_unit_price_cents || li.total_cents || 0,
+            total_amount_cents: li.total_cents || 0,
+            sort_order: idx,
+          }))
+        );
+      }
+    }
+
+    await logTenantAction(svc, {
+      tenantId: ctx.tenantId,
+      userId: ctx.userId,
+      action: 'invoice.create',
+      entityType: 'invoice',
+      entityId: invoice.id,
+      newValues: { invoice_number: invoiceNumber, charge_set_count: charge_set_ids.length, total_cents: totalCents },
+      ipAddress: getClientIp(req),
+    });
+
+    return res.status(201).json({ invoice });
+  }
+
+  return res.status(405).json({ error: 'Method not allowed' });
+}
