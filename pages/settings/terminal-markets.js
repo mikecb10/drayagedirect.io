@@ -87,8 +87,8 @@ export default function TerminalMarketsPage() {
 
         {/* Header */}
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Terminal Markets</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Terminal Markets</h1>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
             Enable markets to populate terminals (marine ports and rail ramps) into your instance.
             Terminals in enabled markets become available as pickup, delivery, and return locations.
           </p>
@@ -105,7 +105,7 @@ export default function TerminalMarketsPage() {
         {/* Search + batch */}
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative flex-1 min-w-[200px] max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
             <input
               type="text"
               placeholder="Search markets…"
@@ -138,7 +138,7 @@ export default function TerminalMarketsPage() {
         </div>
 
         {loading ? (
-          <div className="py-16 text-center text-sm text-gray-400">Loading markets…</div>
+          <div className="py-16 text-center text-sm text-gray-400 dark:text-slate-500">Loading markets…</div>
         ) : (
           <>
             {/* US Markets */}
