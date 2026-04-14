@@ -2,6 +2,12 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, KeyRound } from 'lucide-react';
 import SettingsLayout from '../../components/settings/SettingsLayout';
+import { PageHeader } from '../../components/ui/ModuleHeader';
+import { SectionCard } from '../../components/ui/FormSection';
+import FieldGroup from '../../components/ui/FieldGroup';
+import Field from '../../components/ui/Field';
+import DetailPane from '../../components/ui/DetailPane';
+import DetailRow from '../../components/ui/DetailRow';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Alert from '../../components/ui/Alert';
@@ -74,30 +80,31 @@ export default function Profile() {
       <div className="max-w-2xl">
         <Link
           href="/settings"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4"
+          className="inline-flex items-center gap-1 text-helper text-muted hover:text-strong mb-[var(--space-field)]"
         >
           <ArrowLeft className="w-4 h-4" strokeWidth={1.75} />
           Back to Settings
         </Link>
 
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Update your personal information.
-          </p>
-        </div>
+        <PageHeader
+          variant="plain"
+          title="My Profile"
+          description="Update your personal information."
+          className="mb-[var(--space-section)]"
+        />
 
-        {error && <Alert type="error" message={error} className="mb-4" />}
-        {success && <Alert type="success" message={success} className="mb-4" />}
+        {error && <Alert type="error" message={error} className="mb-[var(--space-field)]" />}
+        {success && <Alert type="success" message={success} className="mb-[var(--space-field)]" />}
 
         {loading || !user ? (
           <div className="py-20 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto" />
           </div>
         ) : (
-          <form onSubmit={handleSave} className="space-y-6">
-            <section className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-              <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
+          <form onSubmit={handleSave} className="space-y-[var(--space-section)]">
+            {/* Read-only identity block — exercises DetailPane + DetailRow. */}
+            <SectionCard title="Identity" description="Managed by your administrator" columns={0}>
+              <div className="flex items-center gap-[var(--space-field)] mb-[var(--space-field)] pb-[var(--space-field)] border-b border-gray-100 dark:border-slate-800">
                 <div className="w-16 h-16 rounded-full bg-blue-600 text-white flex items-center justify-center text-xl font-bold">
                   {(user.name || user.email)
                     .split(' ')
@@ -107,49 +114,56 @@ export default function Profile() {
                     .toUpperCase()}
                 </div>
                 <div>
-                  <div className="text-lg font-semibold text-gray-900">{user.name}</div>
-                  <div className="text-sm text-gray-500">{user.email}</div>
-                  <div className="mt-1">
-                    <Badge variant="blue">{user.role.replace('_', ' ')}</Badge>
-                  </div>
+                  <div className="text-body text-strong font-semibold">{user.name}</div>
+                  <div className="text-helper text-muted">{user.email}</div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
-                  label="Full Name"
-                  value={user.name || ''}
-                  onChange={(e) => updateField('name', e.target.value)}
-                />
-                <Input label="Email" value={user.email} disabled helpText="Email can only be changed by an administrator." />
-                <Input
-                  label="Phone"
-                  value={user.phone || ''}
-                  onChange={(e) => updateField('phone', e.target.value)}
-                />
-                <Input
-                  label="Hire Date"
-                  type="date"
-                  value={user.hire_date || ''}
-                  disabled
-                />
-              </div>
-            </section>
+              <DetailPane>
+                <DetailRow label="Role" value={<Badge variant="blue">{user.role.replace('_', ' ')}</Badge>} />
+                <DetailRow label="Email" value={user.email} copyable />
+                <DetailRow label="Hire Date" value={user.hire_date || '—'} muted={!user.hire_date} />
+              </DetailPane>
+            </SectionCard>
 
-            <section className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-              <h2 className="text-base font-semibold text-gray-900 mb-1">Security</h2>
-              <p className="text-xs text-gray-500 mb-4">
-                Manage your password and account security.
+            {/* Editable fields — exercises FieldGroup + Field. */}
+            <SectionCard title="Personal Info" description="Editable by you" columns={0}>
+              <FieldGroup columns={2}>
+                <Field label="Full Name">
+                  <Input
+                    value={user.name || ''}
+                    onChange={(e) => updateField('name', e.target.value)}
+                  />
+                </Field>
+                <Field label="Phone">
+                  <Input
+                    value={user.phone || ''}
+                    onChange={(e) => updateField('phone', e.target.value)}
+                  />
+                </Field>
+              </FieldGroup>
+            </SectionCard>
+
+            {/* Security section — exercises SectionCard actions slot. */}
+            <SectionCard
+              title="Security"
+              description="Manage your password and account security."
+              columns={0}
+              actions={
+                <Link href="/change-password">
+                  <Button variant="secondary" type="button">
+                    <KeyRound className="w-4 h-4 mr-1.5 inline -mt-0.5" strokeWidth={2} />
+                    Change Password
+                  </Button>
+                </Link>
+              }
+            >
+              <p className="text-helper text-muted">
+                Your password was last changed on file. Click the button above to update.
               </p>
-              <Link href="/change-password">
-                <Button variant="secondary" type="button">
-                  <KeyRound className="w-4 h-4 mr-1.5 inline -mt-0.5" strokeWidth={2} />
-                  Change Password
-                </Button>
-              </Link>
-            </section>
+            </SectionCard>
 
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-end gap-[var(--space-inline)]">
               <Button variant="secondary" type="button" onClick={load}>
                 Reset
               </Button>
