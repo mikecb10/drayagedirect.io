@@ -115,11 +115,11 @@ export default function ChargeProfilesPage() {
       <div className="max-w-7xl space-y-4">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <h1 className="text-lg font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-blue-600" />
               Tariffs & Charge Profiles
             </h1>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
               Manage reusable charge profiles and load tariffs that auto-apply rates to loads.
             </p>
           </div>
@@ -146,19 +146,19 @@ export default function ChargeProfilesPage() {
         {/* Filters */}
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative flex-1 min-w-[200px] max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
             <input
               type="text"
               placeholder="Search profiles..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40"
+              className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40"
             />
           </div>
           <select
             value={filterChargeName}
             onChange={(e) => setFilterChargeName(e.target.value)}
-            className="rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 px-3 py-2 text-sm"
+            className="rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 dark:text-slate-100 px-3 py-2 text-sm"
           >
             <option value="">All Charge Names</option>
             {CHARGE_NAMES.map((c) => (
@@ -172,28 +172,28 @@ export default function ChargeProfilesPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/60">
-                  <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Charge Profile</th>
-                  <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Charge Code</th>
-                  <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">UOM</th>
-                  <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Tags</th>
-                  <th className="text-right px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Per Unit</th>
-                  <th className="text-right px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Min</th>
-                  <th className="text-center px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Versions</th>
-                  <th className="text-center px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Auto</th>
+                <tr className="border-b border-gray-100 dark:border-slate-800 bg-gray-50/60 dark:bg-slate-800/60">
+                  <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Charge Profile</th>
+                  <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Charge Code</th>
+                  <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">UOM</th>
+                  <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Tags</th>
+                  <th className="text-right px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Per Unit</th>
+                  <th className="text-right px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Min</th>
+                  <th className="text-center px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Versions</th>
+                  <th className="text-center px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Auto</th>
                   <th className="w-20"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-gray-50 dark:divide-slate-800">
                 {loading ? (
-                  <tr><td colSpan={9} className="px-4 py-10 text-center text-gray-400">Loading...</td></tr>
+                  <tr><td colSpan={9} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">Loading...</td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td colSpan={9} className="px-4 py-10 text-center text-gray-400">No charge profiles found</td></tr>
+                  <tr><td colSpan={9} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">No charge profiles found</td></tr>
                 ) : (
                   filtered.map((p) => {
                     const tags = displayTags(p);
                     return (
-                      <tr key={p.id} className="hover:bg-gray-50">
+                      <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/60">
                         <td className="px-4 py-2.5">
                           <button
                             onClick={() => router.push(`/settings/charge-profiles/${p.id}`)}
@@ -202,16 +202,16 @@ export default function ChargeProfilesPage() {
                             {p.name}
                           </button>
                           {p.description && (
-                            <div className="text-[11px] text-gray-500 truncate max-w-[180px]">{p.description}</div>
+                            <div className="text-[11px] text-gray-500 dark:text-slate-400 truncate max-w-[180px]">{p.description}</div>
                           )}
                         </td>
                         <td className="px-4 py-2.5">
-                          <span className="text-xs font-semibold uppercase text-gray-500">
+                          <span className="text-xs font-semibold uppercase text-gray-500 dark:text-slate-400">
                             {chargeNameLabel(p.charge_name)}
                           </span>
                         </td>
                         <td className="px-4 py-2.5">
-                          <span className="text-xs text-gray-700">{unitLabel(p.unit_of_measure)}</span>
+                          <span className="text-xs text-gray-700 dark:text-slate-200">{unitLabel(p.unit_of_measure)}</span>
                         </td>
                         <td className="px-4 py-2.5">
                           <div className="flex flex-wrap gap-1">
@@ -219,41 +219,41 @@ export default function ChargeProfilesPage() {
                               <span key={i} className="text-[10px] uppercase tracking-wide font-semibold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
                                 {t}
                               </span>
-                            )) : <span className="text-gray-400">&mdash;</span>}
+                            )) : <span className="text-gray-400 dark:text-slate-500">&mdash;</span>}
                           </div>
                         </td>
-                        <td className="px-4 py-2.5 text-right font-semibold text-gray-900 text-xs">
+                        <td className="px-4 py-2.5 text-right font-semibold text-gray-900 dark:text-slate-100 text-xs">
                           {currentAmount(p)}
                         </td>
-                        <td className="px-4 py-2.5 text-right text-xs text-gray-500">
+                        <td className="px-4 py-2.5 text-right text-xs text-gray-500 dark:text-slate-400">
                           {currentMin(p)}
                         </td>
                         <td className="px-4 py-2.5 text-center">
                           {versionCount(p) > 0 ? (
-                            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-gray-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
                               <Calendar className="w-3 h-3" />
                               {versionCount(p)}
                             </span>
-                          ) : <span className="text-gray-400">&mdash;</span>}
+                          ) : <span className="text-gray-400 dark:text-slate-500">&mdash;</span>}
                         </td>
                         <td className="px-4 py-2.5 text-center">
                           {p.auto_add ? (
                             <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">Yes</span>
                           ) : (
-                            <span className="text-[10px] text-gray-400">No</span>
+                            <span className="text-[10px] text-gray-400 dark:text-slate-500">No</span>
                           )}
                         </td>
                         <td className="px-2 py-2.5">
                           <div className="flex items-center gap-1 justify-end">
                             <button
                               onClick={() => router.push(`/settings/charge-profiles/${p.id}`)}
-                              className="text-gray-400 hover:text-blue-600 p-1"
+                              className="text-gray-400 dark:text-slate-500 hover:text-blue-600 p-1"
                             >
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => handleDelete(p.id)}
-                              className="text-gray-300 hover:text-red-500 p-1"
+                              className="text-gray-300 dark:text-slate-600 hover:text-red-500 p-1"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
