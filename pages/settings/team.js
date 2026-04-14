@@ -14,7 +14,7 @@ const ROLE_BADGE_COLORS = {
   billing: 'bg-amber-100 text-amber-700',
   operations: 'bg-purple-100 text-purple-700',
   sales_agent: 'bg-orange-100 text-orange-700',
-  custom: 'bg-gray-100 text-gray-600',
+  custom: 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300',
 };
 
 export default function TeamSettings() {
@@ -100,8 +100,8 @@ export default function TeamSettings() {
       <div className="max-w-6xl space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-semibold text-gray-900">Users & Permissions</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Manage Users And Their Granted Permissions.</p>
+            <h1 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Users & Permissions</h1>
+            <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">Manage Users And Their Granted Permissions.</p>
           </div>
           <Button onClick={openAdd}>
             <UserPlus className="w-4 h-4 mr-1 inline" /> Add New User
@@ -113,12 +113,12 @@ export default function TeamSettings() {
         {/* Search + filter */}
         <div className="flex items-center gap-3">
           <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
             <input type="text" placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)}
-              className="block w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+              className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
           </div>
           <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}
-            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm">
+            className="rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 px-3 py-2 text-sm">
             <option value="all">All</option>
             {SYSTEM_ROLES.filter((r) => r.value !== 'custom').map((r) => (
               <option key={r.value} value={r.value}>{r.label}</option>
@@ -127,59 +127,59 @@ export default function TeamSettings() {
         </div>
 
         {/* Users table */}
-        <div className="rounded-xl border border-gray-200 bg-white">
+        <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/60">
-                <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Name</th>
-                <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">System Roles</th>
-                <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Custom Roles</th>
-                <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Email</th>
-                <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Phone</th>
+              <tr className="border-b border-gray-100 dark:border-slate-800 bg-gray-50/60 dark:bg-slate-800/50">
+                <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Name</th>
+                <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">System Roles</th>
+                <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Custom Roles</th>
+                <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Email</th>
+                <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Phone</th>
                 <th className="w-24"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-gray-50 dark:divide-slate-800">
               {loading ? (
-                <tr><td colSpan={6} className="px-4 py-10 text-center text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={6} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">Loading...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-10 text-center text-gray-400">No users found</td></tr>
+                <tr><td colSpan={6} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">No users found</td></tr>
               ) : filtered.map((u) => {
                 const role = getSystemRole(u);
                 const hasCustom = (u.granular_permissions || []).length > 0 && role === 'custom';
                 return (
-                  <tr key={u.id} className="hover:bg-gray-50">
+                  <tr key={u.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/60">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 flex items-center justify-center text-xs font-bold shrink-0">
                           {getInitials(u)}
                         </div>
-                        <span className="font-medium text-gray-900">{getUserName(u)}</span>
+                        <span className="font-medium text-gray-900 dark:text-slate-100">{getUserName(u)}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded ${ROLE_BADGE_COLORS[role] || 'bg-gray-100 text-gray-600'}`}>
+                      <span className={`text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded ${ROLE_BADGE_COLORS[role] || 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300'}`}>
                         {getRoleLabel(role)}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       {hasCustom ? (
-                        <span className="text-[10px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded cursor-pointer hover:bg-blue-100"
+                        <span className="text-[10px] font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-950/60"
                           onClick={() => openEdit(u)}>
                           Custom Permission
                         </span>
                       ) : (
-                        <span className="text-xs text-gray-400">—</span>
+                        <span className="text-xs text-gray-400 dark:text-slate-500">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-xs text-gray-600">{u.email}</td>
-                    <td className="px-4 py-3 text-xs text-gray-600">{u.phone || '—'}</td>
+                    <td className="px-4 py-3 text-xs text-gray-600 dark:text-slate-300">{u.email}</td>
+                    <td className="px-4 py-3 text-xs text-gray-600 dark:text-slate-300">{u.phone || '—'}</td>
                     <td className="px-2 py-3">
                       <div className="flex items-center gap-1 justify-end">
-                        <button onClick={() => openEdit(u)} className="text-gray-400 hover:text-blue-600 p-1" title="Edit user">
+                        <button onClick={() => openEdit(u)} className="text-gray-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 p-1" title="Edit user">
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
-                        <button className="text-gray-400 hover:text-blue-600 p-1" title="Toggle active">
+                        <button className="text-gray-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 p-1" title="Toggle active">
                           {u.status === 'active' ? <ToggleRight className="w-4 h-4 text-blue-600" /> : <ToggleLeft className="w-4 h-4" />}
                         </button>
                       </div>
@@ -216,17 +216,17 @@ export default function TeamSettings() {
         <div className="space-y-4">
           <Alert type="success" message={`${tempPasswordInfo?.user?.name || 'User'} has been added to your team.`} />
           <div>
-            <p className="text-sm text-gray-600 mb-2">
+            <p className="text-sm text-gray-600 dark:text-slate-300 mb-2">
               Share this temporary password with <strong>{tempPasswordInfo?.user?.email}</strong>. They'll be prompted to change it on first login.
             </p>
-            <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg p-3">
-              <code className="flex-1 text-sm font-mono text-gray-900">{tempPasswordInfo?.tempPassword}</code>
+            <div className="flex items-center gap-2 bg-gray-50 dark:bg-slate-800/50 border border-gray-200 dark:border-slate-800 rounded-lg p-3">
+              <code className="flex-1 text-sm font-mono text-gray-900 dark:text-slate-100">{tempPasswordInfo?.tempPassword}</code>
               <button onClick={() => handleCopy(tempPasswordInfo?.tempPassword)}
-                className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700">
+                className="flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300">
                 {copied ? <><CheckCheck className="w-4 h-4" /> Copied</> : <><Copy className="w-4 h-4" /> Copy</>}
               </button>
             </div>
-            <p className="text-xs text-gray-500 mt-2">This password will not be shown again.</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-2">This password will not be shown again.</p>
           </div>
           <div className="flex justify-end">
             <Button onClick={() => setTempPasswordInfo(null)}>Done</Button>
@@ -345,16 +345,16 @@ function UserModal({ isOpen, user, onClose, onSuccess }) {
       subtitle={isEdit ? user?.email : undefined}>
       <div>
         {/* Tabs */}
-        <div className="flex border-b border-gray-200 mb-5">
+        <div className="flex border-b border-gray-200 dark:border-slate-800 mb-5">
           <button onClick={() => setTab('info')}
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              tab === 'info' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'
+              tab === 'info' ? 'border-blue-600 text-blue-700 dark:text-blue-300' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
             }`}>
             User Info
           </button>
           <button onClick={() => setTab('permissions')}
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              tab === 'permissions' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'
+              tab === 'permissions' ? 'border-blue-600 text-blue-700 dark:text-blue-300' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
             }`}>
             Permissions
           </button>
@@ -365,43 +365,43 @@ function UserModal({ isOpen, user, onClose, onSuccess }) {
         {/* ── User Info Tab ─────────────────────────────── */}
         {tab === 'info' && (
           <div className="space-y-4">
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">General Information</div>
+            <div className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">General Information</div>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">* First name</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">* First name</label>
                 <input type="text" value={form.first_name} onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))}
                   placeholder="Enter First Name"
-                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+                  className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">* Last name</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">* Last name</label>
                 <input type="text" value={form.last_name} onChange={(e) => setForm((f) => ({ ...f, last_name: e.target.value }))}
                   placeholder="Enter Last Name"
-                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+                  className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Phone</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Phone</label>
                 <input type="text" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                   placeholder="Enter Phone number"
-                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+                  className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">* Email</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">* Email</label>
                 <input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                   placeholder="Enter email address" disabled={isEdit}
-                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-50" />
+                  className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-50 dark:disabled:bg-slate-800" />
               </div>
 
               {/* Roles */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-2">Roles</label>
+                <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-2">Roles</label>
                 <div className="flex flex-wrap gap-3">
                   {SYSTEM_ROLES.filter((r) => r.value !== 'custom' && r.value !== 'super_admin').map((r) => (
                     <label key={r.value} className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={form.system_role === r.value}
                         onChange={() => handleRoleChange(form.system_role === r.value ? 'custom' : r.value)}
-                        className="rounded border-gray-300 text-blue-600 w-4 h-4" />
-                      <span className="text-sm text-gray-700">{r.label}</span>
+                        className="rounded border-gray-300 dark:border-slate-600 text-blue-600 w-4 h-4" />
+                      <span className="text-sm text-gray-700 dark:text-slate-200">{r.label}</span>
                     </label>
                   ))}
                 </div>
@@ -411,16 +411,16 @@ function UserModal({ isOpen, user, onClose, onSuccess }) {
               {!isEdit && (
                 <>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">* Password</label>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">* Password</label>
                     <input type="password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
                       placeholder="Enter Password"
-                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+                      className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">* Confirm Password</label>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">* Confirm Password</label>
                     <input type="password" value={form.confirm_password} onChange={(e) => setForm((f) => ({ ...f, confirm_password: e.target.value }))}
                       placeholder="Repeat Password"
-                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+                      className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
                   </div>
                 </>
               )}
