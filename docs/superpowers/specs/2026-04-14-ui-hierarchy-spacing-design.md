@@ -246,6 +246,31 @@ Scope: 29 files under `pages/settings/` (incl. `communications/`, `tariffs/`, `c
 - `mb-1` (79x) vs `mb-1.5` (17x) on label→input — §2 picks `mb-1.5` (`space-field-label`).
 - 8 files hold >20 unpaired `text-gray-*`/`bg-gray-*` lines: company.js (37), team.js (36), terminals.js (28), per-diem.js (28), charge-profiles/index.js (26), tariffs/index.js (25), container-owners.js (23), equipment-reference.js (21).
 
+### 5.3 `components/settings/**`
+
+*Scope: 4 files. Totals: 25 spacing-class occurrences, 13 typography-class lines, 0 `<label>` elements (label-count file-count measured as `grep -rn '<label' components/settings/ | awk -F: '{print $1}' | sort -u | wc -l`), 0 unpaired `text-gray-*`/`bg-gray-*` lines (14 gray lines, all paired with `dark:`). Folder is two thin overlay wrappers plus one layout shell plus one modal; no field-dense forms live here. All four files shown (fewer than 5 total).*
+
+| File | Spacing drift (sample) | Typography drift | Label pattern | Dark-mode gaps |
+|---|---|---|---|---|
+| `PerDiemRuleModal.js` (12 spacing hits, 345 LoC) | `space-y-5`, `gap-2/3`, `px-3 py-2`, `mt-0.5`, `py-0.5`, `pt-4` | `text-xs`, `text-sm font-semibold`, `text-[11px] uppercase tracking-wide` | no `<label>` (grid-of-inputs, column header row instead) | 0 (all gray paired) |
+| `SettingsLayout.js` (13 spacing hits, 161 LoC) | `px-5 py-2`, `px-4 py-6`, `gap-2/2.5`, `mb-1`, `py-2.5`, `px-1.5 py-0.5` | `text-sm`, `text-base font-semibold`, `text-[11px]`/`text-[9px]` uppercase eyebrows | no `<label>` (nav/sidebar, not a form) | 0 (all gray paired) |
+| `ChargeProfileDetail.js` (0 spacing hits, 11 LoC) | none — thin overlay wrapper around `pages/settings/charge-profiles/[id]` | none | none | none |
+| `TariffDetail.js` (0 spacing hits, 11 LoC) | none — thin overlay wrapper around `pages/settings/tariffs/[id]` | none | none | none |
+
+**Recurring patterns to map to tokens:**
+- `px-3 py-2` form-row/header padding (6 `px-3` + 8 `py-2`) → same token as §5.1/§5.2
+- `gap-2` inline controls (4x) → `space-inline` — already canonical in §5.1
+- `text-sm` (5x) + `text-xs` (3x) — same two-size split seen in §5.2
+- `font-semibold` (5x) dominates `font-medium` (2x) for labels/headers in this folder
+- `text-[11px]`/`text-[9px]` uppercase eyebrows (3 lines in SettingsLayout + column header)
+- `text-gray-500 dark:text-slate-400` muted pair (3x) + `text-gray-900 dark:text-slate-100` (3x)
+
+**Shared layout primitives:**
+- `SettingsLayout.js`: settings-sidebar shell; not touched in Plan A (tokens + primitives only).
+- Flag for Plan C: `text-[11px]` eyebrows + `text-[9px]` badge off-token, should consume new tokens.
+- `ChargeProfileDetail.js`/`TariffDetail.js`: 11-line overlay wrappers; drift lives in §5.2 pages.
+- `PerDiemRuleModal.js`: no `<label>`s (grid-of-inputs); `SectionCard` tokens absorb its padding.
+
 ---
 
 ## 6. Rollout Plan
