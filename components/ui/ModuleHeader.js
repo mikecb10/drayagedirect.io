@@ -1,41 +1,42 @@
 /**
- * PageHeader — standard page header with title, optional description,
- * breadcrumb, status badge, and right-side action slot.
+ * This file provides two exports for DrayageDirect's page header primitive:
  *
- * Uses design-system tokens from styles/globals.css:
- *   - Padding: space-page-x, space-page-y
+ *   • `ModuleHeader` (DEFAULT) — backward-compatibility wrapper that forces
+ *     `variant="plain"`. Existing consumers using default imports get
+ *     their pre-evolution look (no padding, no bottom border).
+ *
+ *   • `PageHeader` (NAMED) — the new primitive with a `variant` prop.
+ *     Defaults to `variant="chrome"` (padding + bottom border). Use this
+ *     in new code and choose the variant explicitly.
+ *
+ * Plan C migrates the existing ModuleHeader call sites to PageHeader
+ * and selects a variant per page.
+ *
+ * Design-system tokens consumed (from styles/globals.css):
+ *   - Padding (chrome variant): space-page-x, space-page-y
  *   - Title: text-page-title + text-strong
  *   - Description: text-helper + text-muted
+ *   - Gaps: space-inline, space-field-label
  *
- * Evolved from the older ModuleHeader — the prior API (title,
- * description, actions, className) is preserved. New optional slots:
- *   - breadcrumb: React node rendered above the title
- *   - status:     React node rendered inline next to the title
- *
- * A `ModuleHeader` named export is also provided as a backward-compat
- * alias. Existing imports keep working until Plan C migrates them.
- *
- * Usage:
- *   <PageHeader
- *     title="Load #ABCD-1234"
- *     description="DRAYFRT • 40' HC • Pickup 4/15"
- *     breadcrumb={<Breadcrumb items={[...]} />}
- *     status={<LoadStatusBadge status="pending" />}
- *     actions={<><Button>Edit</Button><Button>Print</Button></>}
- *   />
+ * Title truncation: when `status` is present alongside a long `title`,
+ * the title truncates to preserve the status badge (status is `shrink-0`).
  */
-export default function PageHeader({
+export function PageHeader({
   title,
   description,
   breadcrumb,
   status,
   actions,
+  variant = 'chrome',
   className = '',
 }) {
+  const chromeClasses =
+    variant === 'chrome'
+      ? 'px-[var(--space-page-x)] py-[var(--space-page-y)] border-b border-gray-200 dark:border-slate-800'
+      : '';
+
   return (
-    <header
-      className={`px-[var(--space-page-x)] py-[var(--space-page-y)] border-b border-gray-200 dark:border-slate-800 ${className}`}
-    >
+    <header className={`${chromeClasses} ${className}`.trim()}>
       {breadcrumb && (
         <div className="mb-[var(--space-field-label)]">{breadcrumb}</div>
       )}
@@ -59,5 +60,10 @@ export default function PageHeader({
   );
 }
 
-// Backward-compat alias. Plan C will migrate call sites to PageHeader.
-export { PageHeader as ModuleHeader };
+/**
+ * Backward-compat default export. Forces `variant="plain"` so the
+ * seven existing consumer pages keep their pre-evolution look.
+ */
+export default function ModuleHeader(props) {
+  return <PageHeader {...props} variant="plain" />;
+}
