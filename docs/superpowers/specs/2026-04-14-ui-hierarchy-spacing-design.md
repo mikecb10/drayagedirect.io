@@ -248,7 +248,7 @@ Scope: 29 files under `pages/settings/` (incl. `communications/`, `tariffs/`, `c
 
 ### 5.3 `components/settings/**`
 
-*Scope: 4 files. Totals: 25 spacing-class occurrences, 13 typography-class lines, 0 `<label>` elements (label-count file-count measured as `grep -rn '<label' components/settings/ | awk -F: '{print $1}' | sort -u | wc -l`), 0 unpaired `text-gray-*`/`bg-gray-*` lines (14 gray lines, all paired with `dark:`). Folder is two thin overlay wrappers plus one layout shell plus one modal; no field-dense forms live here. All four files shown (fewer than 5 total).*
+*Scope: 4 files. Totals: 25 spacing-class occurrences, 13 typography-class lines, 0 `<label>` elements (no `<label>` tags present), 0 unpaired `text-gray-*`/`bg-gray-*` lines (14 gray lines, all paired with `dark:`). Folder is two thin overlay wrappers plus one layout shell plus one modal; no field-dense forms live here. All four files shown (fewer than 5 total).*
 
 | File | Spacing drift (sample) | Typography drift | Label pattern | Dark-mode gaps |
 |---|---|---|---|---|
@@ -258,11 +258,11 @@ Scope: 29 files under `pages/settings/` (incl. `communications/`, `tariffs/`, `c
 | `TariffDetail.js` (0 spacing hits, 11 LoC) | none — thin overlay wrapper around `pages/settings/tariffs/[id]` | none | none | none |
 
 **Recurring patterns to map to tokens:**
-- `px-3 py-2` form-row/header padding (6 `px-3` + 8 `py-2`) → same token as §5.1/§5.2
-- `gap-2` inline controls (4x) → `space-inline` — already canonical in §5.1
+- `px-3 py-2` form-row/header padding (6 `px-3` + 9 `py-2`) → same token as §5.1/§5.2
+- `gap-2` inline controls (5x) → `space-inline` — already canonical in §5.1
 - `text-sm` (5x) + `text-xs` (3x) — same two-size split seen in §5.2
 - `font-semibold` (5x) dominates `font-medium` (2x) for labels/headers in this folder
-- `text-[11px]`/`text-[9px]` uppercase eyebrows (3 lines in SettingsLayout + column header)
+- `text-[11px]`/`text-[9px]` uppercase eyebrows/badges: 2 in SettingsLayout, 1 column header in PerDiemRuleModal
 - `text-gray-500 dark:text-slate-400` muted pair (3x) + `text-gray-900 dark:text-slate-100` (3x)
 
 **Shared layout primitives:**
