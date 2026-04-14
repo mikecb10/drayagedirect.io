@@ -363,6 +363,19 @@ export default function DispatcherIndex() {
     }
   }
 
+  // Board lifecycle filter: completed/cancelled loads fall off the dispatcher
+  // board after their finish day. They only appear on the board if
+  // actual_delivery_at === today (so the "Finished Today" KPI can still see
+  // them). After today, they're gone — billing picks them up from /ar.
+  //
+  // This is board-specific — billing / AR pages query /api/tenant/loads with
+  // their own scoping and are unaffected.
+  function passesLifecycleFilter(load) {
+    if (!['completed', 'cancelled'].includes(load.status)) return true;
+    // Completed/cancelled — keep only if finished today.
+    return isInDateRange(load.actual_delivery_at, 'today');
+  }
+
   // Date filter: check if ANY of the load's key dates match the selected filter.
   // This makes the date dropdown actually filter the board, not just KPI stats.
   //
@@ -394,9 +407,11 @@ export default function DispatcherIndex() {
 
   // Apply KPI filter to loads — handles both standard filters from kpi-engine
   // AND the special "pending_docs" filter that uses pendingDocOrderIds.
-  // Date filter is applied first, then KPI filter narrows further.
+  // Lifecycle filter applies ALWAYS (regardless of KPI card). Date filter is
+  // applied next, then KPI filter narrows further.
   function applyKpiFilter(loadList) {
-    let filtered = applyDateFilter(loadList);
+    let filtered = loadList.filter(passesLifecycleFilter);
+    filtered = applyDateFilter(filtered);
     if (!kpiFilter) return filtered;
     if (kpiFilter === 'pending_docs') {
       try {
