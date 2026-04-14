@@ -217,7 +217,7 @@ Scope: 20 files under `components/loads/` (incl. `tabs/` and `routing/`). Totals
 
 ### 5.2 `pages/settings/**`
 
-Scope: 29 files under `pages/settings/` (incl. `communications/`, `tariffs/`, `charge-profiles/`, `team/` subfolders). Totals: 1264 spacing-class occurrences, 719 typography-class occurrences, 83 `<label>` elements, 269 `text-gray-*`/`bg-gray-*` lines missing a `dark:` pairing on the same line. Unlike §5.1, the dark-mode column is non-trivial here — several older pages predate the `dark:` convention. Top 5 files chosen by combined spacing+typography density.
+Scope: 29 files under `pages/settings/` (incl. `communications/`, `tariffs/`, `charge-profiles/`, `team/` subfolders). Totals: 1264 spacing-class occurrences, 719 typography-class lines (lines containing any of `text-xs/sm/base/lg/xl/2xl/3xl`, `text-[Npx]`, `font-medium/semibold/bold`), 83 `<label>` elements, 269 `text-gray-*`/`bg-gray-*` lines missing a `dark:` pairing on the same line. Unlike §5.1, the dark-mode column is non-trivial here — several older pages predate the `dark:` convention. Top 5 files chosen by combined spacing+typography density.
 
 | File | Spacing drift (sample) | Typography drift | Label pattern | Dark-mode gaps |
 |---|---|---|---|---|
@@ -230,21 +230,21 @@ Scope: 29 files under `pages/settings/` (incl. `communications/`, `tariffs/`, `c
 **Recurring patterns to map to tokens:**
 - `text-xs` (302x) + `text-sm` (237x) — two dominant body sizes → `text-helper` / `text-body`
 - `font-semibold` (246x) vs `font-medium` (111x) — pick one per role (label vs title)
-- `px-3 py-2` (100x) form-input padding, plus `py-2.5` (54x) and `px-4 py-2` (41x) variants
+- `px-3 py-2` (100x) form-input padding, plus `py-2.5` (66x) and `px-4 py-2` (41x) variants
 - `gap-3` (102x) and `gap-2` (98x) — split between section rhythm and inline controls
-- `mb-4` (74x), `mt-1` (68x), `mb-1` (62x), `mt-0.5` (49x) — offsets drift 0.5/1/1.5
+- `mb-4` (74x), `mt-1` (69x), `mb-1` (79x), `mt-0.5` (49x) — offsets drift 0.5/1/1.5
 - `space-y-4` (29x) card-internal stacks → `space-section-pad` / internal stack token
-- 335 half-step spacings (`0.5/1.5/2.5`) across 29 files — primary source of visual drift
-- 134 arbitrary `text-[10/11/13/15]px` off-token sizes — mostly badges/pills
-- 83 `<label>` elements across 14 files, at least 4 distinct class combos → `Field`
+- 332 half-step spacings (`0.5/1.5/2.5`) across 29 files (lines containing `p/px/py/pt/pb/pl/pr/m/mx/my/mt/mb/ml/mr/gap/space-x/space-y` half-step) — primary source of visual drift
+- 134 arbitrary `text-[10px]`/`text-[11px]` off-token sizes (70 and 64 respectively) — mostly badges/pills; a further 31 `text-[9px]` occurrences also exist
+- 83 `<label>` elements across 16 files, at least 4 distinct class combos → `Field`
 - 149x `text-gray-900 dark:text-slate-100` + 170x `text-gray-500 dark:text-slate-400` → tokens
 
 **Notable inconsistencies:**
 - `profile.js` uses raw `<section>` + manual classes, not `FormSection`. Phase 5 refactor target.
 - `company.js` uses 6 raw `<section>` blocks, no `dark:` pairs — 37 unpaired lines (top gap).
 - Label size differs: `tariffs` `text-xs`, `umbrellas` `text-sm`, `trigger-activity` `text-[11px]`.
-- `mb-1` (62x) vs `mb-1.5` (17x) on label→input — §2 picks `mb-1.5` (`space-field-label`).
-- 7 files hold >20 unpaired `text-gray-*` lines (company, team, terminals, per-diem, +3 indexes).
+- `mb-1` (79x) vs `mb-1.5` (17x) on label→input — §2 picks `mb-1.5` (`space-field-label`).
+- 8 files hold >20 unpaired `text-gray-*`/`bg-gray-*` lines: company.js (37), team.js (36), terminals.js (28), per-diem.js (28), charge-profiles/index.js (26), tariffs/index.js (25), container-owners.js (23), equipment-reference.js (21).
 
 ---
 
