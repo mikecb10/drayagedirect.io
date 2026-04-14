@@ -215,11 +215,11 @@ export default function EquipmentReferenceSettings() {
       <div className="max-w-5xl space-y-4">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
               <Box className="w-6 h-6 text-blue-600" />
               Equipment Reference Data
             </h1>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
               Manage the reference lists used for Container Types, Container Sizes, Chassis
               Types, and Chassis Sizes. Drag rows to reorder — the order is reflected in all
               dropdowns across the app.
@@ -244,26 +244,26 @@ export default function EquipmentReferenceSettings() {
           onChange={setActiveTab}
         />
 
-        <div className="text-xs text-gray-500">{currentTab?.description}</div>
+        <div className="text-xs text-gray-500 dark:text-slate-400">{currentTab?.description}</div>
 
         <div className="flex gap-3">
-          <div className="rounded-lg border border-gray-200 bg-white p-3 flex-1">
-            <div className="text-[11px] uppercase tracking-wide text-gray-500">System</div>
-            <div className="text-xl font-bold text-gray-900">{systemCount}</div>
+          <div className="rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex-1">
+            <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-slate-400">System</div>
+            <div className="text-xl font-bold text-gray-900 dark:text-slate-100">{systemCount}</div>
           </div>
-          <div className="rounded-lg border border-gray-200 bg-white p-3 flex-1">
-            <div className="text-[11px] uppercase tracking-wide text-gray-500">Custom</div>
-            <div className="text-xl font-bold text-gray-900">{tenantCount}</div>
+          <div className="rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex-1">
+            <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-slate-400">Custom</div>
+            <div className="text-xl font-bold text-gray-900 dark:text-slate-100">{tenantCount}</div>
           </div>
-          <div className="rounded-lg border border-gray-200 bg-white p-3 flex-1">
-            <div className="text-[11px] uppercase tracking-wide text-gray-500">Total</div>
-            <div className="text-xl font-bold text-gray-900">{items.length}</div>
+          <div className="rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex-1">
+            <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-slate-400">Total</div>
+            <div className="text-xl font-bold text-gray-900 dark:text-slate-100">{items.length}</div>
           </div>
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+        <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500">
+            <thead className="bg-gray-50 dark:bg-slate-800/50 text-[11px] uppercase tracking-wide text-gray-500 dark:text-slate-400">
               <tr>
                 <th className="w-10"></th>
                 <th className="text-left px-4 py-2 w-32">Code</th>
@@ -276,16 +276,16 @@ export default function EquipmentReferenceSettings() {
             </thead>
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                   {loading ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-400">
+                      <td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-400 dark:text-slate-500">
                         Loading...
                       </td>
                     </tr>
                   ) : items.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-400">
+                      <td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-400 dark:text-slate-500">
                         No entries yet.
                       </td>
                     </tr>
@@ -335,7 +335,7 @@ export default function EquipmentReferenceSettings() {
             onChange={(e) => setForm({ ...form, description: e.target.value })}
             placeholder="Optional details"
           />
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-slate-800">
             <Button variant="secondary" type="button" onClick={() => setModalOpen(false)}>
               Cancel
             </Button>
@@ -366,28 +366,28 @@ function SortableRow({ item, onToggle, onEdit, onDelete }) {
   const isEnabled = item.effective_enabled ?? item.is_enabled;
 
   return (
-    <tr ref={setNodeRef} style={style} className={`hover:bg-gray-50 ${isEnabled ? '' : 'opacity-50'}`}>
+    <tr ref={setNodeRef} style={style} className={`hover:bg-gray-50 dark:hover:bg-slate-800/60 ${isEnabled ? '' : 'opacity-50'}`}>
       <td className="px-2 py-2">
         <button
           type="button"
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 p-1"
+          className="cursor-grab active:cursor-grabbing text-gray-300 dark:text-slate-600 hover:text-gray-500 dark:hover:text-slate-400 p-1"
           title="Drag to reorder"
         >
           <GripVertical className="w-4 h-4" />
         </button>
       </td>
       <td className="px-4 py-2">
-        <span className="text-[10px] uppercase tracking-wide font-mono font-semibold bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded">
+        <span className="text-[10px] uppercase tracking-wide font-mono font-semibold bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200 px-1.5 py-0.5 rounded">
           {item.code}
         </span>
       </td>
-      <td className="px-4 py-2 font-medium text-gray-900">{item.label}</td>
-      <td className="px-4 py-2 text-xs text-gray-600">{item.description || '—'}</td>
+      <td className="px-4 py-2 font-medium text-gray-900 dark:text-slate-100">{item.label}</td>
+      <td className="px-4 py-2 text-xs text-gray-600 dark:text-slate-300">{item.description || '—'}</td>
       <td className="px-4 py-2">
         {item.is_system ? (
-          <span className="text-[10px] uppercase tracking-wide text-gray-400">system</span>
+          <span className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-slate-500">system</span>
         ) : (
           <span className="text-[10px] uppercase tracking-wide font-semibold text-blue-700">custom</span>
         )}
@@ -397,7 +397,7 @@ function SortableRow({ item, onToggle, onEdit, onDelete }) {
           type="button"
           onClick={() => onToggle(item)}
           className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-            isEnabled ? 'bg-blue-600' : 'bg-gray-300'
+            isEnabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-slate-700'
           }`}
         >
           <span
@@ -410,10 +410,10 @@ function SortableRow({ item, onToggle, onEdit, onDelete }) {
       <td className="px-2 py-2 text-right">
         {!item.is_system && (
           <div className="flex items-center gap-1 justify-end">
-            <button onClick={() => onEdit(item)} className="text-gray-400 hover:text-blue-600" title="Edit">
+            <button onClick={() => onEdit(item)} className="text-gray-400 dark:text-slate-500 hover:text-blue-600" title="Edit">
               <Edit2 className="w-3.5 h-3.5" />
             </button>
-            <button onClick={() => onDelete(item)} className="text-gray-300 hover:text-red-500" title="Delete">
+            <button onClick={() => onDelete(item)} className="text-gray-300 dark:text-slate-600 hover:text-red-500" title="Delete">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
