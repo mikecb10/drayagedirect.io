@@ -14,6 +14,11 @@
   --dd-blue: #2563eb;
   --dd-blue-light: #3b82f6;
   --dd-blue-dark: #1d4ed8;
+
+  /* Semantic text colors — the ONLY places gray/slate pairings are declared.
+     All consumers go through text-muted / text-strong utilities. */
+  --color-muted: #6b7280;   /* gray-500 */
+  --color-strong: #111827;  /* gray-900 */
 }
 
 /* Dark mode overrides for the root CSS variables.
@@ -22,6 +27,9 @@
 .dark {
   --background: #0f172a; /* slate-900 */
   --foreground: #f1f5f9; /* slate-100 */
+
+  --color-muted: #94a3b8;   /* slate-400 */
+  --color-strong: #f1f5f9;  /* slate-100 */
 }
 
 @theme inline {
@@ -50,6 +58,68 @@
   --space-field-label: 0.375rem; /* mb-1.5 between label and input */
   --space-row: 0.75rem;          /* py-3 for DetailRow / settings list rows */
   --space-inline: 0.5rem;        /* gap-2 for adjacent inline controls */
+
+  /* ==========================================================
+     DESIGN SYSTEM — TYPOGRAPHY
+     Consumed via @utility classes declared below, not by
+     arbitrary values (typography tokens carry multiple
+     declarations: size + weight + transform). Compact mode
+     overrides size via the [data-compact] block.
+     ========================================================== */
+  --text-page-title-size: 1.5rem;        /* text-2xl */
+  --text-page-title-weight: 700;         /* font-bold */
+  --text-section-title-size: 0.875rem;   /* text-sm */
+  --text-section-title-weight: 600;      /* font-semibold */
+  --text-field-label-size: 0.75rem;      /* text-xs */
+  --text-field-label-weight: 500;        /* font-medium */
+  --text-body-size: 0.875rem;            /* text-sm */
+  --text-helper-size: 0.75rem;           /* text-xs */
+}
+
+/* ============================================================
+   DESIGN SYSTEM — UTILITIES
+   Typography and color tokens exposed as named utilities so
+   consumers write className="text-page-title" instead of
+   composing class salad. Each resolves a CSS variable; compact
+   mode changes the variable, the utility picks it up.
+   ============================================================ */
+
+@utility text-page-title {
+  font-size: var(--text-page-title-size);
+  font-weight: var(--text-page-title-weight);
+  line-height: 1.2;
+}
+
+@utility text-section-title {
+  font-size: var(--text-section-title-size);
+  font-weight: var(--text-section-title-weight);
+  line-height: 1.4;
+}
+
+@utility text-field-label {
+  font-size: var(--text-field-label-size);
+  font-weight: var(--text-field-label-weight);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+}
+
+@utility text-body {
+  font-size: var(--text-body-size);
+  line-height: 1.5;
+}
+
+@utility text-helper {
+  font-size: var(--text-helper-size);
+  line-height: 1.4;
+}
+
+@utility text-muted {
+  color: var(--color-muted);
+}
+
+@utility text-strong {
+  color: var(--color-strong);
 }
 
 body {
