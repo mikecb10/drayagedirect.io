@@ -153,11 +153,11 @@ export default function DispatcherColorsSettings() {
     >
       <div className="max-w-5xl space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
             <Palette className="w-6 h-6 text-blue-600" />
             Dispatcher Colors
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
             Customize how loads appear on the Dispatcher board. Row background uses the
             <strong> Status color</strong>, and a thin left-edge stripe uses the
             <strong> Load Type color</strong> so you can see both at a glance.
@@ -187,10 +187,10 @@ export default function DispatcherColorsSettings() {
         ) : (
           <>
             {/* Live preview */}
-            <section className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-              <div className="px-5 py-3 border-b border-gray-100">
-                <h2 className="text-base font-semibold text-gray-900">Live Preview</h2>
-                <p className="text-xs text-gray-500 mt-0.5">
+            <section className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl overflow-hidden">
+              <div className="px-5 py-3 border-b border-gray-100 dark:border-slate-800">
+                <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100">Live Preview</h2>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
                   How loads in different states look on the board.
                 </p>
               </div>
@@ -214,7 +214,7 @@ export default function DispatcherColorsSettings() {
                   return (
                     <div
                       key={type}
-                      className="rounded-lg overflow-hidden border border-gray-200 flex"
+                      className="rounded-lg overflow-hidden border border-gray-200 dark:border-slate-800 flex"
                       style={{ backgroundColor: rowBg }}
                     >
                       <div className="w-1" style={{ backgroundColor: stripe }} />
@@ -242,8 +242,8 @@ export default function DispatcherColorsSettings() {
                         >
                           {state?.label || stateKey}
                         </span>
-                        <span className="text-gray-700">Sample Customer</span>
-                        <span className="text-gray-400 text-xs">· Container MSKU1234567</span>
+                        <span className="text-gray-700 dark:text-slate-200">Sample Customer</span>
+                        <span className="text-gray-400 dark:text-slate-500 text-xs">· Container MSKU1234567</span>
                       </div>
                     </div>
                   );
@@ -252,12 +252,12 @@ export default function DispatcherColorsSettings() {
             </section>
 
             {/* Event State Colors — grouped by phase */}
-            <section className="bg-white border border-gray-200 rounded-xl p-5">
+            <section className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-5">
               <div className="mb-4">
-                <h2 className="text-base font-semibold text-gray-900">
+                <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100">
                   Event State Colors (Row Background)
                 </h2>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
                   Each load's row background reflects its current operational state —
                   derived from the order status + current routing event + timestamps.
                   States are grouped by the phase they belong to.
@@ -266,7 +266,7 @@ export default function DispatcherColorsSettings() {
               <div className="space-y-5">
                 {STATE_GROUPS.map((group) => (
                   <div key={group}>
-                    <div className="text-[11px] uppercase tracking-wide font-semibold text-gray-500 mb-2">
+                    <div className="text-[11px] uppercase tracking-wide font-semibold text-gray-500 dark:text-slate-400 mb-2">
                       {group}
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -286,10 +286,10 @@ export default function DispatcherColorsSettings() {
             </section>
 
             {/* Load Type Colors */}
-            <section className="bg-white border border-gray-200 rounded-xl p-5">
+            <section className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-5">
               <div className="mb-4">
-                <h2 className="text-base font-semibold text-gray-900">Load Type Colors (Accent Stripe)</h2>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100">Load Type Colors (Accent Stripe)</h2>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
                   A thin left-edge stripe on every row so you can tell Import vs Export vs Road at a glance.
                 </p>
               </div>
