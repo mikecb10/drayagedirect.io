@@ -107,8 +107,8 @@ export default function CompanySettings() {
     >
       <div className="max-w-4xl">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Company Settings</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Company Settings</h1>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
             Manage your company info, invoice defaults, and operational preferences.
           </p>
         </div>
@@ -143,29 +143,29 @@ export default function CompanySettings() {
         ) : (
           <form onSubmit={handleSave} className="space-y-6">
             {/* Read-only tenant info */}
-            <section className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-              <h2 className="text-base font-semibold text-gray-900 mb-1">
+            <section className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100 mb-1">
                 Account Information
               </h2>
-              <p className="text-xs text-gray-500 mb-4">
+              <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">
                 Managed by your DrayageDirect account representative. Contact support to
                 update.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <div className="text-xs font-medium text-gray-500 uppercase">
+                  <div className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
                     Company Name
                   </div>
-                  <div className="text-sm text-gray-900 mt-0.5">{tenant?.name}</div>
+                  <div className="text-sm text-gray-900 dark:text-slate-100 mt-0.5">{tenant?.name}</div>
                 </div>
                 <div>
-                  <div className="text-xs font-medium text-gray-500 uppercase">Slug</div>
-                  <div className="text-sm text-gray-900 mt-0.5 font-mono">
+                  <div className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Slug</div>
+                  <div className="text-sm text-gray-900 dark:text-slate-100 mt-0.5 font-mono">
                     {tenant?.slug}
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs font-medium text-gray-500 uppercase">Status</div>
+                  <div className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Status</div>
                   <div className="mt-0.5">
                     <Badge variant={tenant?.status === 'active' ? 'green' : 'yellow'}>
                       {tenant?.status}
@@ -173,32 +173,32 @@ export default function CompanySettings() {
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs font-medium text-gray-500 uppercase">
+                  <div className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
                     Contact Email
                   </div>
-                  <div className="text-sm text-gray-900 mt-0.5">{tenant?.contact_email}</div>
+                  <div className="text-sm text-gray-900 dark:text-slate-100 mt-0.5">{tenant?.contact_email}</div>
                 </div>
                 <div>
-                  <div className="text-xs font-medium text-gray-500 uppercase">
+                  <div className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
                     MC Number
                   </div>
-                  <div className="text-sm text-gray-900 mt-0.5">{tenant?.mc_number || '—'}</div>
+                  <div className="text-sm text-gray-900 dark:text-slate-100 mt-0.5">{tenant?.mc_number || '—'}</div>
                 </div>
                 <div>
-                  <div className="text-xs font-medium text-gray-500 uppercase">
+                  <div className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
                     DOT Number
                   </div>
-                  <div className="text-sm text-gray-900 mt-0.5">{tenant?.dot_number || '—'}</div>
+                  <div className="text-sm text-gray-900 dark:text-slate-100 mt-0.5">{tenant?.dot_number || '—'}</div>
                 </div>
               </div>
             </section>
 
             {/* Display preferences */}
-            <section className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-              <h2 className="text-base font-semibold text-gray-900 mb-1">
+            <section className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100 mb-1">
                 Display Preferences
               </h2>
-              <p className="text-xs text-gray-500 mb-4">
+              <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">
                 How your company name appears in the portal and on documents.
               </p>
               <Input
@@ -210,11 +210,11 @@ export default function CompanySettings() {
             </section>
 
             {/* Company Branding — Logo Upload */}
-            <section className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-              <h2 className="text-base font-semibold text-gray-900 mb-1">
+            <section className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100 mb-1">
                 Company Branding
               </h2>
-              <p className="text-xs text-gray-500 mb-4">
+              <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">
                 Upload your company logos. These appear in the sidebar navigation and throughout your portal.
               </p>
 
@@ -246,12 +246,12 @@ export default function CompanySettings() {
             {/* Invoice / Order defaults */}
             <section
               id="invoices"
-              className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm"
+              className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-6 shadow-sm"
             >
-              <h2 className="text-base font-semibold text-gray-900 mb-1">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100 mb-1">
                 Invoice & Order Defaults
               </h2>
-              <p className="text-xs text-gray-500 mb-4">
+              <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">
                 These values pre-fill when you create a new invoice or order.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -309,11 +309,11 @@ export default function CompanySettings() {
             </section>
 
             {/* Regional */}
-            <section className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-              <h2 className="text-base font-semibold text-gray-900 mb-1">
+            <section className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100 mb-1">
                 Regional Settings
               </h2>
-              <p className="text-xs text-gray-500 mb-4">
+              <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">
                 Control how dates and times display across the portal.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -345,21 +345,21 @@ export default function CompanySettings() {
             {/* Collaboration — admin-only feature toggles              */}
             {/* ═══════════════════════════════════════════════════════ */}
             {isAdmin && (
-              <section className="rounded-xl border border-gray-200 bg-white p-5">
+              <section className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
                 <div className="flex items-center gap-2 mb-1">
-                  <Users className="w-4 h-4 text-gray-500" />
-                  <h2 className="text-sm font-semibold text-gray-900">Collaboration</h2>
+                  <Users className="w-4 h-4 text-gray-500 dark:text-slate-400" />
+                  <h2 className="text-sm font-semibold text-gray-900 dark:text-slate-100">Collaboration</h2>
                 </div>
-                <p className="text-xs text-gray-500 mb-4">
+                <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">
                   Live multi-user features on the dispatcher board.
                 </p>
 
-                <label className="flex items-start justify-between gap-4 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer">
+                <label className="flex items-start justify-between gap-4 p-3 rounded-lg border border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800/60 cursor-pointer">
                   <div className="flex-1">
-                    <div className="text-sm font-medium text-gray-900">
+                    <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
                       Live presence & cursors
                     </div>
-                    <div className="text-xs text-gray-500 mt-0.5">
+                    <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
                       Show avatars of teammates currently viewing the dispatcher board and
                       display their mouse cursors in real-time.
                     </div>
@@ -378,7 +378,7 @@ export default function CompanySettings() {
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                         settings.live_presence_enabled !== false
                           ? 'bg-emerald-500'
-                          : 'bg-gray-300'
+                          : 'bg-gray-300 dark:bg-slate-600'
                       }`}
                     >
                       <span
@@ -465,12 +465,12 @@ function LogoUploader({ label, description, value, onChange, previewSize, tenant
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      <p className="text-xs text-gray-500 mb-3">{description}</p>
+      <label className="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-1">{label}</label>
+      <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">{description}</p>
 
       {value ? (
         <div className="flex items-center gap-4">
-          <div className="border border-gray-200 rounded-lg p-2 bg-gray-50">
+          <div className="border border-gray-200 dark:border-slate-800 rounded-lg p-2 bg-gray-50 dark:bg-slate-800/50">
             <img src={value} alt={label} className={`${previewSize} object-contain`} />
           </div>
           <div className="flex flex-col gap-2">
@@ -489,20 +489,20 @@ function LogoUploader({ label, description, value, onChange, previewSize, tenant
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="flex items-center gap-3 w-full rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-400 p-4 text-left transition-colors group"
+          className="flex items-center gap-3 w-full rounded-lg border-2 border-dashed border-gray-300 dark:border-slate-700 hover:border-blue-400 p-4 text-left transition-colors group"
         >
-          <div className="w-10 h-10 rounded-lg bg-gray-100 group-hover:bg-blue-50 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-slate-800 group-hover:bg-blue-50 dark:group-hover:bg-blue-950/40 flex items-center justify-center shrink-0">
             {uploading ? (
               <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
             ) : (
-              <Upload className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />
+              <Upload className="w-5 h-5 text-gray-400 dark:text-slate-500 group-hover:text-blue-500" />
             )}
           </div>
           <div>
-            <div className="text-sm font-medium text-gray-700 group-hover:text-blue-600">
+            <div className="text-sm font-medium text-gray-700 dark:text-slate-200 group-hover:text-blue-600">
               {uploading ? 'Uploading...' : 'Click to upload'}
             </div>
-            <div className="text-xs text-gray-400">PNG, JPG, SVG, or WebP · Max 2MB</div>
+            <div className="text-xs text-gray-400 dark:text-slate-500">PNG, JPG, SVG, or WebP · Max 2MB</div>
           </div>
         </button>
       )}
