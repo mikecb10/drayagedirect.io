@@ -93,6 +93,12 @@ export default async function handler(req, res) {
               leg_to_location_id: row.leg_to_location_id || null,
               leg_to_location_type: row.leg_to_location_type || null,
               leg_to_location_value: row.leg_to_location_value || null,
+              // Multi-select arrays (migration 071)
+              leg_from_types: row.leg_from_types || null,
+              leg_to_types: row.leg_to_types || null,
+              // Between Statuses (migration 071)
+              status_from: row.status_from || null,
+              status_to: row.status_to || null,
               radius_tiers: row.radius_tiers || [],
             }))
           );
