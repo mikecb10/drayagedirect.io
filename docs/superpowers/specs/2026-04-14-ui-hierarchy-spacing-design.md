@@ -271,6 +271,42 @@ Scope: 29 files under `pages/settings/` (incl. `communications/`, `tariffs/`, `c
 - `ChargeProfileDetail.js`/`TariffDetail.js`: 11-line overlay wrappers; drift lives in §5.2 pages.
 - `PerDiemRuleModal.js`: no `<label>`s (grid-of-inputs); `SectionCard` tokens absorb its padding.
 
+### 5.4 Consolidated token demand
+
+Patterns discovered in §5.1–§5.3 and their target tokens. Occurrence counts are sums across the subsections that named the pattern (approximate — the purpose of this table is the mapping, not a precise census).
+
+| Pattern (approximate total occurrences) | Target token | Where (§) |
+|---|---|---|
+| `text-gray-500 dark:text-slate-400` muted color (≈236x: 63 + 170 + 3) | `text-muted` | 5.1, 5.2, 5.3 |
+| `text-gray-900 dark:text-slate-100` strong color (≈209x: 57 + 149 + 3) | `text-strong` | 5.1, 5.2, 5.3 |
+| `text-sm font-semibold` section / card titles (named in all three subsections) | `text-section-title` | 5.1, 5.2, 5.3 |
+| `text-xs font-medium` + uppercase `tracking-wide/wider` pseudo-labels (≈25 + 28 in §5.1; 83 `<label>` elements in §5.2) | `text-field-label` | 5.1, 5.2 |
+| `text-xs` helper / metadata (≈302x in §5.2; named in §5.1 and §5.3) | `text-helper` | 5.1, 5.2, 5.3 |
+| `text-sm` default body / input text (≈237x in §5.2; named in §5.1 and §5.3) | `text-body` | 5.1, 5.2, 5.3 |
+| `gap-2` adjacent inline controls (≈149x: 46 + 98 + 5) | `space-inline` | 5.1, 5.2, 5.3 |
+| `gap-4` between fields in grids (named in §5.1 BillingTab `gap-2/3/4` and §5.2 `tariffs` `gap-3/4`) | `space-field` | 5.1, 5.2 |
+| `mb-1.5` label → input (≈20x: 3 + 17; §2 picks this over the `mb-1` drift variant) | `space-field-label` | 5.1, 5.2 |
+| `p-5` card body padding (present in §5.2 `communications/umbrellas/[id].js` `p-3/4/5`) | `space-section-pad` | 5.2 |
+| `px-5 py-…` card header bar (`SettingsLayout.js px-5 py-2`; implicit across section headers) | `space-section-head` | 5.3 |
+| `py-3` settings / detail list rows (implicit across `px-3 py-2`–`py-2.5` row padding in all three) | `space-row` | 5.1, 5.2, 5.3 |
+| `text-2xl font-bold` page title (page-header typography — targeted by `PageHeader` primitive, no `<h1>` drift flagged in the audits) | `text-page-title` | — (implicit; no drift flagged) |
+| `space-page-x` / `space-page-y` page padding (owned by `PageHeader`; no drift flagged in the audits) | `space-page-x` / `space-page-y` | — (implicit; no drift flagged) |
+| `gap-6` between section cards (owned by parent stack; no drift flagged) | `space-section` | — (implicit; no drift flagged) |
+
+**Gaps (patterns with no matching token in spec §2):**
+
+- **`mt-0.5` helper-text offset (≈95x: 46 in §5.1 + 49 in §5.2).** §3's hierarchy rule 4 mandates `mt-0.5` for helper text under its owner ("Never `mt-1`, never `mt-2`"), and §5.1 explicitly calls out the need for a named token (`space-field-helper`) — but §2's 9-token spacing table has no row for it. This is a genuine gap: the rule is asserted in §3 but the token isn't declared in §2. Plan B/C should propose `space-field-helper: mt-0.5` (easily clears the "3+ uses" bar at ~95x).
+- **Arbitrary `text-[9px]` / `text-[10px]` / `text-[11px]` eyebrow / badge sizes (≈165x in §5.2: 31 + 70 + 64; plus 2 in `SettingsLayout.js` and 1 in `PerDiemRuleModal.js` in §5.3).** Used for uppercase eyebrows, pill text, and column headers. None of §2's seven typography tokens covers sub-`text-xs` sizes. §5.3 explicitly flags these for Plan C as "off-token, should consume new tokens." Plan C should propose a dedicated eyebrow/badge size token (candidate: `text-eyebrow`) rather than scattering arbitrary pixel values.
+- **Half-step spacings (`py-2.5`, `px-2.5`, `py-1.5`, `mt-1.5`, `space-y-1.5`, `space-y-2.5`, and similar): ≈332x across 29 files in §5.2, plus scattered in §5.1 and §5.3.** §5.2 names this as the "primary source of visual drift." §2's 9 spacing tokens are all whole-step values. Not every half-step is a new token — most are drift that should collapse onto the nearest whole-step token (`py-3`, `gap-2`, etc.). But two specific half-step uses recur with clear semantic intent:
+  - Input / form-row vertical padding (`py-2`–`py-2.5`) consistently sits between row-token (`py-3`) and pill-token, suggesting a possible `space-input-y` token.
+  - `mb-1` vs `mb-1.5` label→input split (≈93x: 14 in §5.1 + 79 in §5.2) is **not** a new gap — §2 already resolves this to `space-field-label: mb-1.5`. The 93x `mb-1` occurrences are drift to be migrated, not a case for a second token.
+
+  Plan B/C should treat the other 200+ half-step occurrences as drift (migrate to nearest whole-step token) and only propose a new token if a specific half-step semantically survives review.
+
+- **Form-input / pill padding (`px-3 py-2` ≈133x: 27 + 100 + 6, plus `px-2.5 py-1`, `px-4 py-2`, `px-4 py-2.5` variants).** §5.1 explicitly says "tokenize both" for the card/input padding + pill padding split. §2 has no input-padding or pill-padding row — these belong to the `Input` / `Badge` primitives, not the spacing scale. Not a §2 gap per se, but a reminder for Plan B/C: input padding lives inside the `Input` primitive, pill padding inside the `Badge` primitive, so spec §2 doesn't need new tokens for them — the primitives absorb the pattern.
+
+**Governance call:** No new tokens added in Plan A beyond spec §2. The three genuine gaps above (`mt-0.5` helper offset, sub-`text-xs` eyebrow size, and the half-step drift audit) are load-bearing for Plans B and C: each recurs ≥3× and has no existing §2 token, so per §2's "3+ uses" rule they merit a proposal (not an ad-hoc addition) in the Plan B/C that consumes them. `mt-0.5` in particular is already promised by §3 rule 4 and should land as the first Plan B addition.
+
 ---
 
 ## 6. Rollout Plan
