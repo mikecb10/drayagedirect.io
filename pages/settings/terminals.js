@@ -100,8 +100,8 @@ export default function TerminalsPage() {
         {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
 
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Terminals</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Terminals</h1>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
             Marine ports and rail ramps from your enabled markets. The Label/Key is fixed for backend
             integrations. You can customize the Profile Name for your team's preferred naming.
           </p>
@@ -119,19 +119,19 @@ export default function TerminalsPage() {
         {/* Filters */}
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative flex-1 min-w-[200px] max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
             <input
               type="text"
               placeholder="Search terminals…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="block w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 pl-9 pr-3 py-2 text-sm text-gray-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
           </div>
           <select
             value={filterMarket}
             onChange={(e) => setFilterMarket(e.target.value)}
-            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            className="rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-gray-900 dark:text-slate-100"
           >
             <option value="">All Markets</option>
             {markets.map((m) => (
@@ -143,7 +143,7 @@ export default function TerminalsPage() {
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
-            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            className="rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-gray-900 dark:text-slate-100"
           >
             <option value="">All Types</option>
             <option value="MARINE">Marine</option>
@@ -153,33 +153,33 @@ export default function TerminalsPage() {
 
         {/* Table */}
         {loading ? (
-          <div className="py-16 text-center text-sm text-gray-400">Loading terminals…</div>
+          <div className="py-16 text-center text-sm text-gray-400 dark:text-slate-500">Loading terminals…</div>
         ) : (
-          <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+          <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50/60">
-                    <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Market</th>
-                    <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Type</th>
-                    <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Label / Key</th>
-                    <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Profile Name</th>
-                    <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">City</th>
-                    <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">State</th>
-                    <th className="text-center px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Enabled</th>
+                  <tr className="border-b border-gray-100 dark:border-slate-800 bg-gray-50/60 dark:bg-slate-800/60">
+                    <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Market</th>
+                    <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Type</th>
+                    <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Label / Key</th>
+                    <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Profile Name</th>
+                    <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">City</th>
+                    <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">State</th>
+                    <th className="text-center px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Enabled</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((t) => (
-                    <tr key={t.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                    <tr key={t.id} className="border-b border-gray-50 dark:border-slate-800 hover:bg-gray-50/50 dark:hover:bg-slate-800/50">
                       <td className="px-4 py-2.5">
                         <div className="flex items-center gap-1.5">
                           {!t.market_enabled && (
-                            <span className="text-[9px] uppercase tracking-wide font-semibold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
+                            <span className="text-[9px] uppercase tracking-wide font-semibold bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 px-1.5 py-0.5 rounded">
                               market off
                             </span>
                           )}
-                          <span className="text-xs text-gray-700">{t.market}</span>
+                          <span className="text-xs text-gray-700 dark:text-slate-200">{t.market}</span>
                         </div>
                       </td>
                       <td className="px-4 py-2.5">
@@ -198,7 +198,7 @@ export default function TerminalsPage() {
                           {t.type}
                         </span>
                       </td>
-                      <td className="px-4 py-2.5 font-mono text-xs text-gray-500">{t.label}</td>
+                      <td className="px-4 py-2.5 font-mono text-xs text-gray-500 dark:text-slate-400">{t.label}</td>
                       <td className="px-4 py-2.5">
                         {editingId === t.id ? (
                           <div className="flex items-center gap-1">
@@ -221,14 +221,14 @@ export default function TerminalsPage() {
                             </button>
                             <button
                               onClick={() => setEditingId(null)}
-                              className="p-1 text-gray-400 hover:bg-gray-100 rounded"
+                              className="p-1 text-gray-400 dark:text-slate-500 hover:bg-gray-100 dark:hover:bg-slate-800 rounded"
                             >
                               <X className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         ) : (
                           <div className="flex items-center gap-1.5 group">
-                            <span className="text-xs text-gray-900">
+                            <span className="text-xs text-gray-900 dark:text-slate-100">
                               {t.effective_name}
                             </span>
                             {t.custom_name && (
@@ -241,21 +241,21 @@ export default function TerminalsPage() {
                                 setEditingId(t.id);
                                 setEditName(t.effective_name);
                               }}
-                              className="p-0.5 text-gray-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="p-0.5 text-gray-300 dark:text-slate-600 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
                             >
                               <Pencil className="w-3 h-3" />
                             </button>
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-2.5 text-xs text-gray-600">{t.city || '—'}</td>
-                      <td className="px-4 py-2.5 text-xs text-gray-600">{t.state || '—'}</td>
+                      <td className="px-4 py-2.5 text-xs text-gray-600 dark:text-slate-300">{t.city || '—'}</td>
+                      <td className="px-4 py-2.5 text-xs text-gray-600 dark:text-slate-300">{t.state || '—'}</td>
                       <td className="px-4 py-2.5 text-center">
                         <button
                           type="button"
                           onClick={() => toggleTerminal(t.id, !t.effective_enabled)}
                           className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-                            t.effective_enabled ? 'bg-blue-600' : 'bg-gray-200'
+                            t.effective_enabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-slate-700'
                           }`}
                         >
                           <span
@@ -269,7 +269,7 @@ export default function TerminalsPage() {
                   ))}
                   {filtered.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="py-12 text-center text-sm text-gray-400">
+                      <td colSpan={7} className="py-12 text-center text-sm text-gray-400 dark:text-slate-500">
                         No terminals found
                       </td>
                     </tr>
@@ -286,12 +286,12 @@ export default function TerminalsPage() {
 
 function StatCard({ label, value, icon }) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
+    <div className="rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3">
       <div className="flex items-center gap-2">
         {icon}
-        <div className="text-2xl font-semibold text-gray-900">{value}</div>
+        <div className="text-2xl font-semibold text-gray-900 dark:text-slate-100">{value}</div>
       </div>
-      <div className="text-xs text-gray-500 mt-0.5">{label}</div>
+      <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">{label}</div>
     </div>
   );
 }
