@@ -470,13 +470,14 @@ export default function DriverChargeProfilesPanel() {
                 </div>
               )}
 
-              {/* ── By Event — single numbered row ───────────── */}
+              {/* ── By Event — single numbered row (no Event Time) ─ */}
               {form.calculation_mode === 'by_event' && (
                 <NumberedEventRow
                   idx={0}
                   event={form.event_config}
                   onChange={(next) => setForm((f) => ({ ...f, event_config: next }))}
                   showDelete={false}
+                  showEventTime={false}
                 />
               )}
 
@@ -557,23 +558,30 @@ export default function DriverChargeProfilesPanel() {
 }
 
 // ── Numbered event row ─────────────────────────────────────────
-// Renders one row of: [#] If Event | Event Time | Event Location
-// Used by By Event (single instance) and By Move (stacked).
-function NumberedEventRow({ idx, event, onChange, onDelete, showDelete }) {
+// Renders one row of the event builder. Used by:
+//   - By Event (single instance, 2 columns: If Event | Event Location)
+//   - By Move  (stacked instances, 3 columns: If Event | Event Time | Location)
+//
+// `showEventTime` controls whether the middle "Event Time" column
+// (Arrived/Departed) is rendered. Off for By Event, on for By Move.
+function NumberedEventRow({ idx, event, onChange, onDelete, showDelete, showEventTime = true }) {
   const update = (patch) => onChange({ ...event, ...patch });
+  const gridCols = showEventTime ? 'grid-cols-3' : 'grid-cols-2';
   return (
     <div className="flex items-start gap-2">
       <div className="shrink-0 w-7 h-9 rounded-lg bg-gray-100 dark:bg-slate-800 text-xs font-semibold text-gray-500 dark:text-slate-400 flex items-center justify-center mt-5">
         {idx + 1}
       </div>
-      <div className="flex-1 grid grid-cols-3 gap-3">
+      <div className={`flex-1 grid ${gridCols} gap-3`}>
         <Select label="If Event" value={event?.event_type || ''}
           placeholder="Select event..."
           onChange={(e) => update({ event_type: e.target.value })}
           options={DRIVER_EVENT_TYPES} />
-        <Select label="Event Time" value={event?.event_time || 'arrived'}
-          onChange={(e) => update({ event_time: e.target.value })}
-          options={EVENT_TIME_OPTIONS} />
+        {showEventTime && (
+          <Select label="Event Time" value={event?.event_time || 'arrived'}
+            onChange={(e) => update({ event_time: e.target.value })}
+            options={EVENT_TIME_OPTIONS} />
+        )}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Event Location</label>
           <EventLocationPicker
