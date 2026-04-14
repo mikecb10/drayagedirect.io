@@ -107,11 +107,11 @@ export default function PerDiemSettings() {
       <div className="max-w-6xl space-y-4">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
               <Calculator className="w-6 h-6 text-blue-600" />
               Per Diem Free Day Pricing
             </h1>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
               Configure tiered per-diem rates by Customer × Steamship Line × Container
               Type × Load Type. When a load sits past its free days, the matching rule's
               tiers will be charged.
@@ -127,19 +127,19 @@ export default function PerDiemSettings() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <div className="rounded-xl border border-gray-200 bg-white p-3">
-            <div className="text-[11px] uppercase tracking-wide text-gray-500">
+          <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">
+            <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-slate-400">
               Total Rules
             </div>
-            <div className="text-2xl font-bold text-gray-900">{rules.length}</div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-slate-100">{rules.length}</div>
           </div>
-          <div className="rounded-xl border border-gray-200 bg-white p-3">
-            <div className="text-[11px] uppercase tracking-wide text-gray-500">Enabled</div>
+          <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">
+            <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-slate-400">Enabled</div>
             <div className="text-2xl font-bold text-emerald-600">{enabledCount}</div>
           </div>
-          <div className="rounded-xl border border-gray-200 bg-white p-3">
-            <div className="text-[11px] uppercase tracking-wide text-gray-500">Disabled</div>
-            <div className="text-2xl font-bold text-gray-400">
+          <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">
+            <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-slate-400">Disabled</div>
+            <div className="text-2xl font-bold text-gray-400 dark:text-slate-500">
               {rules.length - enabledCount}
             </div>
           </div>
@@ -157,10 +157,10 @@ export default function PerDiemSettings() {
         </div>
 
         {/* Rules table */}
-        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+        <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500">
+              <thead className="bg-gray-50 dark:bg-slate-800/50 text-[11px] uppercase tracking-wide text-gray-500 dark:text-slate-400">
                 <tr>
                   <th className="text-left px-4 py-2">Name</th>
                   <th className="text-left px-4 py-2">Customer</th>
@@ -172,16 +172,16 @@ export default function PerDiemSettings() {
                   <th className="w-20"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-400">
+                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-400 dark:text-slate-500">
                       Loading...
                     </td>
                   </tr>
                 ) : rules.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-400">
+                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-400 dark:text-slate-500">
                       No per diem rules yet. Click "Add Per Diem Rule" to create one.
                     </td>
                   </tr>
@@ -189,25 +189,25 @@ export default function PerDiemSettings() {
                   rules.map((r) => (
                     <tr
                       key={r.id}
-                      className={`hover:bg-gray-50 ${r.is_enabled ? '' : 'opacity-50'}`}
+                      className={`hover:bg-gray-50 dark:hover:bg-slate-800/60 ${r.is_enabled ? '' : 'opacity-50'}`}
                     >
-                      <td className="px-4 py-2 font-medium text-gray-900">
-                        {r.name || <span className="text-gray-400 italic">Unnamed</span>}
+                      <td className="px-4 py-2 font-medium text-gray-900 dark:text-slate-100">
+                        {r.name || <span className="text-gray-400 dark:text-slate-500 italic">Unnamed</span>}
                       </td>
-                      <td className="px-4 py-2 text-xs text-gray-700">
+                      <td className="px-4 py-2 text-xs text-gray-700 dark:text-slate-200">
                         {r.customer ? (
                           <span className="flex items-center gap-1">
-                            <Building2 className="w-3 h-3 text-gray-400" />
+                            <Building2 className="w-3 h-3 text-gray-400 dark:text-slate-500" />
                             {r.customer.name}
                           </span>
                         ) : (
-                          <span className="text-gray-300">Any</span>
+                          <span className="text-gray-300 dark:text-slate-600">Any</span>
                         )}
                       </td>
-                      <td className="px-4 py-2 text-xs text-gray-700">
+                      <td className="px-4 py-2 text-xs text-gray-700 dark:text-slate-200">
                         {r.owner ? (
                           <span className="flex items-center gap-1">
-                            <Ship className="w-3 h-3 text-gray-400" />
+                            <Ship className="w-3 h-3 text-gray-400 dark:text-slate-500" />
                             {r.owner.label || r.owner.name}
                             {r.owner.scac_code && (
                               <span className="text-[9px] uppercase tracking-wide font-mono bg-blue-50 text-blue-700 px-1 rounded">
@@ -216,27 +216,27 @@ export default function PerDiemSettings() {
                             )}
                           </span>
                         ) : (
-                          <span className="text-gray-300">Any</span>
+                          <span className="text-gray-300 dark:text-slate-600">Any</span>
                         )}
                       </td>
-                      <td className="px-4 py-2 text-xs text-gray-700">
+                      <td className="px-4 py-2 text-xs text-gray-700 dark:text-slate-200">
                         {r.container_type ? (
                           <span className="flex items-center gap-1">
-                            <Package className="w-3 h-3 text-gray-400" />
+                            <Package className="w-3 h-3 text-gray-400 dark:text-slate-500" />
                             {r.container_type.code}
                           </span>
                         ) : (
-                          <span className="text-gray-300">Any</span>
+                          <span className="text-gray-300 dark:text-slate-600">Any</span>
                         )}
                       </td>
-                      <td className="px-4 py-2 text-xs text-gray-700 capitalize">
+                      <td className="px-4 py-2 text-xs text-gray-700 dark:text-slate-200 capitalize">
                         {r.load_type ? (
                           r.load_type.replace('_', ' ')
                         ) : (
-                          <span className="text-gray-300">Any</span>
+                          <span className="text-gray-300 dark:text-slate-600">Any</span>
                         )}
                       </td>
-                      <td className="px-4 py-2 text-xs text-gray-700">
+                      <td className="px-4 py-2 text-xs text-gray-700 dark:text-slate-200">
                         {summarizeTiers(r.tiers)}
                       </td>
                       <td className="px-4 py-2">
@@ -244,7 +244,7 @@ export default function PerDiemSettings() {
                           type="button"
                           onClick={() => toggleEnabled(r)}
                           className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                            r.is_enabled ? 'bg-blue-600' : 'bg-gray-300'
+                            r.is_enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-slate-700'
                           }`}
                           title={r.is_enabled ? 'Disable rule' : 'Enable rule'}
                         >
@@ -259,14 +259,14 @@ export default function PerDiemSettings() {
                         <div className="flex items-center gap-1 justify-end">
                           <button
                             onClick={() => openEdit(r)}
-                            className="text-gray-400 hover:text-blue-600"
+                            className="text-gray-400 dark:text-slate-500 hover:text-blue-600"
                             title="Edit"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleDelete(r)}
-                            className="text-gray-300 hover:text-red-500"
+                            className="text-gray-300 dark:text-slate-600 hover:text-red-500"
                             title="Delete"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
