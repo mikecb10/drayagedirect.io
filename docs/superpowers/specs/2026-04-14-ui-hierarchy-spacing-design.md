@@ -185,7 +185,35 @@ Output: markdown table appended to this spec as §5 "Audit Results" before imple
 
 ## 5. Audit Results
 
-*To be filled during Step 1 of implementation.*
+*Populated during Plan A, Phase 1. Rows below drive Plans B (load detail) and C (settings). Items counted are representative, not exhaustive — goal is to confirm scope and locate high-density patterns.*
+
+### 5.1 `components/loads/**`
+
+Scope: 20 files under `components/loads/` (incl. `tabs/` and `routing/`). Totals: 646 spacing-class occurrences, 249 `text-gray-*` / 250 `dark:text-slate-*` (≈1:1 paired), 14 `<label>` elements across 6 files. Top 5 files chosen by spacing-class density + variety of typography/label patterns.
+
+| File | Spacing drift (sample) | Typography drift | Label pattern | Dark-mode gaps |
+|---|---|---|---|---|
+| `tabs/BillingTab.js` (78 spacing hits) | mix of `px-3 py-2`, `px-2.5 py-1`, `gap-2/3/4`, `mt-0.5/1/2`, `space-y-2/3` | `text-xs font-medium`, `text-sm font-semibold`, `text-[10px]`, `text-[11px]` | `block text-xs font-medium text-gray-600 dark:text-slate-300 mb-1` (x5 repeated inline) | 0 (all gray paired) |
+| `tabs/DocumentsTab.js` (49 spacing hits) | `px-3 py-2`, `p-3/4`, `gap-2/3`, `mb-1/1.5/2`, `mt-0.5/1` | `text-xs font-semibold`, `text-sm font-medium`, `text-[11px]`, `uppercase tracking-wide` | `block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1.5` (x2, diverges from BillingTab) | 0 |
+| `tabs/TrackingTab.js` (35 spacing hits) | `p-3/4`, `px-3 py-2`, `gap-2/3/4`, `mt-0.5`, 11 `text-gray-500 dark:text-slate-400` repeats | `text-xs`, `text-sm font-medium/semibold`, `font-semibold`, uppercase mixed | no `<label>` (card-style detail rows instead) | 0 |
+| `tabs/DriverPayTab.js` (30 spacing hits) | `px-3 py-2`, `px-2 py-1`, `gap-2/3`, `mt-1`, `space-y-2` | `text-xs`, `text-sm`, `font-medium/semibold` | no `<label>` | 0 |
+| `tabs/RoutingTab.js` (22 spacing hits) | `p-3/4`, `gap-2/3`, `mb-2/3`, `space-y-3` | `text-xs`, `text-sm font-semibold` | no `<label>` (delegates to `routing/` subcomponents) | 0 |
+
+**Recurring patterns to map to tokens:**
+- `text-gray-900 dark:text-slate-100` (57x across 20 files) → `text-strong`
+- `text-gray-500 dark:text-slate-400` (63x; 11 in TrackingTab) → `text-muted`
+- `text-xs font-medium` (25x) vs `text-xs font-semibold` (17x) → one canonical `text-field-label`
+- `px-3 py-2` card/input padding (27x) + `px-2.5 py-1` pill padding → tokenize both
+- 5 distinct `<label>` variants across 6 files (sm/xs, medium/semibold, mb-1/1.5) → `Field`
+- `mt-0.5` helper-text offset (46x) → `space-field-helper` (matches §2 contract)
+- `gap-3` (37x) and `gap-2` (46x) for inline controls → `space-inline` (gap-2) canonical
+- `mb-1` (14x) vs `mb-1.5` (3x) on label→input → `space-field-label` = mb-1.5 per §2
+- `uppercase tracking-wide/wider` on pseudo-labels (28x) → encapsulate in `text-field-label`
+
+**Recurring dark-mode fixes needed:**
+- 0 `text-gray-*` lines without a `dark:` pairing (249 gray ≈ 250 slate). Convention holds.
+- 11 `text-slate-*`-only lines in `routing/RailSlipPreviewModal.js` — dark phone mockup, exclude.
+- Real gap is duplication: 63x muted pairs + 57x strong pairs inline → fold into the two tokens.
 
 ---
 
