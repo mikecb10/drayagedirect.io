@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Trash2, Wallet, User, DollarSign } from 'lucide-react';
+import { Plus, Trash2, Wallet, User, DollarSign, RefreshCw, CheckCircle2, XCircle, ChevronDown } from 'lucide-react';
 import Alert from '../../ui/Alert';
 import Button from '../../ui/Button';
 import Input from '../../ui/Input';
@@ -177,6 +177,31 @@ export default function DriverPayTab({ load }) {
     }
   }
 
+  // Manual driver-pay recalculation. Fires the same engine as the auto hook
+  // on load PUT, but returns a diagnostic trace so a zero-result outcome is
+  // debuggable instead of silent.
+  const [recalcBusy, setRecalcBusy] = useState(false);
+  const [diagnostic, setDiagnostic] = useState(null);
+  const [diagOpen, setDiagOpen] = useState(false);
+
+  async function recalcDriverPay() {
+    setRecalcBusy(true);
+    setError(null);
+    setDiagnostic(null);
+    try {
+      const res = await fetch(`/api/tenant/loads/${load.id}/recalculate-driver-pay`, { method: 'POST' });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Recalculate failed');
+      setDiagnostic(body);
+      setDiagOpen(true);
+      await fetchLines();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setRecalcBusy(false);
+    }
+  }
+
   const total = lines.reduce((sum, l) => sum + (l.amount_cents || 0), 0);
   const approvedTotal = lines
     .filter((l) => ['approved', 'reviewed', 'finalized'].includes(l.status))
@@ -193,12 +218,94 @@ export default function DriverPayTab({ load }) {
         <SummaryCard label="Total" value={formatCents(total)} icon={DollarSign} color="purple" />
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={recalcDriverPay}
+          disabled={recalcBusy}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50"
+        >
+          <RefreshCw className={`w-4 h-4 ${recalcBusy ? 'animate-spin' : ''}`} />
+          {recalcBusy ? 'Recalculating…' : 'Recalculate Driver Pay'}
+        </button>
         <Button onClick={() => setShowForm((s) => !s)}>
           <Plus className="w-4 h-4 inline -mt-0.5 mr-1" />
           {showForm ? 'Cancel' : 'Add Pay Line'}
         </Button>
       </div>
+
+      {/* Diagnostic panel — shown after a manual recalc. Lists each tariff
+          the engine considered, with a pass/fail per check so the user can
+          see exactly why matching succeeded or was rejected. Safe to leave
+          mounted — it doesn't auto-populate. */}
+      {diagnostic && (
+        <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+          <button
+            type="button"
+            onClick={() => setDiagOpen((o) => !o)}
+            className="w-full flex items-center justify-between px-4 py-3 text-left"
+          >
+            <div className="flex items-center gap-2">
+              {diagnostic.applied > 0 ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+              ) : (
+                <XCircle className="w-4 h-4 text-amber-500" />
+              )}
+              <span className="text-sm font-medium text-gray-900 dark:text-slate-100">
+                {diagnostic.message || (diagnostic.applied > 0 ? `${diagnostic.applied} line(s) applied` : 'No match')}
+              </span>
+              {diagnostic.diagnostic && (
+                <span className="text-xs text-gray-500 dark:text-slate-400">
+                  · {diagnostic.diagnostic.tariffs_matched}/{diagnostic.diagnostic.tariffs_total} tariff(s) matched
+                </span>
+              )}
+            </div>
+            <ChevronDown className={`w-4 h-4 text-gray-400 dark:text-slate-500 transition-transform ${diagOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {diagOpen && diagnostic.diagnostic && (
+            <div className="border-t border-gray-100 dark:border-slate-800 p-4 space-y-3 text-xs">
+              {diagnostic.reason === 'no_driver' ? (
+                <div className="text-amber-700 dark:text-amber-300">No driver assigned to this load. Assign a driver first, then recalculate.</div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-3 text-gray-600 dark:text-slate-300">
+                    <div>
+                      <div className="font-semibold mb-1 text-gray-900 dark:text-slate-100">Load</div>
+                      <div>Type: <span className="font-mono">{diagnostic.diagnostic.load.load_type || '(empty)'}</span></div>
+                      <div>Pickup id: <span className="font-mono break-all">{diagnostic.diagnostic.load.pickup_location_id || '(empty)'}</span></div>
+                      <div>Delivery id: <span className="font-mono break-all">{diagnostic.diagnostic.load.delivery_location_id || '(empty)'}</span></div>
+                      <div>Return id: <span className="font-mono break-all">{diagnostic.diagnostic.load.return_location_id || '(empty)'}</span></div>
+                      <div>Container: <span className="font-mono">{[diagnostic.diagnostic.load.container_size, diagnostic.diagnostic.load.container_type].filter(Boolean).join(' / ') || '(empty)'}</span></div>
+                    </div>
+                    <div>
+                      <div className="font-semibold mb-1 text-gray-900 dark:text-slate-100">Driver groups</div>
+                      <div>{diagnostic.diagnostic.driver_group_names.length > 0 ? diagnostic.diagnostic.driver_group_names.join(', ') : '(none — driver in no groups)'}</div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {diagnostic.diagnostic.tariffs.map((t) => (
+                      <div key={t.id} className={`rounded-lg border p-2 ${t.matched ? 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20' : 'border-gray-200 dark:border-slate-700 bg-gray-50/60 dark:bg-slate-800/40'}`}>
+                        <div className="flex items-center gap-2 font-medium">
+                          {t.matched ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <XCircle className="w-3.5 h-3.5 text-gray-400" />}
+                          <span className="text-gray-900 dark:text-slate-100">{t.name}</span>
+                          <span className="text-gray-500 dark:text-slate-400">· status: {t.status} · priority: {t.priority}</span>
+                        </div>
+                        <div className="mt-1.5 pl-5 space-y-0.5 text-gray-600 dark:text-slate-300">
+                          {t.checks.map((c, i) => (
+                            <div key={i} className={c.pass ? '' : 'text-red-600 dark:text-red-400'}>
+                              {c.pass ? '✓' : '✗'} {c.check}{c.detail ? ` — ${c.detail}` : ''}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* New line form */}
       {showForm && (
