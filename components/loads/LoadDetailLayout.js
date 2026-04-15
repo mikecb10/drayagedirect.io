@@ -131,7 +131,13 @@ export default function LoadDetailLayout({ load, children, activeTab, onTabChang
   }
 
   return (
-    <div className="-mx-4 -mt-4 md:-mx-6 md:-mt-6">
+    // No negative margins: this layout now always renders inside
+    // OverlayPanel (/loads/[id] is just a redirect to the dispatcher
+    // overlay). The overlay wrapper has no padding to cancel against,
+    // so negative margins would bleed past the panel's right edge and
+    // trigger a horizontal scrollbar on the overlay. The `px-4 md:px-6`
+    // on the top bar + body below already provides the correct inset.
+    <div>
       {/* Top bar — sticky */}
       <div className="sticky top-0 z-20 border-b border-gray-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur px-4 md:px-6 py-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">

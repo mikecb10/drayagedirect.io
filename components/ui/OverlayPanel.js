@@ -49,9 +49,20 @@ export default function OverlayPanel({ onClose, stackIndex = 0, closing = false,
       />
 
       {/* Slide-in panel */}
+      {/*
+        overflow-y-auto + overflow-x-hidden:
+        Per CSS spec, if one overflow axis is non-visible and the other is
+        `visible`, the browser promotes the other to `auto` too — which
+        means `overflow-y-auto` alone surfaces an unwanted horizontal
+        scrollbar whenever child content exceeds the panel width by even
+        a pixel. Explicit `overflow-x-hidden` pins the x-axis to clip.
+        Any tab that genuinely needs horizontal scrolling (wide tables,
+        tariff matrices, etc.) should manage it inside its own sub
+        container, not at the overlay level.
+      */}
       <div
         ref={panelRef}
-        className={`absolute top-0 right-0 bottom-0 bg-white dark:bg-slate-900 shadow-2xl rounded-l-2xl overflow-y-auto transition-transform duration-300 ease-out ${
+        className={`absolute top-0 right-0 bottom-0 bg-white dark:bg-slate-900 shadow-2xl rounded-l-2xl overflow-y-auto overflow-x-hidden transition-transform duration-300 ease-out ${
           entered ? 'translate-x-0' : 'translate-x-full'
         }`}
         style={{ width: `calc(100vw - ${leftOffset}px)` }}
