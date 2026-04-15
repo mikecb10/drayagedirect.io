@@ -69,7 +69,22 @@ export default async function handler(req, res) {
 
     if (profError) return res.status(500).json({ error: profError.message });
 
-    // Create versions + tiers
+    // Create versions + tiers.
+    //
+    // Error-handling contract: a tier insert failure (FK violation, RLS,
+    // schema mismatch) must NOT be silent. Previous behavior swallowed
+    // the error and left the profile with no tiers — producing the
+    // "profile exists but the engine never matches" symptom Cowork
+    // caught during Plan B verification (2026-04-15). If any tier
+    // insert fails, we roll back the profile + version inserts and
+    // return 500 with the underlying Supabase error so the UI knows.
+    const rollback = async (reason) => {
+      try {
+        await svc.from('driver_charge_profiles').delete().eq('id', profile.id);
+      } catch { /* best effort; profile row may already be gone */ }
+      return res.status(500).json({ error: reason });
+    };
+
     if (Array.isArray(body.versions)) {
       for (let i = 0; i < body.versions.length; i++) {
         const ver = body.versions[i];
@@ -85,11 +100,13 @@ export default async function handler(req, res) {
           .select()
           .single();
 
-        if (verError) continue;
+        if (verError) {
+          return rollback(`version insert failed: ${verError.message}`);
+        }
 
         // Insert tiers for this version
         if (Array.isArray(ver.rows) && ver.rows.length > 0) {
-          await svc.from('driver_charge_profile_tiers').insert(
+          const { error: tierError } = await svc.from('driver_charge_profile_tiers').insert(
             ver.rows.map((row) => ({
               tenant_id: ctx.tenantId,
               driver_charge_profile_id: profile.id,
@@ -126,6 +143,10 @@ export default async function handler(req, res) {
               radius_tiers: row.radius_tiers || [],
             }))
           );
+
+          if (tierError) {
+            return rollback(`tier insert failed: ${tierError.message}`);
+          }
         }
       }
     }

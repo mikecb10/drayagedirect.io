@@ -48,15 +48,48 @@ export default async function handler(req, res) {
       if (error) return res.status(500).json({ error: error.message });
     }
 
-    // Replace versions + tiers if provided
+    // Replace versions + tiers if provided.
+    //
+    // Error-handling contract (2026-04-15 fix):
+    //
+    //   1. Validate that every version has an array of rows BEFORE any
+    //      destructive delete. If the UI sends a malformed payload
+    //      (e.g. versions[].tiers instead of versions[].rows, or no rows
+    //      at all), we'd otherwise wipe existing tiers and fail to
+    //      recreate them. Reject up front instead.
+    //   2. Capture any version / tier insert error and 500 with the
+    //      underlying reason so the UI surfaces it. Previously these
+    //      errors were swallowed, producing the "edit-wiped-my-tiers"
+    //      bug Cowork caught during Plan B verification.
+    //
+    // NB: Plan D candidate — wrap the whole delete+insert sequence in
+    // a Postgres function or use an RPC transaction so partial failures
+    // can't leave the profile in a half-state.
     if (Array.isArray(body.versions)) {
+      // Pre-validate: every version MUST include a rows array. Empty is
+      // allowed (delete-only), but missing/malformed is a 400.
+      for (let i = 0; i < body.versions.length; i++) {
+        const ver = body.versions[i];
+        if (!Array.isArray(ver?.rows)) {
+          return res.status(400).json({
+            error: `versions[${i}].rows must be an array (received ${typeof ver?.rows})`,
+          });
+        }
+      }
+
       // Delete old versions (cascades to tiers)
-      await svc.from('driver_charge_profile_versions').delete()
+      const { error: delError } = await svc
+        .from('driver_charge_profile_versions')
+        .delete()
         .eq('driver_charge_profile_id', id);
+
+      if (delError) {
+        return res.status(500).json({ error: `version delete failed: ${delError.message}` });
+      }
 
       for (let i = 0; i < body.versions.length; i++) {
         const ver = body.versions[i];
-        const { data: version } = await svc
+        const { data: version, error: verError } = await svc
           .from('driver_charge_profile_versions')
           .insert({
             driver_charge_profile_id: id,
@@ -67,8 +100,14 @@ export default async function handler(req, res) {
           })
           .select().single();
 
-        if (version && Array.isArray(ver.rows)) {
-          await svc.from('driver_charge_profile_tiers').insert(
+        if (verError || !version) {
+          return res.status(500).json({
+            error: `version insert failed: ${verError?.message || 'unknown'}`,
+          });
+        }
+
+        if (ver.rows.length > 0) {
+          const { error: tierError } = await svc.from('driver_charge_profile_tiers').insert(
             ver.rows.map((row) => ({
               tenant_id: ctx.tenantId,
               driver_charge_profile_id: id,
@@ -105,6 +144,10 @@ export default async function handler(req, res) {
               radius_tiers: row.radius_tiers || [],
             }))
           );
+
+          if (tierError) {
+            return res.status(500).json({ error: `tier insert failed: ${tierError.message}` });
+          }
         }
       }
     }
