@@ -1,5 +1,20 @@
 # Plan B Cowork Verification — Location-Aware Tier Matching
 
+## Update (2026-04-15, after first verification run)
+
+**First run found two blocking bugs in the charge-profile API handlers** (not the engine itself). Both are now fixed in commit `eddfccc`:
+
+1. POST silently swallowed tier insert errors — profile would be created with zero tiers, producing the "engine never matches" symptom you observed. Now rolls back the profile + 500s with the underlying error.
+2. PUT deleted existing tiers before validating the payload — if the incoming payload was malformed, tiers were wiped and never recreated. Now validates every version has a `rows` array before any destructive delete, 400s if missing.
+
+**What this means for your re-run:**
+- If the UI is sending a valid payload, B2–B6 should now work and store location fields correctly (verified via a direct-DB round-trip that the schema + columns are fine).
+- If the UI is sending a subtly-malformed payload, you'll now see an explicit 400 or 500 with the exact Supabase error instead of a silent success. Paste that error in your report and we'll know the UI fix to make.
+
+Proceed with the scenarios below. Pay close attention to the browser's Network tab during Save — a 400/500 response tells you immediately whether the payload was rejected.
+
+---
+
 ## Context
 
 A pricing engine enhancement landed (Plan B). The shared tier resolver at `lib/pricing-tier-resolver.js` previously matched `by_event` tiers by `event_type` alone and `by_leg` tiers by `leg_from`→`leg_to` sequence alone, silently ignoring their location-filter columns (`event_location_type/_id/_value` on both engines; `leg_from_location_*` + `leg_to_location_*` on AP). The columns were collected by the UI and persisted to the DB, but the engine treated every tier as if it had no location constraint.
