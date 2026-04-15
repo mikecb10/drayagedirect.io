@@ -320,7 +320,26 @@ export default function RoutingTab({ load, onLoadRefresh }) {
         body: JSON.stringify(patch),
       });
       if (!res.ok) throw new Error('Failed to update event');
-      // Success — optimistic state is correct, no refetch needed
+      // ================================================================
+      // Reconcile with the server response.
+      //
+      // The endpoint selects `*, location:customers(id, name, address_line1,
+      // city, state, zip)` so `data.event.location` is the FRESH customer
+      // join for the new location_id. The optimistic patch above only
+      // touches the denorm fields (location_name, etc.) — the nested
+      // `location` object keeps pointing at the OLD customer until we
+      // reconcile. `EventRow` reads `event.location?.name` first (before
+      // the denorm), so without this reconciliation the routing row shows
+      // the stale pre-update location name while the LoadStateBanner
+      // (which reads `event.location_name`) shows the new one.
+      //
+      // Symptom: "banner says KCS WYLIE, routing says BNSF HASLET"
+      // (ORD-M000010 bug caught 2026-04-15).
+      // ================================================================
+      const body = await res.json().catch(() => null);
+      if (body?.event) {
+        setEvents((evs) => evs.map((e) => (e.id === eventId ? { ...e, ...body.event } : e)));
+      }
     } catch (e) {
       setError(e.message);
       // Error — revert by refetching

@@ -32,6 +32,12 @@ export default function LoadDetail({ loadId: initialLoadId, initialTab = 'info',
   const [currentLoadId, setCurrentLoadId] = useState(initialLoadId);
   const [load, setLoad] = useState(null);
   const [holds, setHolds] = useState([]);
+  // routing_locks is derived server-side from the first pull/deliver/return
+  // routing event's timestamps. Shape documented in the GET handler at
+  // pages/api/tenant/loads/[id]/index.js. Used by LoadInfoTab to freeze
+  // the Pickup/Delivery/Return OrgPickers once movement has physically
+  // started — forces edits through the Routing tab's unlock flow.
+  const [routingLocks, setRoutingLocks] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -50,6 +56,7 @@ export default function LoadDetail({ loadId: initialLoadId, initialTab = 'info',
       const data = await res.json();
       setLoad(data.load);
       setHolds(data.holds || []);
+      setRoutingLocks(data.routing_locks || null);
     } catch (e) {
       if (!silent) setError(e.message);
     } finally {
@@ -174,7 +181,12 @@ export default function LoadDetail({ loadId: initialLoadId, initialTab = 'info',
           onNavigate={handleNavigate}
         >
           {activeTab === 'info' && (
-            <LoadInfoTab load={load} holds={holds} onSaved={handleSaved} />
+            <LoadInfoTab
+              load={load}
+              holds={holds}
+              routingLocks={routingLocks}
+              onSaved={handleSaved}
+            />
           )}
           {activeTab === 'billing' && <BillingTab load={load} />}
           {activeTab === 'documents' && <DocumentsTab load={load} />}

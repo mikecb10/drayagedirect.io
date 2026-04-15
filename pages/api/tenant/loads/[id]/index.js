@@ -154,7 +154,61 @@ export default async function handler(req, res) {
       .eq('tenant_id', ctx.tenantId)
       .eq('order_id', id);
 
-    return res.status(200).json({ load: data, holds: holds || [] });
+    // ================================================================
+    // Routing locks for the Load Info sidebar
+    // ================================================================
+    //
+    // Load Info exposes Pickup / Delivery / Return OrgPickers that mirror
+    // the FIRST pull / deliver / return routing event (per the "one-of-each"
+    // architectural invariant). Once a dispatcher has started the physical
+    // movement — i.e. the matching routing event has an arrived_at or
+    // departed_at timestamp — the sidebar MUST lock that location so the
+    // dispatcher is forced to edit from the Routing tab (which has the
+    // proper locked-event unlock flow + audit trail).
+    //
+    // Shape:
+    //   routing_locks: {
+    //     pickup:   { locked: bool, reason: 'arrived'|'departed'|null, event_id: uuid|null },
+    //     delivery: { locked: bool, reason: 'arrived'|'departed'|null, event_id: uuid|null },
+    //     return:   { locked: bool, reason: 'arrived'|'departed'|null, event_id: uuid|null }
+    //   }
+    //
+    // null reason = no matching event exists yet (e.g. fresh load, or a
+    // load_type that doesn't need a return). locked=false when the event
+    // exists but no timestamp is set.
+    // ================================================================
+    const { data: firstEvents } = await svc
+      .from('order_routing_events')
+      .select('id, event_type, sequence, arrived_at, departed_at')
+      .eq('tenant_id', ctx.tenantId)
+      .eq('order_id', id)
+      .in('event_type', ['pull', 'deliver', 'return'])
+      .order('sequence', { ascending: true });
+
+    const LOCK_MAP = { pull: 'pickup', deliver: 'delivery', return: 'return' };
+    const routing_locks = {
+      pickup: { locked: false, reason: null, event_id: null },
+      delivery: { locked: false, reason: null, event_id: null },
+      return: { locked: false, reason: null, event_id: null },
+    };
+    const seenTypes = new Set();
+    for (const ev of firstEvents || []) {
+      const key = LOCK_MAP[ev.event_type];
+      if (!key || seenTypes.has(ev.event_type)) continue;
+      seenTypes.add(ev.event_type);
+      const reason = ev.departed_at
+        ? 'departed'
+        : ev.arrived_at
+        ? 'arrived'
+        : null;
+      routing_locks[key] = {
+        locked: !!reason,
+        reason,
+        event_id: ev.id,
+      };
+    }
+
+    return res.status(200).json({ load: data, holds: holds || [], routing_locks });
   }
 
   if (req.method === 'PUT') {

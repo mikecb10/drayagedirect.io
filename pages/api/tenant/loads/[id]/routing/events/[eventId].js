@@ -300,6 +300,97 @@ export default async function handler(req, res) {
       }
     }
 
+    // ====== Reverse cascade: routing event location → order-level ======
+    //
+    // Mirror of the forward cascade in pages/api/tenant/loads/[id]/index.js.
+    //
+    // When a dispatcher edits a pull/deliver/return event's location from
+    // the Routing tab, the matching order-level field (pickup_location_id,
+    // delivery_location_id, return_location_id) AND the denorm snapshot
+    // (origin_* / destination_*) must follow — otherwise the sidebar +
+    // "Current State" banner stay pinned to the old location while the
+    // routing tab shows the new one.
+    //
+    // Architectural invariant (per user, 2026-04-15): a load has exactly
+    // ONE pull, ONE deliver, and ONE return event. Dual-transaction loads
+    // (empty return + live pick on one trip) are two separate loads. So
+    // we cascade from the FIRST event of its type only — any secondary
+    // pull/deliver/return (e.g. a second pull for a misdelivered container)
+    // is a routing-only concept and must not rewrite the order header.
+    // ====================================================================
+    const REVERSE_CASCADE_MAP = {
+      pull: { orderField: 'pickup_location_id', denormPrefix: 'origin' },
+      deliver: { orderField: 'delivery_location_id', denormPrefix: 'destination' },
+      return: { orderField: 'return_location_id', denormPrefix: null }, // no order-level denorm for return
+    };
+    if (
+      updates.location_id !== undefined &&
+      REVERSE_CASCADE_MAP[data.event_type]
+    ) {
+      // Confirm this is the first (canonical) event of its type.
+      const { data: firstOfType } = await svc
+        .from('order_routing_events')
+        .select('id')
+        .eq('tenant_id', ctx.tenantId)
+        .eq('order_id', id)
+        .eq('event_type', data.event_type)
+        .order('sequence', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (firstOfType?.id === data.id) {
+        const { orderField, denormPrefix } = REVERSE_CASCADE_MAP[data.event_type];
+
+        // Fetch the current order value to skip a no-op write.
+        const { data: currentOrder } = await svc
+          .from('orders')
+          .select(orderField)
+          .eq('tenant_id', ctx.tenantId)
+          .eq('id', id)
+          .maybeSingle();
+
+        if (currentOrder && currentOrder[orderField] !== data.location_id) {
+          const orderPatch = { [orderField]: data.location_id };
+          // Refresh order-level denorm for pickup + delivery (return has
+          // none, so skip when denormPrefix is null).
+          if (denormPrefix) {
+            orderPatch[`${denormPrefix}_address`] = data.address || null;
+            orderPatch[`${denormPrefix}_city`] = data.city || null;
+            orderPatch[`${denormPrefix}_state`] = data.state || null;
+            orderPatch[`${denormPrefix}_zip`] = data.zip || null;
+          }
+
+          const { error: reverseErr } = await svc
+            .from('orders')
+            .update(orderPatch)
+            .eq('tenant_id', ctx.tenantId)
+            .eq('id', id)
+            .is('deleted_at', null);
+
+          if (!reverseErr) {
+            await logTenantAction(svc, {
+              tenantId: ctx.tenantId,
+              userId: ctx.userId,
+              action: 'load.order_cascaded_from_routing',
+              entityType: 'order',
+              entityId: id,
+              newValues: {
+                event_type: data.event_type,
+                event_id: data.id,
+                order_field: orderField,
+                from_location_id: currentOrder[orderField],
+                to_location_id: data.location_id,
+                to_location_name: data.location_name,
+              },
+              ipAddress: getClientIp(req),
+            });
+          } else {
+            console.error('reverse cascade error:', reverseErr);
+          }
+        }
+      }
+    }
+
     // ====== Auto-derive orders.status from all events ======
     //
     // This replaces the old "only update on drop.departed_at" logic with a

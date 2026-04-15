@@ -103,7 +103,22 @@ const HOLD_TYPES = [
   { key: 'other', label: 'Other' },
 ];
 
-export default function LoadInfoTab({ load, holds: initialHolds, onSaved }) {
+export default function LoadInfoTab({ load, holds: initialHolds, routingLocks, onSaved }) {
+  // Derive per-field lock metadata from routing_locks (server-provided).
+  // A location field is locked when the matching routing event has
+  // arrived_at or departed_at — the dispatcher must go to the Routing
+  // tab, clear the timestamp, then edit (or edit from Routing directly
+  // and let the reverse cascade push the change back here).
+  const lockFor = (key) => routingLocks?.[key] || { locked: false, reason: null };
+  const pickupLock = lockFor('pickup');
+  const deliveryLock = lockFor('delivery');
+  const returnLock = lockFor('return');
+  const lockHelpText = (lock) =>
+    lock.locked
+      ? `Locked — the driver has ${
+          lock.reason === 'departed' ? 'departed' : 'arrived at'
+        } this location. Edit from the Routing tab.`
+      : undefined;
   const use24h = useTenantTimeFormat();
   const [form, setForm] = useState(() => ({ ...load }));
   const [holds, setHolds] = useState(() => {
@@ -427,6 +442,8 @@ export default function LoadInfoTab({ load, holds: initialHolds, onSaved }) {
                 value={form.pickup_location_id}
                 valueLabel={load.pickup_org?.name}
                 onChange={(org) => updateAndSave('pickup_location_id', org?.id || null)}
+                disabled={pickupLock.locked}
+                helpText={lockHelpText(pickupLock)}
               />
             </div>
             <div className={`rounded-lg ${flashClass('pickup_apt_from')}`}>
@@ -464,6 +481,8 @@ export default function LoadInfoTab({ load, holds: initialHolds, onSaved }) {
                 value={form.delivery_location_id}
                 valueLabel={load.delivery_org?.name}
                 onChange={(org) => updateAndSave('delivery_location_id', org?.id || null)}
+                disabled={deliveryLock.locked}
+                helpText={lockHelpText(deliveryLock)}
               />
             </div>
             <div className={`rounded-lg ${flashClass('delivery_apt_from')}`}>
@@ -501,6 +520,8 @@ export default function LoadInfoTab({ load, holds: initialHolds, onSaved }) {
                 value={form.return_location_id}
                 valueLabel={load.return_org?.name}
                 onChange={(org) => updateAndSave('return_location_id', org?.id || null)}
+                disabled={returnLock.locked}
+                helpText={lockHelpText(returnLock)}
               />
             </div>
             <div className={`rounded-lg ${flashClass('return_apt_from')}`}>
