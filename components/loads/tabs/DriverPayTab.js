@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Trash2, Wallet, User, DollarSign, RefreshCw, CheckCircle2, XCircle, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, Wallet, User, DollarSign, RefreshCw, CheckCircle2, XCircle, ChevronDown, Sparkles, Hand, ExternalLink } from 'lucide-react';
 import Alert from '../../ui/Alert';
 import Button from '../../ui/Button';
 import Input from '../../ui/Input';
@@ -183,6 +183,17 @@ export default function DriverPayTab({ load }) {
   const [recalcBusy, setRecalcBusy] = useState(false);
   const [diagnostic, setDiagnostic] = useState(null);
   const [diagOpen, setDiagOpen] = useState(false);
+
+  // Open the originating charge profile for an auto-applied pay line in a
+  // new tab. Uses the deep-link query-param chain we built on the drivers
+  // page + Pay Rates panel — no modal extraction needed. Safe for lines
+  // with no source_charge_profile_id (no-op in that case, though the UI
+  // won't surface the click affordance unless there's one).
+  function openSourceProfile(line) {
+    if (!line?.source_charge_profile_id) return;
+    const url = `/drivers?tab=pay_rates&subtab=charge_profiles&profile_id=${line.source_charge_profile_id}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
 
   async function recalcDriverPay() {
     setRecalcBusy(true);
@@ -423,6 +434,7 @@ export default function DriverPayTab({ load }) {
                       onAdvance={() => advanceStatus(l)}
                       onDelete={() => deleteLine(l.id)}
                       formatCents={formatCents}
+                      onOpenSource={openSourceProfile}
                     />
                   );
                 })
@@ -464,7 +476,22 @@ const STATUS_STYLES_ROW = {
   finalized: 'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300',
 };
 
-function EditablePayRow({ line, driverName, nextLabel, onUpdate, onAdvance, onDelete, formatCents }) {
+function EditablePayRow({ line, driverName, nextLabel, onUpdate, onAdvance, onDelete, formatCents, onOpenSource }) {
+  // source_type comes from migration 073. Falls back to the old [auto-applied]
+  // notes marker so rows created before the migration (no source_type column
+  // populated) still show as auto.
+  const isAuto =
+    !!line.source_type ||
+    (line.notes && line.notes.startsWith('[auto-applied]'));
+  const canOpenSource = isAuto && !!line.source_charge_profile_id;
+  const sourceTitle = (() => {
+    if (!isAuto) return 'Manually added';
+    const parts = ['Auto-applied'];
+    if (line.source_charge_profile?.name) parts.push(`from ${line.source_charge_profile.name}`);
+    if (line.source_tariff?.name) parts.push(`via ${line.source_tariff.name}`);
+    if (canOpenSource) parts.push('— click to open charge profile');
+    return parts.join(' ');
+  })();
   const [editField, setEditField] = useState(null);
   const [editValue, setEditValue] = useState('');
 
@@ -514,7 +541,38 @@ function EditablePayRow({ line, driverName, nextLabel, onUpdate, onAdvance, onDe
 
   return (
     <tr className="hover:bg-gray-50 dark:hover:bg-slate-800 group">
-      <td className="px-4 py-2 font-medium text-gray-900 dark:text-slate-100">{driverName}</td>
+      <td className="px-4 py-2 font-medium text-gray-900 dark:text-slate-100">
+        <div className="flex items-center gap-2">
+          {/* Source marker — auto (sparkles, clickable when profile id present)
+              or manual (hand, informational only). The icon + title provide a
+              quick "where did this line come from" signal, and for auto rows
+              the sparkles icon doubles as a link into the originating profile. */}
+          {isAuto ? (
+            canOpenSource ? (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onOpenSource?.(line); }}
+                title={sourceTitle}
+                className="inline-flex items-center justify-center rounded-md p-0.5 text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <span title={sourceTitle} className="text-blue-500 dark:text-blue-400">
+                <Sparkles className="w-3.5 h-3.5" />
+              </span>
+            )
+          ) : (
+            <span title={sourceTitle} className="text-gray-400 dark:text-slate-500">
+              <Hand className="w-3.5 h-3.5" />
+            </span>
+          )}
+          <span>{driverName}</span>
+          {canOpenSource && (
+            <ExternalLink className="w-3 h-3 text-gray-300 dark:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+          )}
+        </div>
+      </td>
       <td className="px-4 py-2 text-xs text-gray-600 dark:text-slate-300 capitalize">
         {(line.line_type || 'line_haul').replace(/_/g, ' ')}
       </td>

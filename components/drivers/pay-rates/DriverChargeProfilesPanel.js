@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/router';
 import { Plus, Pencil, Trash2, Search, X } from 'lucide-react';
 import Button from '../../ui/Button';
 import Input from '../../ui/Input';
@@ -54,11 +55,18 @@ const EMPTY_LEG_CONFIG = {
 };
 
 export default function DriverChargeProfilesPanel() {
+  const router = useRouter();
   const [profiles, setProfiles] = useState([]);
   const [driverGroups, setDriverGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
+
+  // Remember which profile the URL asked us to open, so we can trigger
+  // openEdit() once the profile list has loaded. We store it in a ref
+  // (not state) because the auto-open is a one-time side effect — if we
+  // kept it in state the effect would re-fire on every rerender.
+  const pendingOpenProfileId = useRef(null);
 
   // Modal
   const [modalOpen, setModalOpen] = useState(false);
@@ -93,6 +101,29 @@ export default function DriverChargeProfilesPanel() {
   }
 
   useEffect(() => { load(); }, [search]);
+
+  // Capture the profile_id query param on first mount. Stored in a ref
+  // because the open happens in a later effect once profiles are loaded —
+  // we only want to try once per navigation, not every re-render.
+  useEffect(() => {
+    if (!router.isReady) return;
+    if (router.query.profile_id && !pendingOpenProfileId.current) {
+      pendingOpenProfileId.current = router.query.profile_id;
+    }
+  }, [router.isReady, router.query.profile_id]);
+
+  // When profiles finish loading, auto-open the pending profile's editor.
+  // We clear the ref afterward so a manual close won't reopen the modal.
+  useEffect(() => {
+    if (!pendingOpenProfileId.current) return;
+    if (profiles.length === 0) return;
+    const target = profiles.find((p) => p.id === pendingOpenProfileId.current);
+    if (target) {
+      openEdit(target);
+      pendingOpenProfileId.current = null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profiles]);
 
   function openCreate() {
     setEditing(null);

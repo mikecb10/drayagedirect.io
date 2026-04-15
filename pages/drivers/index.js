@@ -93,6 +93,16 @@ export default function DriversIndex() {
     }
   }, [router.query.new]);
 
+  // Deep-link support: ?tab=pay_rates activates the Pay Rates sub-tab.
+  // Used by the Driver Pay tab's "open source charge profile" click — it
+  // opens /drivers?tab=pay_rates&subtab=charge_profiles&profile_id=... in
+  // a new tab, and the Pay Rates panel handles the rest.
+  useEffect(() => {
+    if (router.query.tab === 'pay_rates' || router.query.tab === 'profiles') {
+      setActiveTab(router.query.tab);
+    }
+  }, [router.query.tab]);
+
   const columns = [
     {
       key: 'name',

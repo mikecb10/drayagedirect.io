@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 import DriverChargeProfilesPanel from './pay-rates/DriverChargeProfilesPanel';
 import DriverTariffsPanel from './pay-rates/DriverTariffsPanel';
 
@@ -8,7 +9,17 @@ const SUB_TABS = [
 ];
 
 export default function DriverPayRatesTab() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState('tariffs');
+
+  // Deep-link support: ?subtab=charge_profiles jumps to the Charge Profiles
+  // sub-tab. Paired with the DriverPayTab's click-auto-row flow that deep-
+  // links into the specific profile via ?profile_id=...
+  useEffect(() => {
+    if (router.query.subtab === 'charge_profiles' || router.query.subtab === 'tariffs') {
+      setActiveTab(router.query.subtab);
+    }
+  }, [router.query.subtab]);
 
   return (
     <div className="space-y-4">

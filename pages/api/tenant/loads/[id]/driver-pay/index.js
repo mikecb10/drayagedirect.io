@@ -28,11 +28,18 @@ export default async function handler(req, res) {
     )
       return;
 
+    // Nest source_charge_profile + source_tariff so the UI can show the
+    // profile name on hover and link clicks directly to the editor without
+    // a second request. `*` picks up source_type / source_tariff_id /
+    // source_charge_profile_id added by migration 073.
     const { data, error } = await svc
       .from('order_driver_pay_lines')
-      .select(
-        `*, driver:drivers(id, first_name, last_name, name)`
-      )
+      .select(`
+        *,
+        driver:drivers(id, first_name, last_name, name),
+        source_charge_profile:driver_charge_profiles!source_charge_profile_id(id, name, charge_name, calculation_mode),
+        source_tariff:driver_tariffs!source_tariff_id(id, name)
+      `)
       .eq('tenant_id', ctx.tenantId)
       .eq('order_id', id)
       .order('created_at', { ascending: true });
