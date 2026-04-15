@@ -27,9 +27,19 @@ export default async function handler(req, res) {
   const { id } = req.query;
   const svc = getServiceClient();
 
+  // Nest pickup/delivery/return org names so the diagnostic can show the
+  // human label ("UP - HUTCHINS") instead of a UUID — the panel is shown
+  // during customer conversations and raw uuids there are ugly and leak
+  // internal ids. Nested as aliases so the engine still sees the flat
+  // *_location_id fields it matches on.
   const { data: load, error: loadErr } = await svc
     .from('live_orders')
-    .select('*')
+    .select(`
+      *,
+      pickup_org:customers!pickup_location_id(id, name),
+      delivery_org:customers!delivery_location_id(id, name),
+      return_org:customers!return_location_id(id, name)
+    `)
     .eq('tenant_id', ctx.tenantId)
     .eq('id', id)
     .single();
@@ -131,25 +141,37 @@ async function diagnoseDriverTariffMatch(svc, load, driverId, tenantId) {
       } else checks.push({ check: 'load_type', pass: true, detail: lt });
     } else checks.push({ check: 'load_type', pass: true, detail: 'all load types' });
 
+    // For the failure detail, prefer the nested org name over the raw
+    // UUID so the message reads naturally ('load pickup = "UP - HUTCHINS"'
+    // not 'load pickup_location_id = "0163ce6c-…"'). The tariff's
+    // `labels` map (saved when the user picked the org) gives us names
+    // for the expected side.
+    const pickupName = load.pickup_org?.name || load.pickup_location_id || '(empty)';
+    const deliveryName = load.delivery_org?.name || load.delivery_location_id || '(empty)';
+    const returnName = load.return_org?.name || load.return_location_id || '(empty)';
+
     if (t.pickup_conditions && !t.pickup_conditions.all && t.pickup_conditions.ids?.length > 0) {
       if (!t.pickup_conditions.ids.includes(load.pickup_location_id)) {
-        checks.push({ check: 'pickup_location', pass: false, detail: `load pickup_location_id = "${load.pickup_location_id || '(empty)'}" not in tariff list` });
+        const expected = t.pickup_conditions.ids.map((uid) => t.pickup_conditions.labels?.[uid] || uid).join(', ');
+        checks.push({ check: 'pickup_location', pass: false, detail: `load pickup = "${pickupName}", tariff requires [${expected}]` });
         matched = false;
-      } else checks.push({ check: 'pickup_location', pass: true });
+      } else checks.push({ check: 'pickup_location', pass: true, detail: pickupName });
     } else checks.push({ check: 'pickup_location', pass: true, detail: 'all pickup locations' });
 
     if (t.delivery_conditions && !t.delivery_conditions.all && t.delivery_conditions.ids?.length > 0) {
       if (!t.delivery_conditions.ids.includes(load.delivery_location_id)) {
-        checks.push({ check: 'delivery_location', pass: false, detail: `load delivery_location_id = "${load.delivery_location_id || '(empty)'}" not in tariff list` });
+        const expected = t.delivery_conditions.ids.map((uid) => t.delivery_conditions.labels?.[uid] || uid).join(', ');
+        checks.push({ check: 'delivery_location', pass: false, detail: `load delivery = "${deliveryName}", tariff requires [${expected}]` });
         matched = false;
-      } else checks.push({ check: 'delivery_location', pass: true });
+      } else checks.push({ check: 'delivery_location', pass: true, detail: deliveryName });
     } else checks.push({ check: 'delivery_location', pass: true, detail: 'all delivery locations' });
 
     if (t.return_conditions && !t.return_conditions.all && t.return_conditions.ids?.length > 0) {
       if (!t.return_conditions.ids.includes(load.return_location_id)) {
-        checks.push({ check: 'return_location', pass: false, detail: `load return_location_id = "${load.return_location_id || '(empty)'}" not in tariff list` });
+        const expected = t.return_conditions.ids.map((uid) => t.return_conditions.labels?.[uid] || uid).join(', ');
+        checks.push({ check: 'return_location', pass: false, detail: `load return = "${returnName}", tariff requires [${expected}]` });
         matched = false;
-      } else checks.push({ check: 'return_location', pass: true });
+      } else checks.push({ check: 'return_location', pass: true, detail: returnName });
     } else checks.push({ check: 'return_location', pass: true, detail: 'all return locations' });
 
     if (t.container_type && t.container_type !== load.container_type) {
@@ -181,9 +203,14 @@ async function diagnoseDriverTariffMatch(svc, load, driverId, tenantId) {
     load: {
       id: load.id,
       load_type: load.load_type,
+      // Prefer the nested org name for display; keep the id for the
+      // "copy the exact id" debugging case. UI picks name first.
       pickup_location_id: load.pickup_location_id,
+      pickup_location_name: load.pickup_org?.name || null,
       delivery_location_id: load.delivery_location_id,
+      delivery_location_name: load.delivery_org?.name || null,
       return_location_id: load.return_location_id,
+      return_location_name: load.return_org?.name || null,
       container_type: load.container_type,
       container_size: load.container_size,
       driver_id: load.driver_id,

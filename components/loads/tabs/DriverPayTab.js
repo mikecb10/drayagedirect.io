@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Plus, Trash2, Wallet, User, DollarSign, RefreshCw, CheckCircle2, XCircle, ChevronDown, Sparkles, Hand, ExternalLink } from 'lucide-react';
+import DriverChargeProfileViewer from '../DriverChargeProfileViewer';
 import Alert from '../../ui/Alert';
 import Button from '../../ui/Button';
 import Input from '../../ui/Input';
@@ -184,15 +185,15 @@ export default function DriverPayTab({ load }) {
   const [diagnostic, setDiagnostic] = useState(null);
   const [diagOpen, setDiagOpen] = useState(false);
 
-  // Open the originating charge profile for an auto-applied pay line in a
-  // new tab. Uses the deep-link query-param chain we built on the drivers
-  // page + Pay Rates panel — no modal extraction needed. Safe for lines
-  // with no source_charge_profile_id (no-op in that case, though the UI
-  // won't surface the click affordance unless there's one).
+  // Source charge profile viewer — opens as a modal on the load instead of
+  // navigating the user away. Keeps context (they're investigating THIS pay
+  // line in the context of THIS load). The viewer has an "Open in full
+  // editor" link for when they actually need to edit the profile.
+  const [viewerProfileId, setViewerProfileId] = useState(null);
+
   function openSourceProfile(line) {
     if (!line?.source_charge_profile_id) return;
-    const url = `/drivers?tab=pay_rates&subtab=charge_profiles&profile_id=${line.source_charge_profile_id}`;
-    window.open(url, '_blank', 'noopener,noreferrer');
+    setViewerProfileId(line.source_charge_profile_id);
   }
 
   async function recalcDriverPay() {
@@ -220,6 +221,13 @@ export default function DriverPayTab({ load }) {
 
   return (
     <div className="space-y-4">
+      {viewerProfileId && (
+        <DriverChargeProfileViewer
+          profileId={viewerProfileId}
+          onClose={() => setViewerProfileId(null)}
+        />
+      )}
+
       {error && <Alert type="error" message={error} />}
 
       {/* Summary */}
@@ -282,11 +290,11 @@ export default function DriverPayTab({ load }) {
                   <div className="grid grid-cols-2 gap-3 text-gray-600 dark:text-slate-300">
                     <div>
                       <div className="font-semibold mb-1 text-gray-900 dark:text-slate-100">Load</div>
-                      <div>Type: <span className="font-mono">{diagnostic.diagnostic.load.load_type || '(empty)'}</span></div>
-                      <div>Pickup id: <span className="font-mono break-all">{diagnostic.diagnostic.load.pickup_location_id || '(empty)'}</span></div>
-                      <div>Delivery id: <span className="font-mono break-all">{diagnostic.diagnostic.load.delivery_location_id || '(empty)'}</span></div>
-                      <div>Return id: <span className="font-mono break-all">{diagnostic.diagnostic.load.return_location_id || '(empty)'}</span></div>
-                      <div>Container: <span className="font-mono">{[diagnostic.diagnostic.load.container_size, diagnostic.diagnostic.load.container_type].filter(Boolean).join(' / ') || '(empty)'}</span></div>
+                      <div>Type: <span>{diagnostic.diagnostic.load.load_type || '(empty)'}</span></div>
+                      <div>Pickup: <span>{diagnostic.diagnostic.load.pickup_location_name || diagnostic.diagnostic.load.pickup_location_id || '(empty)'}</span></div>
+                      <div>Delivery: <span>{diagnostic.diagnostic.load.delivery_location_name || diagnostic.diagnostic.load.delivery_location_id || '(empty)'}</span></div>
+                      <div>Return: <span>{diagnostic.diagnostic.load.return_location_name || diagnostic.diagnostic.load.return_location_id || '(empty)'}</span></div>
+                      <div>Container: <span>{[diagnostic.diagnostic.load.container_size, diagnostic.diagnostic.load.container_type].filter(Boolean).join(' / ') || '(empty)'}</span></div>
                     </div>
                     <div>
                       <div className="font-semibold mb-1 text-gray-900 dark:text-slate-100">Driver groups</div>
