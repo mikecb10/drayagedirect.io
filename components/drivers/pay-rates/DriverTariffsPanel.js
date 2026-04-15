@@ -1,9 +1,18 @@
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/router';
-import { Plus, Pencil, Trash2, Search } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { Plus, Pencil, Trash2, Search, X } from 'lucide-react';
 import Button from '../../ui/Button';
 import Alert from '../../ui/Alert';
 import Badge from '../../ui/Badge';
+
+// Lazy-load the form component from the page file. This avoids shipping
+// the ~1000-line tariff editor in the initial Pay Rates bundle, and
+// keeps the deep-link route `/settings/driver-tariffs/[id]` still
+// usable (both entry points render the same component).
+const DriverTariffForm = dynamic(
+  () => import('../../../pages/settings/driver-tariffs/[id]'),
+  { ssr: false }
+);
 
 const STATUS_BADGES = {
   active: 'green', pending: 'amber', draft: 'gray', expired: 'red',
@@ -19,12 +28,17 @@ const LOAD_TYPE_OPTIONS = [
 ];
 
 export default function DriverTariffsPanel() {
-  const router = useRouter();
   const [tariffs, setTariffs] = useState([]);
   const [driverGroups, setDriverGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
+
+  // Overlay state — rendering DriverTariffForm inline on this page
+  // instead of navigating to /settings/driver-tariffs/[id]. The page
+  // route still exists for deep-links / bookmarks; both render the
+  // same component.
+  const [overlayTariffId, setOverlayTariffId] = useState(null);
 
   async function load() {
     setLoading(true);
@@ -41,13 +55,13 @@ export default function DriverTariffsPanel() {
 
   useEffect(() => { load(); }, [search]);
 
-  // Navigation — driver tariff form is a full page at
-  // /settings/driver-tariffs/[id], mirroring AR tariff (/settings/tariffs/[id]).
-  function openCreate() {
-    router.push('/settings/driver-tariffs/new');
-  }
-  function openEdit(tariff) {
-    router.push(`/settings/driver-tariffs/${tariff.id}`);
+  // Open the tariff editor as an overlay layered on top of the Pay
+  // Rates tab — matches the Driver Charge Profile modal UX.
+  function openCreate() { setOverlayTariffId('new'); }
+  function openEdit(tariff) { setOverlayTariffId(tariff.id); }
+  function closeOverlay() {
+    setOverlayTariffId(null);
+    load(); // refresh list in case tariff was created/updated/deleted
   }
 
   async function handleDelete(id) {
@@ -126,6 +140,32 @@ export default function DriverTariffsPanel() {
         </div>
       </div>
 
+      {/* Tariff editor overlay — full-viewport layer with the form
+          inside a centered card. Mirrors the "feels layered" UX of
+          DriverChargeProfilesPanel's Modal. Clicking outside or
+          pressing Esc closes and refreshes the list. */}
+      {overlayTariffId && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 dark:bg-black/70 flex items-start justify-center overflow-y-auto py-6"
+          onClick={closeOverlay}
+          onKeyDown={(e) => { if (e.key === 'Escape') closeOverlay(); }}
+        >
+          <div
+            className="relative bg-white dark:bg-slate-950 rounded-xl shadow-2xl w-full max-w-5xl mx-4 my-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={closeOverlay}
+              className="absolute top-3 right-3 p-1.5 rounded-lg text-gray-400 dark:text-slate-500 hover:bg-gray-100 dark:hover:bg-slate-800 z-10"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <DriverTariffForm tariffId={overlayTariffId} onClose={closeOverlay} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
