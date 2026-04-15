@@ -3,6 +3,7 @@ import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
 import { PERMISSIONS } from '../../../../../lib/permissions';
 import { findMatchingDriverCharges, applyDriverPayToLoad } from '../../../../../lib/driver-tariff-engine';
 import { evaluateConditions } from '../../../../../lib/condition-evaluator';
+import { formatDuration } from '../../../../../lib/pricing-uom';
 
 /**
  * POST /api/tenant/loads/[id]/recalculate-driver-pay
@@ -97,7 +98,14 @@ export default async function handler(req, res) {
       charge_name: c.charge_name,
       unit_of_measure: c.unit_of_measure,
       amount_cents: c.amount_cents,
+      minimum_amount_cents: c.minimum_amount_cents,
       source: c.source,
+      // Diagnostic trace: tier_id tells the UI which rate row resolved,
+      // duration_seconds + duration_label lets it explain time-based
+      // charges (e.g. "Detention: 3h 30m × $75/hr = $262.50").
+      tier_id: c.tier_id || null,
+      duration_seconds: c.duration_seconds || 0,
+      duration_label: c.duration_seconds ? formatDuration(c.duration_seconds) : null,
     })),
     diagnostic: diag,
     message: charges.length > 0
