@@ -149,11 +149,19 @@ export default function DriverTariffForm({ tariffId: propTariffId, onClose: onCl
           // Flatten all charge sets' profiles into one list, deduped by
           // charge_profile_id. Pre-existing "Pay To" grouping from the
           // earlier schema is ignored — driver pay doesn't need it.
+          //
+          // IMPORTANT: the API GET nests the charge profile as
+          //   { id, charge_profile: { id, name, ... } }
+          // so `p.charge_profile_id` is undefined. We pull the id from
+          // the nested object (or fall back to the flat field if the
+          // API is later updated to expose it). Skipping this step is
+          // why previously-saved charge profiles looked unsaved — the
+          // junction rows existed, but the reader couldn't find them.
           const seen = new Set();
           const flat = [];
           for (const cs of t.charge_sets) {
             for (const p of cs.profiles || []) {
-              const pid = p.charge_profile_id;
+              const pid = p.charge_profile?.id || p.driver_charge_profile_id || p.charge_profile_id;
               if (!pid || seen.has(pid)) continue;
               seen.add(pid);
               flat.push({

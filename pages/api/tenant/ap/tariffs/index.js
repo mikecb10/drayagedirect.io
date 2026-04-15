@@ -25,7 +25,7 @@ export default async function handler(req, res) {
         charge_sets:driver_tariff_charge_sets(
           id, pay_to_mode, notes,
           profiles:driver_tariff_charge_set_profiles(
-            id,
+            id, driver_charge_profile_id,
             charge_profile:driver_charge_profiles(id, name, charge_name, unit_of_measure, calculation_mode)
           )
         )
