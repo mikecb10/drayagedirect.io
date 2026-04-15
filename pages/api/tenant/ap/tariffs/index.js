@@ -88,16 +88,20 @@ export default async function handler(req, res) {
     // Create charge sets + profile links on initial create too. Accepts
     // both { profile_ids: [...] } and { profiles: [{ charge_profile_id, ... }] }
     // payload shapes so client and API can evolve independently.
+    //
+    // Errors from the charge_sets insert path bail with 500 + step so we
+    // don't end up with a tariff that claims success but has no linked
+    // profiles — that failure mode is invisible and confusing.
     if (Array.isArray(body.charge_sets) && body.charge_sets.length > 0) {
       for (const cs of body.charge_sets) {
-        const { data: csRow } = await svc.from('driver_tariff_charge_sets').insert({
+        const { data: csRow, error: csErr } = await svc.from('driver_tariff_charge_sets').insert({
           tenant_id: ctx.tenantId,
           tariff_id: data.id,
-          pay_to_mode: cs.pay_to_mode || 'assigned_driver',
+          pay_to_mode: cs.pay_to_mode || 'load_driver',
           pay_to_driver_id: cs.pay_to_driver_id || null,
           notes: cs.notes || null,
         }).select().single();
-
+        if (csErr) return res.status(500).json({ error: csErr.message, step: 'insert_charge_set', pay_to_mode: cs.pay_to_mode });
         if (!csRow) continue;
 
         const profileIds = Array.isArray(cs.profile_ids) && cs.profile_ids.length > 0
@@ -107,12 +111,13 @@ export default async function handler(req, res) {
             : [];
 
         if (profileIds.length > 0) {
-          await svc.from('driver_tariff_charge_set_profiles').insert(
+          const { error: jxErr } = await svc.from('driver_tariff_charge_set_profiles').insert(
             profileIds.map((pid) => ({
               charge_set_id: csRow.id,
               driver_charge_profile_id: pid,
             }))
           );
+          if (jxErr) return res.status(500).json({ error: jxErr.message, step: 'insert_junction', profile_ids: profileIds });
         }
       }
     }

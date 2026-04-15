@@ -60,20 +60,27 @@ export default async function handler(req, res) {
     //   - cs.profile_ids: ['uuid', 'uuid']
     //   - cs.profiles:    [{ charge_profile_id: 'uuid', ... }]
     // Client pages settled on the latter; older code used the former.
+    //
+    // IMPORTANT: Every DB write below captures its error object — silent
+    // failures here are how we ended up with "save returns 200 but no
+    // charge_sets persisted." If anything fails, bail with 500 and the
+    // specific step, so the frontend shows something actionable instead
+    // of a cheerful success with zero data.
     if (Array.isArray(body.charge_sets)) {
       // Delete existing
-      await svc.from('driver_tariff_charge_sets').delete()
+      const { error: delErr } = await svc.from('driver_tariff_charge_sets').delete()
         .eq('tariff_id', id).eq('tenant_id', ctx.tenantId);
+      if (delErr) return res.status(500).json({ error: delErr.message, step: 'delete_charge_sets' });
 
       for (const cs of body.charge_sets) {
-        const { data: csRow } = await svc.from('driver_tariff_charge_sets').insert({
+        const { data: csRow, error: csErr } = await svc.from('driver_tariff_charge_sets').insert({
           tenant_id: ctx.tenantId,
           tariff_id: id,
-          pay_to_mode: cs.pay_to_mode || 'assigned_driver',
+          pay_to_mode: cs.pay_to_mode || 'load_driver',
           pay_to_driver_id: cs.pay_to_driver_id || null,
           notes: cs.notes || null,
         }).select().single();
-
+        if (csErr) return res.status(500).json({ error: csErr.message, step: 'insert_charge_set', pay_to_mode: cs.pay_to_mode });
         if (!csRow) continue;
 
         const profileIds = Array.isArray(cs.profile_ids) && cs.profile_ids.length > 0
@@ -83,12 +90,13 @@ export default async function handler(req, res) {
             : [];
 
         if (profileIds.length > 0) {
-          await svc.from('driver_tariff_charge_set_profiles').insert(
+          const { error: jxErr } = await svc.from('driver_tariff_charge_set_profiles').insert(
             profileIds.map((pid) => ({
               charge_set_id: csRow.id,
               driver_charge_profile_id: pid,
             }))
           );
+          if (jxErr) return res.status(500).json({ error: jxErr.message, step: 'insert_junction', profile_ids: profileIds });
         }
       }
     }

@@ -263,9 +263,14 @@ export default function DriverTariffForm({ tariffId: propTariffId, onClose: onCl
     // for the API / DB (which still uses the driver_tariff_charge_sets
     // + driver_tariff_charge_set_profiles junction tables). Driver pay
     // doesn't use bill-to grouping, so pay_to_mode stays at a default.
+    // pay_to_mode must match the check constraint on driver_tariff_charge_sets:
+    // CHECK (pay_to_mode IN ('load_driver', 'specified')). 'load_driver' means
+    // whichever driver is on the load at pay-calc time — the normal case now
+    // that the UI flattened charge sets away from the old "assigned driver"
+    // language.
     const charge_sets = linkedProfiles.length > 0
       ? [{
-          pay_to_mode: 'assigned_driver',
+          pay_to_mode: 'load_driver',
           pay_to_driver_id: null,
           profiles: linkedProfiles,
           items: [],
