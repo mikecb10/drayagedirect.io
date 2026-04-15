@@ -57,7 +57,7 @@ export default async function handler(req, res) {
   // profile conditions the same way the engine will.
   const { data: routingEvents } = await svc
     .from('order_routing_events')
-    .select('id, event_type, arrived_at, departed_at, sequence')
+    .select('id, event_type, arrived_at, departed_at, sequence, location_id, city, state, zip')
     .eq('tenant_id', ctx.tenantId)
     .eq('order_id', id)
     .order('sequence', { ascending: true });
