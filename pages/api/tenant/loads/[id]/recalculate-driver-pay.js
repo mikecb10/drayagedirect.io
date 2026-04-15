@@ -96,18 +96,20 @@ async function diagnoseDriverTariffMatch(svc, load, driverId, tenantId) {
   const driverGroupIds = (memberships || []).map((m) => m.driver_group_id);
   const driverGroupNames = (memberships || []).map((m) => m.driver_groups?.name).filter(Boolean);
 
+  // Only consider tariffs the user can actually see in Settings. Soft-deleted
+  // rows (is_enabled=false) stay in the table for audit purposes but are
+  // hidden from the UI — showing them here would confuse the user ("why are
+  // these tariffs I can't even find listed as failing matches?").
   const { data: allTariffs } = await svc
     .from('driver_tariffs')
     .select('id, name, status, is_enabled, effective_start, effective_end, driver_group_id, load_types, pickup_conditions, delivery_conditions, return_conditions, container_type, container_size, is_hazmat, is_overweight, is_overheight, is_hot, is_genset, is_scale, is_ev, is_street_turn, is_oog, is_bonded, is_double, is_tanker, is_liquor, priority')
-    .eq('tenant_id', tenantId);
+    .eq('tenant_id', tenantId)
+    .eq('is_enabled', true);
 
   const tariffResults = [];
   for (const t of allTariffs || []) {
     const checks = [];
     let matched = true;
-
-    if (!t.is_enabled) { checks.push({ check: 'enabled', pass: false, detail: 'tariff is soft-deleted' }); matched = false; }
-    else checks.push({ check: 'enabled', pass: true });
 
     if (t.status !== 'active') { checks.push({ check: 'status', pass: false, detail: `status = "${t.status}" (must be "active")` }); matched = false; }
     else checks.push({ check: 'status', pass: true });
