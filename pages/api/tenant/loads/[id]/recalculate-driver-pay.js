@@ -2,6 +2,7 @@ import { requireTenantUser, requirePermission, getServiceClient } from '../../..
 import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
 import { PERMISSIONS } from '../../../../../lib/permissions';
 import { findMatchingDriverCharges, applyDriverPayToLoad } from '../../../../../lib/driver-tariff-engine';
+import { evaluateConditions } from '../../../../../lib/condition-evaluator';
 
 /**
  * POST /api/tenant/loads/[id]/recalculate-driver-pay
@@ -45,6 +46,21 @@ export default async function handler(req, res) {
     .single();
 
   if (loadErr || !load) return res.status(404).json({ error: 'Load not found' });
+
+  // Hydrate routing events on the load. The condition evaluator's
+  // 'dropped' field (Before Delivery / After Delivery rule) needs these
+  // to resolve; without them the evaluator returns '' and any_in fails
+  // silently. live_orders is a view so we can't rely on PostgREST FK
+  // embedding — do a separate query instead. Done here (not only in
+  // the engine) so the auto_add diagnostic further down can evaluate
+  // profile conditions the same way the engine will.
+  const { data: routingEvents } = await svc
+    .from('order_routing_events')
+    .select('id, event_type, arrived_at, departed_at, sequence')
+    .eq('tenant_id', ctx.tenantId)
+    .eq('order_id', id)
+    .order('sequence', { ascending: true });
+  load.routing_events = routingEvents || [];
 
   if (!load.driver_id) {
     return res.status(200).json({
@@ -199,6 +215,76 @@ async function diagnoseDriverTariffMatch(svc, load, driverId, tenantId) {
   const matching = tariffResults.filter((r) => r.matched);
   const winning = matching[0] || null;
 
+  // ── Standalone auto_add profile trace ──
+  //
+  // These run only when no tariff wins (engine line ~114), but we
+  // still evaluate every auto_add profile here regardless — the user
+  // needs to see WHY a profile they built didn't fire, even if the
+  // reason is "a tariff won and blocked the auto-add branch." That's
+  // an important piece of information when debugging ("your Pre Pull
+  // profile was correct, but the Company Driver tariff won first").
+  //
+  // The condition evaluator needs load.routing_events for the
+  // 'dropped' Before/After Delivery field — we hydrated that on load
+  // at the top of the handler so this just works.
+  const { data: autoProfiles } = await svc
+    .from('driver_charge_profiles')
+    .select('id, name, charge_name, driver_group_id, conditions, auto_add, is_enabled, calculation_mode')
+    .eq('tenant_id', tenantId)
+    .eq('is_enabled', true)
+    .eq('auto_add', true)
+    .is('deleted_at', null);
+
+  const autoAddResults = [];
+  for (const p of autoProfiles || []) {
+    const checks = [];
+    let matched = true;
+
+    if (p.driver_group_id && !driverGroupIds.includes(p.driver_group_id)) {
+      checks.push({
+        check: 'driver_group',
+        pass: false,
+        detail: `profile restricted to a specific group; driver is in [${driverGroupNames.join(', ') || 'none'}]`,
+      });
+      matched = false;
+    } else {
+      checks.push({
+        check: 'driver_group',
+        pass: true,
+        detail: p.driver_group_id ? 'matched' : 'all driver groups',
+      });
+    }
+
+    if (p.conditions && p.conditions.length > 0) {
+      const pass = evaluateConditions(load, p.conditions);
+      const summary = p.conditions
+        .map((c) => `${c.field} ${c.operator} [${(c.values || []).join(', ')}]`)
+        .join(' AND ');
+      if (!pass) {
+        checks.push({ check: 'conditions', pass: false, detail: summary });
+        matched = false;
+      } else {
+        checks.push({ check: 'conditions', pass: true, detail: summary });
+      }
+    } else {
+      checks.push({ check: 'conditions', pass: true, detail: 'no conditions' });
+    }
+
+    // Note whether this profile would be blocked by a winning tariff.
+    // Not a "check" in the pass/fail sense — informational only.
+    const blockedByTariff = matched && !!winning;
+
+    autoAddResults.push({
+      id: p.id,
+      name: p.name,
+      charge_name: p.charge_name,
+      calculation_mode: p.calculation_mode,
+      matched,
+      blocked_by_tariff: blockedByTariff,
+      checks,
+    });
+  }
+
   return {
     load: {
       id: load.id,
@@ -222,5 +308,8 @@ async function diagnoseDriverTariffMatch(svc, load, driverId, tenantId) {
     winning_tariff_id: winning?.id || null,
     winning_tariff_name: winning?.name || null,
     tariffs: tariffResults,
+    auto_add_profiles_total: autoAddResults.length,
+    auto_add_profiles_matched: autoAddResults.filter((r) => r.matched && !r.blocked_by_tariff).length,
+    auto_add_profiles: autoAddResults,
   };
 }

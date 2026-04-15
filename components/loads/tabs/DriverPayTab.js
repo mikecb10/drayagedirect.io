@@ -276,6 +276,9 @@ export default function DriverPayTab({ load }) {
               {diagnostic.diagnostic && (
                 <span className="text-xs text-gray-500 dark:text-slate-400">
                   · {diagnostic.diagnostic.tariffs_matched}/{diagnostic.diagnostic.tariffs_total} tariff(s) matched
+                  {diagnostic.diagnostic.auto_add_profiles_total > 0 && (
+                    <> · {diagnostic.diagnostic.auto_add_profiles_matched}/{diagnostic.diagnostic.auto_add_profiles_total} auto-add profile(s)</>
+                  )}
                 </span>
               )}
             </div>
@@ -301,24 +304,69 @@ export default function DriverPayTab({ load }) {
                       <div>{diagnostic.diagnostic.driver_group_names.length > 0 ? diagnostic.diagnostic.driver_group_names.join(', ') : '(none — driver in no groups)'}</div>
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    {diagnostic.diagnostic.tariffs.map((t) => (
-                      <div key={t.id} className={`rounded-lg border p-2 ${t.matched ? 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20' : 'border-gray-200 dark:border-slate-700 bg-gray-50/60 dark:bg-slate-800/40'}`}>
-                        <div className="flex items-center gap-2 font-medium">
-                          {t.matched ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <XCircle className="w-3.5 h-3.5 text-gray-400" />}
-                          <span className="text-gray-900 dark:text-slate-100">{t.name}</span>
-                          <span className="text-gray-500 dark:text-slate-400">· status: {t.status} · priority: {t.priority}</span>
+                  {diagnostic.diagnostic.tariffs.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Driver Tariffs</div>
+                      {diagnostic.diagnostic.tariffs.map((t) => (
+                        <div key={t.id} className={`rounded-lg border p-2 ${t.matched ? 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20' : 'border-gray-200 dark:border-slate-700 bg-gray-50/60 dark:bg-slate-800/40'}`}>
+                          <div className="flex items-center gap-2 font-medium">
+                            {t.matched ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <XCircle className="w-3.5 h-3.5 text-gray-400" />}
+                            <span className="text-gray-900 dark:text-slate-100">{t.name}</span>
+                            <span className="text-gray-500 dark:text-slate-400">· status: {t.status} · priority: {t.priority}</span>
+                          </div>
+                          <div className="mt-1.5 pl-5 space-y-0.5 text-gray-600 dark:text-slate-300">
+                            {t.checks.map((c, i) => (
+                              <div key={i} className={c.pass ? '' : 'text-red-600 dark:text-red-400'}>
+                                {c.pass ? '✓' : '✗'} {c.check}{c.detail ? ` — ${c.detail}` : ''}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <div className="mt-1.5 pl-5 space-y-0.5 text-gray-600 dark:text-slate-300">
-                          {t.checks.map((c, i) => (
-                            <div key={i} className={c.pass ? '' : 'text-red-600 dark:text-red-400'}>
-                              {c.pass ? '✓' : '✗'} {c.check}{c.detail ? ` — ${c.detail}` : ''}
+                      ))}
+                    </div>
+                  )}
+
+                  {/*
+                    Standalone auto_add profile trace. These only fire when
+                    no tariff wins (engine behavior) — but we still list
+                    every evaluated profile here so the user can see WHY a
+                    profile didn't contribute: condition failed, driver
+                    group mismatch, or a tariff won and blocked the whole
+                    auto-add branch. Without this section, a standalone
+                    profile that silently doesn't fire has no visible
+                    trace in the diagnostic.
+                  */}
+                  {diagnostic.diagnostic.auto_add_profiles && diagnostic.diagnostic.auto_add_profiles.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Auto-Add Charge Profiles</div>
+                      {diagnostic.diagnostic.auto_add_profiles.map((p) => {
+                        const effective = p.matched && !p.blocked_by_tariff;
+                        return (
+                          <div key={p.id} className={`rounded-lg border p-2 ${effective ? 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20' : p.blocked_by_tariff ? 'border-amber-300 dark:border-amber-800 bg-amber-50/40 dark:bg-amber-950/20' : 'border-gray-200 dark:border-slate-700 bg-gray-50/60 dark:bg-slate-800/40'}`}>
+                            <div className="flex items-center gap-2 font-medium">
+                              {effective ? (
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                              ) : (
+                                <XCircle className={`w-3.5 h-3.5 ${p.blocked_by_tariff ? 'text-amber-500' : 'text-gray-400'}`} />
+                              )}
+                              <span className="text-gray-900 dark:text-slate-100">{p.name}</span>
+                              <span className="text-gray-500 dark:text-slate-400">· {p.charge_name} · {p.calculation_mode}</span>
+                              {p.blocked_by_tariff && (
+                                <span className="text-amber-600 dark:text-amber-400">· blocked by winning tariff</span>
+                              )}
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                            <div className="mt-1.5 pl-5 space-y-0.5 text-gray-600 dark:text-slate-300">
+                              {p.checks.map((c, i) => (
+                                <div key={i} className={c.pass ? '' : 'text-red-600 dark:text-red-400'}>
+                                  {c.pass ? '✓' : '✗'} {c.check}{c.detail ? ` — ${c.detail}` : ''}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </>
               )}
             </div>
