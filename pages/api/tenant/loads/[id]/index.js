@@ -255,6 +255,119 @@ export default async function handler(req, res) {
 
     if (error) return res.status(500).json({ error: error.message });
 
+    // ================================================================
+    // Routing event location cascade
+    // ================================================================
+    //
+    // When an order-level pickup/delivery/return location_id changes,
+    // the matching routing event's location_id must follow — otherwise
+    // the sidebar + "Current State" banner show the new location while
+    // the routing tab still shows the old one (real desync bug seen
+    // on ORD-M000010 2026-04-15).
+    //
+    // Architectural invariant (per user, 2026-04-15): a load has exactly
+    // ONE pull, ONE deliver, and ONE return event. Dual-transaction moves
+    // (empty return + live pick on one trip) are modeled as two separate
+    // loads each with their own pull event. So the cascade targets exactly
+    // one event per type.
+    //
+    // LOCKED events (arrived_at OR departed_at set) are skipped — editing
+    // a timestamped event would rewrite history. The user must clear the
+    // timestamps via the routing tab first. We return a warning so the UI
+    // can surface this ("Routing didn't follow because the event already
+    // has timestamps").
+    //
+    // Fires SYNCHRONOUSLY before the pricing engines kick off so they see
+    // the freshly-cascaded events (driver tariff engine reads
+    // routing_events to evaluate 'dropped' conditions, etc.).
+    // ================================================================
+    const LOCATION_CASCADE = [
+      { orderField: 'pickup_location_id', eventType: 'pull' },
+      { orderField: 'delivery_location_id', eventType: 'deliver' },
+      { orderField: 'return_location_id', eventType: 'return' },
+    ];
+    const routingCascadeWarnings = [];
+    const routingCascadeApplied = [];
+    for (const { orderField, eventType } of LOCATION_CASCADE) {
+      if (!(orderField in updates)) continue;
+      if (updates[orderField] === oldLoad[orderField]) continue;
+
+      const { data: event } = await svc
+        .from('order_routing_events')
+        .select('id, location_id, arrived_at, departed_at')
+        .eq('tenant_id', ctx.tenantId)
+        .eq('order_id', id)
+        .eq('event_type', eventType)
+        .order('sequence', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (!event) continue; // no matching event yet — fine, nothing to cascade
+
+      if (event.arrived_at || event.departed_at) {
+        routingCascadeWarnings.push({
+          event_type: eventType,
+          reason: 'locked',
+          message: `Routing ${eventType} event is locked (has timestamps). Clear them first to sync the location.`,
+        });
+        continue;
+      }
+
+      // Build the denorm patch — mirrors the routing event endpoint's
+      // customer-lookup pattern (location_name / address / city / state /
+      // zip all refreshed from the customer row in one shot).
+      let locPatch;
+      if (updates[orderField]) {
+        const { data: loc } = await svc
+          .from('customers')
+          .select('name, address_line1, city, state, zip')
+          .eq('tenant_id', ctx.tenantId)
+          .eq('id', updates[orderField])
+          .maybeSingle();
+        locPatch = {
+          location_id: updates[orderField],
+          location_name: loc?.name || null,
+          address: loc?.address_line1 || null,
+          city: loc?.city || null,
+          state: loc?.state || null,
+          zip: loc?.zip || null,
+        };
+      } else {
+        // Order-level field was cleared — clear the event too
+        locPatch = {
+          location_id: null,
+          location_name: null,
+          address: null,
+          city: null,
+          state: null,
+          zip: null,
+        };
+      }
+
+      const { error: cascadeErr } = await svc
+        .from('order_routing_events')
+        .update(locPatch)
+        .eq('tenant_id', ctx.tenantId)
+        .eq('order_id', id)
+        .eq('id', event.id);
+
+      if (cascadeErr) {
+        routingCascadeWarnings.push({
+          event_type: eventType,
+          reason: 'error',
+          message: `Failed to sync routing ${eventType} event: ${cascadeErr.message}`,
+        });
+      } else {
+        routingCascadeApplied.push({
+          event_id: event.id,
+          event_type: eventType,
+          from_location_id: event.location_id,
+          to_location_id: locPatch.location_id,
+          to_location_name: locPatch.location_name,
+        });
+      }
+    }
+
     await logTenantAction(svc, {
       tenantId: ctx.tenantId,
       userId: ctx.userId,
@@ -265,6 +378,21 @@ export default async function handler(req, res) {
       newValues: data,
       ipAddress: getClientIp(req),
     });
+
+    // Log the routing cascade as its own audit entry so the event-level
+    // change is searchable in the audit trail (not buried inside the
+    // load.update newValues).
+    if (routingCascadeApplied.length > 0) {
+      await logTenantAction(svc, {
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        action: 'load.routing_cascaded_from_order',
+        entityType: 'order',
+        entityId: id,
+        newValues: { events: routingCascadeApplied, warnings: routingCascadeWarnings },
+        ipAddress: getClientIp(req),
+      });
+    }
 
     // If the cascade just unverified the slip, log a separate audit
     // entry so the timeline shows WHY verification was lost.
@@ -348,7 +476,16 @@ export default async function handler(req, res) {
         .catch((e) => console.error('driver tariff auto-apply error:', e));
     }
 
-    return res.status(200).json({ load: data });
+    return res.status(200).json({
+      load: data,
+      // Surface any routing cascade outcomes so the UI can toast the
+      // user when an order-level location edit didn't propagate to the
+      // routing event (e.g. because the event was locked).
+      routing_cascade:
+        routingCascadeApplied.length > 0 || routingCascadeWarnings.length > 0
+          ? { applied: routingCascadeApplied, warnings: routingCascadeWarnings }
+          : undefined,
+    });
   }
 
   if (req.method === 'DELETE') {

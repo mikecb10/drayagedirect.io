@@ -115,6 +115,11 @@ export default function LoadInfoTab({ load, holds: initialHolds, onSaved }) {
     return byType;
   });
   const [error, setError] = useState(null);
+  // Transient warning shown when an order-level location edit couldn't
+  // fully cascade to the routing event (e.g. because the event is
+  // already timestamped). The cascade still applies to unlocked events;
+  // this flags the ones that didn't follow.
+  const [warning, setWarning] = useState(null);
   const [flashFields, setFlashFields] = useState({}); // { fieldName: 'success' | 'error' }
 
   useEffect(() => {
@@ -162,9 +167,22 @@ export default function LoadInfoTab({ load, holds: initialHolds, onSaved }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(patch),
         });
+        const body = await res.json().catch(() => ({}));
         if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
           throw new Error(body.error || 'Save failed');
+        }
+        // Surface routing cascade warnings (e.g. locked events that the
+        // sidebar location change couldn't propagate to). The save itself
+        // succeeded — this just tells the user the routing tab didn't
+        // follow automatically and they need to clear timestamps first.
+        // Reset the warning on each successful save so stale messages
+        // don't linger after the user fixes the issue.
+        if (body.routing_cascade?.warnings?.length > 0) {
+          setWarning(
+            body.routing_cascade.warnings.map((w) => w.message).join(' ')
+          );
+        } else {
+          setWarning(null);
         }
         if (flashKey) flash(flashKey, 'success');
         onSaved?.();
@@ -339,6 +357,7 @@ export default function LoadInfoTab({ load, holds: initialHolds, onSaved }) {
   return (
     <div className="space-y-5">
       {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
+      {warning && <Alert type="warning" message={warning} onClose={() => setWarning(null)} />}
 
       {/* 2-column layout: Left (Identity + Locations + References) | Right (Dates + Equipment + Cargo) */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
