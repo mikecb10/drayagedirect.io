@@ -1,5 +1,6 @@
 import { requireTenantUser, getServiceClient } from '../../../lib/tenant-api';
 import { applyBranchFilter } from '../../../lib/branch-filter';
+import { pickupAptInRange, deliveryAptInRange, returnAptInRange } from '../../../lib/kpi-engine';
 
 /**
  * /api/tenant/dashboard
@@ -18,9 +19,27 @@ export default async function handler(req, res) {
 
   try {
     // ── 1. Today's Ops ──
+    //
+    // Previously this filtered by `pickup_date === today` exactly — which
+    // under-counted every load that has an appointment window set instead
+    // of a hard pickup_date. The dispatcher board hit the same bug earlier
+    // (KPI counted N, clicking the card showed an empty board) and was
+    // fixed by the apt-with-fallback helpers in lib/kpi-engine.js. Port
+    // the same rule here so dashboard counts match the board.
+    //
+    // Select now includes the six apt_from/apt_to fields the helpers need.
+    // The helpers check the appointment window first and fall back to the
+    // single-date field (pickup_date / delivery_date / ready_to_return_date)
+    // only when both ends of the window are empty — matching what a
+    // dispatcher would eyeball as "happening today."
     let opsQuery = svc
       .from('orders')
-      .select('id, status, pickup_date, delivery_date, ready_to_return_date, driver_id')
+      .select(
+        'id, status, driver_id, ' +
+        'pickup_date, pickup_apt_from, pickup_apt_to, ' +
+        'delivery_date, delivery_apt_from, delivery_apt_to, ' +
+        'ready_to_return_date, return_apt_from, return_apt_to'
+      )
       .eq('tenant_id', ctx.tenantId)
       .is('deleted_at', null)
       .not('status', 'in', '(completed,cancelled)');
@@ -29,9 +48,9 @@ export default async function handler(req, res) {
 
     const allOps = opsLoads || [];
     const todaysOps = {
-      picking_up: allOps.filter((l) => l.pickup_date === today).length,
-      delivering: allOps.filter((l) => l.delivery_date === today).length,
-      returning: allOps.filter((l) => l.ready_to_return_date === today).length,
+      picking_up: allOps.filter((l) => pickupAptInRange(l, 'today')).length,
+      delivering: allOps.filter((l) => deliveryAptInRange(l, 'today')).length,
+      returning: allOps.filter((l) => returnAptInRange(l, 'today')).length,
       total_active: allOps.filter((l) => !['completed', 'cancelled', 'pending'].includes(l.status)).length,
     };
 
