@@ -340,6 +340,21 @@ export default function RoutingTab({ load, onLoadRefresh }) {
       if (body?.event) {
         setEvents((evs) => evs.map((e) => (e.id === eventId ? { ...e, ...body.event } : e)));
       }
+      // Notify the parent so the LoadSidebar reflects server-side side
+      // effects. Editing a routing event's location_id triggers the
+      // reverse cascade in pages/api/tenant/loads/[id]/routing/events/
+      // [eventId].js — it writes the new pickup/delivery/return
+      // location_id + denorm fields back onto the orders row. Without
+      // this refresh the sidebar reads a stale `load.pickup_org` and
+      // shows e.g. BNSF HASLET while this tab correctly shows KCS
+      // WYLIE (ORD-M000010 sidebar-drift bug caught 2026-04-15).
+      //
+      // Timestamp-only edits are a no-op for the sidebar but the
+      // refresh is silent (`silent: true` inside the parent) so the
+      // extra fetch is cheap and keeps load-level state consistent.
+      if (typeof onLoadRefresh === 'function') {
+        onLoadRefresh();
+      }
     } catch (e) {
       setError(e.message);
       // Error — revert by refetching
