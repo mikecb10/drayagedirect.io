@@ -66,13 +66,18 @@ export default async function handler(req, res) {
     // a Postgres function or use an RPC transaction so partial failures
     // can't leave the profile in a half-state.
     if (Array.isArray(body.versions)) {
-      // Pre-validate: every version MUST include a rows array. Empty is
-      // allowed (delete-only), but missing/malformed is a 400.
+      // Accept either `rows` (UI convention) or `tiers` (GET shape) on
+      // each version. Normalize to `rows` downstream. Empty array is
+      // allowed (delete-only), but missing/malformed is a 400 — we
+      // don't want to destroy existing tiers when the payload is bad.
       for (let i = 0; i < body.versions.length; i++) {
         const ver = body.versions[i];
+        if (!Array.isArray(ver?.rows) && Array.isArray(ver?.tiers)) {
+          ver.rows = ver.tiers;
+        }
         if (!Array.isArray(ver?.rows)) {
           return res.status(400).json({
-            error: `versions[${i}].rows must be an array (received ${typeof ver?.rows})`,
+            error: `versions[${i}] must include a 'rows' (or 'tiers') array (received ${typeof ver?.rows})`,
           });
         }
       }

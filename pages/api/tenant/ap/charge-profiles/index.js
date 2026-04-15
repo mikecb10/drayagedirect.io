@@ -78,14 +78,34 @@ export default async function handler(req, res) {
     // caught during Plan B verification (2026-04-15). If any tier
     // insert fails, we roll back the profile + version inserts and
     // return 500 with the underlying Supabase error so the UI knows.
-    const rollback = async (reason) => {
+    //
+    // Input contract: accept either `rows` (UI convention) or `tiers`
+    // (GET shape) on each version. Normalize to `rows` downstream. If
+    // neither is a valid array, reject the payload up front so we
+    // don't create an orphaned tierless profile — the second bug
+    // Cowork caught on the same verification run.
+    const rollback = async (reason, status = 500) => {
       try {
         await svc.from('driver_charge_profiles').delete().eq('id', profile.id);
       } catch { /* best effort; profile row may already be gone */ }
-      return res.status(500).json({ error: reason });
+      return res.status(status).json({ error: reason });
     };
 
     if (Array.isArray(body.versions)) {
+      // Pre-validate and normalize before any further inserts.
+      for (let i = 0; i < body.versions.length; i++) {
+        const ver = body.versions[i];
+        if (!Array.isArray(ver?.rows) && Array.isArray(ver?.tiers)) {
+          ver.rows = ver.tiers;
+        }
+        if (!Array.isArray(ver?.rows)) {
+          return rollback(
+            `versions[${i}] must include a 'rows' (or 'tiers') array; received ${typeof ver?.rows}`,
+            400,
+          );
+        }
+      }
+
       for (let i = 0; i < body.versions.length; i++) {
         const ver = body.versions[i];
         const { data: version, error: verError } = await svc
