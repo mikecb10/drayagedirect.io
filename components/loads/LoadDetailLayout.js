@@ -69,6 +69,14 @@ export default function LoadDetailLayout({ load, children, activeTab, onTabChang
   // Keyboard shortcuts:
   //   Ctrl + ← / → = prev/next tab (horizontal movement between tabs)
   //   Ctrl + ↑ / ↓ = prev/next load (vertical movement between loads)
+  //
+  // Dependency array IS REQUIRED — without it, the effect runs on
+  // every render, stacking multiple listeners that hold stale
+  // closures over activeTab / prevLoadId / nextLoadId / onNavigate.
+  // The duplicated listeners eventually clobber each other and the
+  // keyboard stops responding (symptom: 'Ctrl+arrows freeze after
+  // routing fully'). Fixed by re-subscribing only when dependencies
+  // change.
   useEffect(() => {
     function handleKeyDown(e) {
       if (!e.ctrlKey && !e.metaKey) return;
@@ -99,7 +107,8 @@ export default function LoadDetailLayout({ load, children, activeTab, onTabChang
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, prevLoadId, nextLoadId, onNavigate]);
 
   function handleTabChange(id) {
     if (onTabChange) {

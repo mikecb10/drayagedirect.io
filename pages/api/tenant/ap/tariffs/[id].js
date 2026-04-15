@@ -55,7 +55,11 @@ export default async function handler(req, res) {
       if (error) return res.status(500).json({ error: error.message });
     }
 
-    // Manage charge sets if provided
+    // Manage charge sets if provided. Accepts two equivalent payload
+    // shapes for the profile list:
+    //   - cs.profile_ids: ['uuid', 'uuid']
+    //   - cs.profiles:    [{ charge_profile_id: 'uuid', ... }]
+    // Client pages settled on the latter; older code used the former.
     if (Array.isArray(body.charge_sets)) {
       // Delete existing
       await svc.from('driver_tariff_charge_sets').delete()
@@ -65,14 +69,22 @@ export default async function handler(req, res) {
         const { data: csRow } = await svc.from('driver_tariff_charge_sets').insert({
           tenant_id: ctx.tenantId,
           tariff_id: id,
-          pay_to_mode: cs.pay_to_mode || 'load_driver',
+          pay_to_mode: cs.pay_to_mode || 'assigned_driver',
           pay_to_driver_id: cs.pay_to_driver_id || null,
           notes: cs.notes || null,
         }).select().single();
 
-        if (csRow && Array.isArray(cs.profile_ids)) {
+        if (!csRow) continue;
+
+        const profileIds = Array.isArray(cs.profile_ids) && cs.profile_ids.length > 0
+          ? cs.profile_ids
+          : Array.isArray(cs.profiles)
+            ? cs.profiles.map((p) => p.charge_profile_id).filter(Boolean)
+            : [];
+
+        if (profileIds.length > 0) {
           await svc.from('driver_tariff_charge_set_profiles').insert(
-            cs.profile_ids.map((pid) => ({
+            profileIds.map((pid) => ({
               charge_set_id: csRow.id,
               driver_charge_profile_id: pid,
             }))

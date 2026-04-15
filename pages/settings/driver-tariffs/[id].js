@@ -285,25 +285,10 @@ export default function DriverTariffForm({ tariffId: propTariffId, onClose: onCl
       const method = isNew ? 'POST' : 'PUT';
       const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (!res.ok) { const body = await res.json().catch(() => ({})); throw new Error(body.error || 'Failed to save'); }
-      const tariffData = await res.json();
-      const tariffId = tariffData.tariff?.id || id;
-
-      // Sync linked profiles via the charge-sets endpoint (driver pay
-      // always uses a single implicit charge set under the hood).
-      if (tariffId && linkedProfiles.length > 0) {
-        const csPayload = [{
-          pay_to_mode: 'assigned_driver',
-          pay_to_driver_id: null,
-          profile_ids: linkedProfiles.map((p) => p.charge_profile_id).filter(Boolean),
-          items: [],
-          tags: [],
-        }];
-        await fetch(`/api/tenant/ap/tariffs/${tariffId}/charge-sets`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ charge_sets: csPayload }),
-        });
-      }
+      // The main POST/PUT endpoint handles charge_sets inline (including
+      // junction writes to driver_tariff_charge_set_profiles). No
+      // follow-up /charge-sets call needed — the dedicated sub-endpoint
+      // doesn't even exist.
 
       if (isOverlay) {
         onCloseProp();

@@ -85,6 +85,38 @@ export default async function handler(req, res) {
     const { data, error } = await svc.from('driver_tariffs').insert(insertData).select().single();
     if (error) return res.status(500).json({ error: error.message });
 
+    // Create charge sets + profile links on initial create too. Accepts
+    // both { profile_ids: [...] } and { profiles: [{ charge_profile_id, ... }] }
+    // payload shapes so client and API can evolve independently.
+    if (Array.isArray(body.charge_sets) && body.charge_sets.length > 0) {
+      for (const cs of body.charge_sets) {
+        const { data: csRow } = await svc.from('driver_tariff_charge_sets').insert({
+          tenant_id: ctx.tenantId,
+          tariff_id: data.id,
+          pay_to_mode: cs.pay_to_mode || 'assigned_driver',
+          pay_to_driver_id: cs.pay_to_driver_id || null,
+          notes: cs.notes || null,
+        }).select().single();
+
+        if (!csRow) continue;
+
+        const profileIds = Array.isArray(cs.profile_ids) && cs.profile_ids.length > 0
+          ? cs.profile_ids
+          : Array.isArray(cs.profiles)
+            ? cs.profiles.map((p) => p.charge_profile_id).filter(Boolean)
+            : [];
+
+        if (profileIds.length > 0) {
+          await svc.from('driver_tariff_charge_set_profiles').insert(
+            profileIds.map((pid) => ({
+              charge_set_id: csRow.id,
+              driver_charge_profile_id: pid,
+            }))
+          );
+        }
+      }
+    }
+
     await logTenantAction(svc, {
       tenantId: ctx.tenantId, userId: ctx.userId,
       action: 'driver_tariff.create', entityType: 'driver_tariff', entityId: data.id,
