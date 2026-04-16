@@ -45,9 +45,11 @@ const FLAG_DEFS = [
  * flags.
  *
  * Part of the Plan G1 decomposition. Behavior is verbatim from the original
- * inline JSX in pages/settings/tariffs/[id].js. The promoted primitives
- * <LoadTypeChips> and <EffectiveDateRange> are adopted in place of the
- * matching inline JSX.
+ * inline JSX in pages/settings/tariffs/[id].js. The promoted primitive
+ * <EffectiveDateRange> is adopted in place of the matching inline JSX
+ * (paired DatePickers). Load Type stays as the original vertical checkbox
+ * list — the chip-style <LoadTypeChips> primitive exists but isn't right
+ * for this surface (the original used checkboxes, not chips).
  */
 export default function TariffMatchingPanel({
   form,
