@@ -54,13 +54,13 @@ export default function ColorPicker({
   return (
     <div className={className}>
       {label && (
-        <div className="text-xs font-medium text-gray-700 mb-1 truncate" title={label}>
+        <div className="text-body font-medium text-strong mb-[var(--space-field-label)] truncate" title={label}>
           {label}
         </div>
       )}
-      <div className="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white p-1.5 hover:border-gray-400 transition-colors">
+      <div className="flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 p-1.5 hover:border-gray-400 dark:hover:border-slate-600 transition-colors">
         <label
-          className="relative w-6 h-6 rounded cursor-pointer shrink-0 border border-gray-200"
+          className="relative w-6 h-6 rounded cursor-pointer shrink-0 border border-gray-200 dark:border-slate-700"
           style={{ backgroundColor: displayColor }}
           title="Pick a color"
         >
@@ -76,14 +76,14 @@ export default function ColorPicker({
           value={hex}
           onChange={handleHexInput}
           placeholder="—"
-          className="flex-1 min-w-0 text-xs font-mono text-gray-700 bg-transparent border-0 focus:outline-none focus:ring-0 uppercase"
+          className="flex-1 min-w-0 text-helper font-mono text-strong bg-transparent border-0 focus:outline-none focus:ring-0 uppercase"
           maxLength={7}
         />
         {hex && (
           <button
             type="button"
             onClick={handleClear}
-            className="text-gray-300 hover:text-red-500 shrink-0"
+            className="text-muted hover:text-red-500 shrink-0"
             title="Clear"
           >
             <X className="w-3.5 h-3.5" />

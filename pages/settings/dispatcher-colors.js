@@ -255,7 +255,7 @@ export default function DispatcherColorsSettings() {
               <div className="space-y-[var(--space-section-pad)]">
                 {STATE_GROUPS.map((group) => (
                   <div key={group}>
-                    <h3 className="text-field-label text-muted mb-[var(--space-field-label)]">
+                    <h3 className="text-field-label text-strong mb-[var(--space-field-label)]">
                       {group}
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[var(--space-inline)]">
