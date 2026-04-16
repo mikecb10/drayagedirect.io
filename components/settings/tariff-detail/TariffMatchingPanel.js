@@ -2,7 +2,6 @@ import { Trash2, Info, ChevronDown } from 'lucide-react';
 import OrgPicker from '../../ui/OrgPicker';
 import ReferenceDataPicker from '../../ui/ReferenceDataPicker';
 import ContainerOwnerPicker from '../../ui/ContainerOwnerPicker';
-import LoadTypeChips from '../../ui/LoadTypeChips';
 import EffectiveDateRange from '../../ui/EffectiveDateRange';
 
 // Load types available in tariffs.
@@ -99,14 +98,19 @@ export default function TariffMatchingPanel({
           startRequired
         />
 
-        {/* Load Type — chip multi-select */}
+        {/* Load Type — multi-select checkboxes */}
         <div>
-          <label className="block text-xs font-medium text-gray-600 dark:text-slate-300 mb-1">Load Type</label>
-          <LoadTypeChips
-            value={form.load_types}
-            onChange={(next) => update('load_types', next)}
-            options={LOAD_TYPES}
-          />
+          <label className="block text-xs font-medium text-gray-600 dark:text-slate-300 mb-1">* Load Type</label>
+          <div className="space-y-1">
+            {LOAD_TYPES.map((lt) => (
+              <label key={lt.value} className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={form.load_types.includes(lt.value)}
+                  onChange={() => toggleLoadType(lt.value)}
+                  className="rounded border-gray-300 dark:border-slate-600 text-blue-600 w-3.5 h-3.5" />
+                <span className="text-xs text-gray-700 dark:text-slate-200">{lt.label}</span>
+              </label>
+            ))}
+          </div>
         </div>
 
         {/* Customer */}
