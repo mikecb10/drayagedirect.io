@@ -489,7 +489,7 @@ export default function AuditTab({ load }) {
       <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900">
         <div className="px-5 py-3 border-b border-gray-200 dark:border-slate-700 bg-gray-50/70 dark:bg-slate-900/70 rounded-t-xl flex items-center gap-2">
           <History className="w-4 h-4 text-gray-400 dark:text-slate-500" />
-          <div className="text-sm font-semibold text-gray-900 dark:text-slate-100">
+          <div className="text-section-title text-strong">
             {activeCategory ? `${activeCategory} Events` : 'Audit Trail'}
           </div>
           <span className="text-xs text-gray-400 dark:text-slate-500 ml-auto">
@@ -540,9 +540,9 @@ export default function AuditTab({ load }) {
                       <span className={`text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border ${catColor}`}>
                         {category}
                       </span>
-                      <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">{cfg.label}</span>
+                      <span className="text-section-title text-strong">{cfg.label}</span>
                       {description && (
-                        <span className="text-xs text-gray-500 dark:text-slate-400">— {description}</span>
+                        <span className="text-helper text-muted">— {description}</span>
                       )}
                     </div>
 
@@ -579,7 +579,7 @@ export default function AuditTab({ load }) {
                                 <span>
                                   <span className="font-semibold text-gray-700 dark:text-slate-200">{fieldLabel(c.field)}</span>
                                   {' Changed To '}
-                                  <span className="font-bold text-gray-900 dark:text-slate-100">{displayValue(c.to)}</span>
+                                  <span className="font-bold text-strong">{displayValue(c.to)}</span>
                                   <span className="text-gray-400 dark:text-slate-500 ml-1">(was: {displayValue(c.from)})</span>
                                 </span>
                               ) : (
@@ -587,7 +587,7 @@ export default function AuditTab({ load }) {
                                 <span>
                                   <span className="font-semibold text-gray-700 dark:text-slate-200">{fieldLabel(c.field)}</span>
                                   {isBoolean ? ' Changed To ' : ' Set To '}
-                                  <span className="font-bold text-gray-900 dark:text-slate-100">{displayValue(c.to)}</span>
+                                  <span className="font-bold text-strong">{displayValue(c.to)}</span>
                                 </span>
                               )}
                             </div>
@@ -598,7 +598,7 @@ export default function AuditTab({ load }) {
 
                     {/* Fallback for non-update actions that have new_values */}
                     {ev.new_values && changes.length === 0 && !['load.update', 'load.create'].includes(ev.action) && !description && (
-                      <div className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+                      <div className="mt-1 text-helper text-muted">
                         {Object.entries(ev.new_values)
                           .filter(([k]) => !['id', 'tenant_id', 'order_id', 'created_at', 'updated_at'].includes(k))
                           .slice(0, 4)
