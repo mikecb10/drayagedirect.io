@@ -28,7 +28,13 @@ export default function DriverPicker({
   lockTooltip = 'Driver is locked — cannot be removed.',
 }) {
   const wrapperRef = useRef(null);
-  const [open, setOpen] = useState(autoOpen || !value);
+  // Only auto-open when the caller explicitly opts in (e.g. dispatcher
+  // inline popover via EditableCell). The previous `!value` fallback
+  // meant every unassigned picker auto-opened on mount and stole focus
+  // — on the Routing tab this caused all container-move pickers to
+  // race for focus, parking document.activeElement on a text input and
+  // silently blocking the Ctrl+Arrow tab-switch hotkey.
+  const [open, setOpen] = useState(autoOpen);
   const [query, setQuery] = useState('');
   const [drivers, setDrivers] = useState(_driversCache || []);
   const [loading, setLoading] = useState(!_driversCache);
