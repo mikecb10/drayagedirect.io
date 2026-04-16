@@ -5,6 +5,7 @@ import { ChevronDown, Settings } from 'lucide-react';
 import TenantLayout from '../tenant/TenantLayout';
 import { SETTINGS_SECTIONS, findGroupForPath } from '../../lib/settings-nav';
 import { PERMISSIONS } from '../../lib/permissions';
+import SettingsViewToggle from './SettingsViewToggle';
 
 const STORAGE_KEY = 'dd.settings.collapsed';
 
@@ -68,11 +69,12 @@ export default function SettingsLayout({ title, children }) {
         <aside className="w-[180px] sm:w-[220px] lg:w-[260px] shrink-0 border-r border-gray-200 dark:border-slate-800 bg-gray-50/40 dark:bg-slate-900/60">
           <div className="sticky top-0 overflow-y-auto max-h-screen">
             {/* Header */}
-            <div className="px-5 py-4 border-b border-gray-200 dark:border-slate-800">
+            <div className="px-5 py-4 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Settings className="w-5 h-5 text-gray-400 dark:text-slate-500" />
                 <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100">Settings</h2>
               </div>
+              <SettingsViewToggle />
             </div>
 
             {/* Nav groups */}
