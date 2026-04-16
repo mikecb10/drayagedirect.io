@@ -3,7 +3,7 @@ import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
 import { PERMISSIONS } from '../../../../../lib/permissions';
 import { findMatchingDriverCharges, applyDriverPayToLoad } from '../../../../../lib/driver-tariff-engine';
 import { evaluateConditions } from '../../../../../lib/condition-evaluator';
-import { formatDuration } from '../../../../../lib/pricing-uom';
+import { formatDuration, formatPounds, formatMiles } from '../../../../../lib/pricing-uom';
 
 /**
  * POST /api/tenant/loads/[id]/recalculate-driver-pay
@@ -106,6 +106,11 @@ export default async function handler(req, res) {
       tier_id: c.tier_id || null,
       duration_seconds: c.duration_seconds || 0,
       duration_label: c.duration_seconds ? formatDuration(c.duration_seconds) : null,
+      pounds: c.pounds || 0,
+      pounds_label: c.pounds ? formatPounds(c.pounds) : null,
+      miles: c.miles || 0,
+      miles_label: c.miles ? formatMiles(c.miles) : null,
+      radius_bracket_index: c.radius_bracket_index ?? null,
     })),
     diagnostic: diag,
     message: charges.length > 0
