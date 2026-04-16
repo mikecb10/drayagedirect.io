@@ -280,8 +280,8 @@ export default function DocumentsTab({ load }) {
       <div className="rounded-xl border border-dashed border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-900 p-5">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
           <div className="flex-1">
-            <div className="text-sm font-semibold text-gray-900 dark:text-slate-100">Upload Documents</div>
-            <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+            <div className="text-section-title text-strong">Upload Documents</div>
+            <div className="text-helper text-muted mt-0.5">
               BOL, POD, rate confirmations, photos. Max 25MB per file.
             </div>
           </div>
@@ -355,7 +355,7 @@ export default function DocumentsTab({ load }) {
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
+                      <div className="text-body font-medium text-strong truncate">
                         {sub.file_name}
                       </div>
                       <div className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">
@@ -431,7 +431,7 @@ export default function DocumentsTab({ load }) {
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
+                      <div className="text-body font-medium text-strong truncate">
                         {sub.file_name}
                       </div>
                       <div className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">
@@ -473,7 +473,7 @@ export default function DocumentsTab({ load }) {
       <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900">
         <div className="px-4 py-3 border-b border-gray-100 dark:border-slate-800 flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-          <div className="text-sm font-semibold text-gray-900 dark:text-slate-100">Approved Documents</div>
+          <div className="text-section-title text-strong">Approved Documents</div>
           <span className="text-xs text-gray-400 dark:text-slate-500 ml-auto">
             {loading ? '...' : `${documents.length} ${documents.length === 1 ? 'file' : 'files'}`}
           </span>
@@ -501,7 +501,7 @@ export default function DocumentsTab({ load }) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div
-                        className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate"
+                        className="text-body font-medium text-strong truncate"
                         title={doc.file_name}
                       >
                         {doc.file_name}
