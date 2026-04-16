@@ -227,7 +227,7 @@ export default function BillingTab({ load }) {
       ) : chargeSets.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-900 py-10 text-center">
           <Receipt className="w-8 h-8 text-gray-300 dark:text-slate-600 mx-auto mb-2" />
-          <div className="text-sm font-medium text-gray-500 dark:text-slate-400">No charge sets yet</div>
+          <div className="text-body font-medium text-muted">No charge sets yet</div>
           <div className="text-xs text-gray-400 dark:text-slate-500 mt-1">
             Create a charge set to invoice this load.
           </div>
@@ -265,7 +265,7 @@ function SummaryCard({ label, value, icon: Icon, color }) {
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-slate-400">{label}</div>
-          <div className="text-lg font-semibold text-gray-900 dark:text-slate-100">{value}</div>
+          <div className="text-lg font-semibold text-strong">{value}</div>
         </div>
       </div>
     </div>
@@ -395,7 +395,7 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
       <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-900">
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-semibold text-gray-900 dark:text-slate-100">
+            <span className="font-mono text-xs font-semibold text-strong">
               {chargeSet.charge_set_number}
             </span>
             <span
@@ -421,12 +421,12 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
             </div>
           )}
           {chargeSet.bill_to && (
-            <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Bill to: {chargeSet.bill_to.name}</div>
+            <div className="text-helper text-muted mt-0.5">Bill to: {chargeSet.bill_to.name}</div>
           )}
         </div>
         <div className="text-right">
           <div className="text-[11px] text-gray-500 dark:text-slate-400">Total</div>
-          <div className="text-sm font-semibold text-gray-900 dark:text-slate-100">
+          <div className="text-sm font-semibold text-strong">
             {formatCents(chargeSet.total_cents)}
           </div>
         </div>
@@ -484,7 +484,7 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
           <div className="grid grid-cols-1 sm:grid-cols-6 gap-2">
             {/* Charge Code dropdown */}
             <div className="sm:col-span-2">
-              <label className="block text-xs font-medium text-gray-600 dark:text-slate-300 mb-1">Charge Code</label>
+              <label className="block text-field-label text-muted mb-[var(--space-field-label)]">Charge Code</label>
               <select
                 value={newLine.charge_name}
                 onChange={(e) => {
@@ -502,7 +502,7 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
             </div>
             {/* UOM */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-slate-300 mb-1">UOM</label>
+              <label className="block text-field-label text-muted mb-[var(--space-field-label)]">UOM</label>
               <select
                 value={newLine.unit_of_measure}
                 onChange={(e) => setNewLine({ ...newLine, unit_of_measure: e.target.value })}
@@ -524,7 +524,7 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
             {newLine.unit_of_measure === 'percentage' ? (
               <>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-slate-300 mb-1">% Value</label>
+                  <label className="block text-field-label text-muted mb-[var(--space-field-label)]">% Value</label>
                   <input type="number" step="0.01" value={newLine.percentage_value}
                     onChange={(e) => {
                       const pctValue = e.target.value;
@@ -560,7 +560,7 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
           {/* Description — optional, always visible */}
           <div className="grid grid-cols-1 sm:grid-cols-6 gap-2">
             <div className="sm:col-span-6">
-              <label className="block text-xs font-medium text-gray-600 dark:text-slate-300 mb-1">
+              <label className="block text-field-label text-muted mb-[var(--space-field-label)]">
                 Description <span className="text-gray-400 dark:text-slate-500 font-normal">(optional)</span>
               </label>
               <input
@@ -576,7 +576,7 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
           {newLine.unit_of_measure === 'percentage' && (
             <div className="grid grid-cols-1 sm:grid-cols-6 gap-2">
               <div className="sm:col-span-3">
-                <label className="block text-xs font-medium text-gray-600 dark:text-slate-300 mb-1">Percentage Based On</label>
+                <label className="block text-field-label text-muted mb-[var(--space-field-label)]">Percentage Based On</label>
                 <select
                   value={newLine.percentage_based_on}
                   onChange={(e) => {
@@ -800,7 +800,7 @@ function EditableLineRow({ li, isEditable, onUpdate, onDelete, formatCents, open
         )}
       </td>
       {/* Name — click to open charge profile overlay if auto-applied */}
-      <td className="px-4 py-2 font-medium text-gray-900 dark:text-slate-100">
+      <td className="px-4 py-2 font-medium text-strong">
         {profileId ? (
           <button type="button" onClick={() => openOverlay('chargeProfile', { chargeProfileId: profileId })}
             className="text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:underline inline-flex items-center gap-1 cursor-pointer">
@@ -829,13 +829,13 @@ function EditableLineRow({ li, isEditable, onUpdate, onDelete, formatCents, open
           </span>
         )}
       </td>
-      <td className="px-4 py-2 text-xs text-gray-500 dark:text-slate-400 capitalize">
+      <td className="px-4 py-2 text-helper text-muted capitalize">
         {(li.unit_of_measure || 'fixed').replace(/_/g, ' ')}
       </td>
       {renderCell('unit_count', li.unit_count, li.unit_count, 'right', 'text-gray-700 dark:text-slate-200')}
       {renderCell('free_units', li.free_units, li.free_units, 'right', 'text-gray-500 dark:text-slate-400 text-xs')}
       {renderCell('per_unit_price_cents', li.per_unit_price_cents, formatCents(li.per_unit_price_cents), 'right', 'text-gray-700 dark:text-slate-200')}
-      <td className="px-4 py-2 text-right font-semibold text-gray-900 dark:text-slate-100">
+      <td className="px-4 py-2 text-right font-semibold text-strong">
         {formatCents(li.total_cents)}
       </td>
       <td className="px-2 py-2">
