@@ -5,6 +5,8 @@ import SettingsLayout from '../../components/settings/SettingsLayout';
 import Button from '../../components/ui/Button';
 import Alert from '../../components/ui/Alert';
 import ColorPicker from '../../components/ui/ColorPicker';
+import { PageHeader } from '../../components/ui/ModuleHeader';
+import { SectionCard } from '../../components/ui/FormSection';
 
 import {
   DISPATCHER_STATES,
@@ -151,18 +153,13 @@ export default function DispatcherColorsSettings() {
     <SettingsLayout
       title="Dispatcher Colors"
     >
-      <div className="max-w-5xl space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
-            <Palette className="w-6 h-6 text-blue-600" />
-            Dispatcher Colors
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
-            Customize how loads appear on the Dispatcher board. Row background uses the
-            <strong> Status color</strong>, and a thin left-edge stripe uses the
-            <strong> Load Type color</strong> so you can see both at a glance.
-          </p>
-        </div>
+      <div className="max-w-5xl space-y-[var(--space-section)]">
+        <PageHeader
+          variant="plain"
+          title={<><Palette className="w-6 h-6 text-blue-600 inline -mt-0.5 mr-2" />Dispatcher Colors</>}
+          description={<>Customize how loads appear on the Dispatcher board. Row background uses the <strong className="text-strong">Status color</strong>, and a thin left-edge stripe uses the <strong className="text-strong">Load Type color</strong> so you can see both at a glance.</>}
+          className="mb-[var(--space-section)]"
+        />
 
         {/* Copy Company Preferences button — shown to non-admin users */}
         {!isAdmin && !loading && (
@@ -187,14 +184,12 @@ export default function DispatcherColorsSettings() {
         ) : (
           <>
             {/* Live preview */}
-            <section className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl overflow-hidden">
-              <div className="px-5 py-3 border-b border-gray-100 dark:border-slate-800">
-                <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100">Live Preview</h2>
-                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                  How loads in different states look on the board.
-                </p>
-              </div>
-              <div className="p-4 space-y-2">
+            <SectionCard
+              title="Live Preview"
+              description="How loads in different states look on the board."
+              columns={0}
+            >
+              <div className="space-y-[var(--space-inline)]">
                 {LOAD_TYPE_KEYS.map((type, idx) => {
                   // Rotate through a few states so the preview shows variety
                   const previewStateKeys = [
@@ -242,34 +237,28 @@ export default function DispatcherColorsSettings() {
                         >
                           {state?.label || stateKey}
                         </span>
-                        <span className="text-gray-700 dark:text-slate-200">Sample Customer</span>
-                        <span className="text-gray-400 dark:text-slate-500 text-xs">· Container MSKU1234567</span>
+                        <span className="text-strong">Sample Customer</span>
+                        <span className="text-muted text-helper">· Container MSKU1234567</span>
                       </div>
                     </div>
                   );
                 })}
               </div>
-            </section>
+            </SectionCard>
 
             {/* Event State Colors — grouped by phase */}
-            <section className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-5">
-              <div className="mb-4">
-                <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100">
-                  Event State Colors (Row Background)
-                </h2>
-                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                  Each load's row background reflects its current operational state —
-                  derived from the order status + current routing event + timestamps.
-                  States are grouped by the phase they belong to.
-                </p>
-              </div>
-              <div className="space-y-5">
+            <SectionCard
+              title="Event State Colors (Row Background)"
+              description="Each load's row background reflects its current operational state — derived from the order status + current routing event + timestamps. States are grouped by the phase they belong to."
+              columns={0}
+            >
+              <div className="space-y-[var(--space-section-pad)]">
                 {STATE_GROUPS.map((group) => (
                   <div key={group}>
-                    <div className="text-[11px] uppercase tracking-wide font-semibold text-gray-500 dark:text-slate-400 mb-2">
+                    <h3 className="text-field-label text-muted mb-[var(--space-field-label)]">
                       {group}
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[var(--space-inline)]">
                       {STATES_BY_GROUP[group].map((state) => (
                         <ColorPicker
                           key={state.key}
@@ -283,17 +272,15 @@ export default function DispatcherColorsSettings() {
                   </div>
                 ))}
               </div>
-            </section>
+            </SectionCard>
 
             {/* Load Type Colors */}
-            <section className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-5">
-              <div className="mb-4">
-                <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100">Load Type Colors (Accent Stripe)</h2>
-                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                  A thin left-edge stripe on every row so you can tell Import vs Export vs Road at a glance.
-                </p>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <SectionCard
+              title="Load Type Colors (Accent Stripe)"
+              description="A thin left-edge stripe on every row so you can tell Import vs Export vs Road at a glance."
+              columns={0}
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[var(--space-inline)]">
                 {LOAD_TYPE_KEYS.map((key) => (
                   <ColorPicker
                     key={key}
@@ -304,10 +291,10 @@ export default function DispatcherColorsSettings() {
                   />
                 ))}
               </div>
-            </section>
+            </SectionCard>
 
             {/* Actions */}
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-end gap-[var(--space-inline)]">
               <Button variant="secondary" onClick={handleResetAll}>
                 <RotateCcw className="w-4 h-4 inline -mt-0.5 mr-1" />
                 Reset to Defaults
