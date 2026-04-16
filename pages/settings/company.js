@@ -7,6 +7,12 @@ import Select from '../../components/ui/Select';
 import Alert from '../../components/ui/Alert';
 import Badge from '../../components/ui/Badge';
 import CurrencyInput from '../../components/ui/CurrencyInput';
+import { PageHeader } from '../../components/ui/ModuleHeader';
+import { SectionCard } from '../../components/ui/FormSection';
+import FieldGroup from '../../components/ui/FieldGroup';
+import Field from '../../components/ui/Field';
+import DetailPane from '../../components/ui/DetailPane';
+import DetailRow from '../../components/ui/DetailRow';
 import { useAuth } from '../../contexts/AuthContext';
 
 
@@ -106,29 +112,29 @@ export default function CompanySettings() {
       title="Company Settings"
     >
       <div className="max-w-4xl">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Company Settings</h1>
-          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
-            Manage your company info, invoice defaults, and operational preferences.
-          </p>
-        </div>
+        <PageHeader
+          variant="plain"
+          title="Company Settings"
+          description="Manage your company info, invoice defaults, and operational preferences."
+          className="mb-[var(--space-section)]"
+        />
 
-        {error && <Alert type="error" message={error} className="mb-4" />}
-        {success && <Alert type="success" message={success} className="mb-4" />}
+        {error && <Alert type="error" message={error} className="mb-[var(--space-field)]" />}
+        {success && <Alert type="success" message={success} className="mb-[var(--space-field)]" />}
 
         {/* SCAC missing warning — blocks invoicing downstream */}
         {!loading && !(settings.scac_code || '').trim() && (
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
+          <div className="mb-[var(--space-field)] rounded-lg border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
             <div className="shrink-0 mt-0.5">
               <svg className="w-5 h-5 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
               </svg>
             </div>
             <div className="flex-1">
-              <div className="text-sm font-semibold text-amber-900">
+              <div className="text-body font-semibold text-amber-900">
                 SCAC code not set — invoicing is blocked
               </div>
-              <div className="text-xs text-amber-800 mt-0.5">
+              <div className="text-helper text-amber-800 mt-0.5">
                 Your 4-character SCAC is required to generate QuickBooks-compatible invoice numbers.
                 Set it in the <strong>Invoice &amp; Order Defaults</strong> section below, then save.
               </div>
@@ -141,84 +147,50 @@ export default function CompanySettings() {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto" />
           </div>
         ) : (
-          <form onSubmit={handleSave} className="space-y-6">
+          <form onSubmit={handleSave} className="space-y-[var(--space-section)]">
             {/* Read-only tenant info */}
-            <section className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
-              <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100 mb-1">
-                Account Information
-              </h2>
-              <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">
-                Managed by your DrayageDirect account representative. Contact support to
-                update.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <div className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
-                    Company Name
-                  </div>
-                  <div className="text-sm text-gray-900 dark:text-slate-100 mt-0.5">{tenant?.name}</div>
-                </div>
-                <div>
-                  <div className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Slug</div>
-                  <div className="text-sm text-gray-900 dark:text-slate-100 mt-0.5 font-mono">
-                    {tenant?.slug}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Status</div>
-                  <div className="mt-0.5">
-                    <Badge variant={tenant?.status === 'active' ? 'green' : 'yellow'}>
-                      {tenant?.status}
-                    </Badge>
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
-                    Contact Email
-                  </div>
-                  <div className="text-sm text-gray-900 dark:text-slate-100 mt-0.5">{tenant?.contact_email}</div>
-                </div>
-                <div>
-                  <div className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
-                    MC Number
-                  </div>
-                  <div className="text-sm text-gray-900 dark:text-slate-100 mt-0.5">{tenant?.mc_number || '—'}</div>
-                </div>
-                <div>
-                  <div className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
-                    DOT Number
-                  </div>
-                  <div className="text-sm text-gray-900 dark:text-slate-100 mt-0.5">{tenant?.dot_number || '—'}</div>
-                </div>
-              </div>
-            </section>
+            <SectionCard
+              title="Account Information"
+              description="Managed by your DrayageDirect account representative. Contact support to update."
+              columns={0}
+            >
+              <DetailPane>
+                <DetailRow label="Company Name" value={tenant?.name || '—'} muted={!tenant?.name} />
+                <DetailRow label="Slug" value={tenant?.slug || '—'} muted={!tenant?.slug} copyable={!!tenant?.slug} />
+                <DetailRow
+                  label="Status"
+                  value={tenant?.status ? <Badge variant={tenant.status === 'active' ? 'green' : 'yellow'}>{tenant.status}</Badge> : '—'}
+                />
+                <DetailRow label="Contact Email" value={tenant?.contact_email || '—'} muted={!tenant?.contact_email} />
+                <DetailRow label="MC Number" value={tenant?.mc_number || '—'} muted={!tenant?.mc_number} />
+                <DetailRow label="DOT Number" value={tenant?.dot_number || '—'} muted={!tenant?.dot_number} />
+              </DetailPane>
+            </SectionCard>
 
             {/* Display preferences */}
-            <section className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
-              <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100 mb-1">
-                Display Preferences
-              </h2>
-              <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">
-                How your company name appears in the portal and on documents.
-              </p>
-              <Input
-                label="Company Display Name"
-                value={settings.company_display_name || ''}
-                onChange={(e) => handleChange('company_display_name', e.target.value)}
-                placeholder={tenant?.name}
-              />
-            </section>
+            <SectionCard
+              title="Display Preferences"
+              description="How your company name appears in the portal and on documents."
+              columns={0}
+            >
+              <FieldGroup columns={1}>
+                <Field label="Company Display Name">
+                  <Input
+                    value={settings.company_display_name || ''}
+                    onChange={(e) => handleChange('company_display_name', e.target.value)}
+                    placeholder={tenant?.name}
+                  />
+                </Field>
+              </FieldGroup>
+            </SectionCard>
 
             {/* Company Branding — Logo Upload */}
-            <section className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
-              <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100 mb-1">
-                Company Branding
-              </h2>
-              <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">
-                Upload your company logos. These appear in the sidebar navigation and throughout your portal.
-              </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <SectionCard
+              title="Company Branding"
+              description="Upload your company logos. These appear in the sidebar navigation and throughout your portal."
+              columns={0}
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-[var(--space-field)]">
                 {/* Small Logo */}
                 <LogoUploader
                   label="Small Logo (Icon)"
@@ -241,125 +213,127 @@ export default function CompanySettings() {
                   fileKey="logo_large"
                 />
               </div>
-            </section>
+            </SectionCard>
 
             {/* Invoice / Order defaults */}
-            <section
-              id="invoices"
-              className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-6 shadow-sm"
-            >
-              <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100 mb-1">
-                Invoice & Order Defaults
-              </h2>
-              <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">
-                These values pre-fill when you create a new invoice or order.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
-                  label="Carrier SCAC Code *"
-                  value={settings.scac_code || ''}
-                  onChange={(e) =>
-                    handleChange('scac_code', e.target.value.toUpperCase().slice(0, 4))
-                  }
-                  maxLength={4}
-                  placeholder="ABCD"
-                  helpText="Required for invoicing. Your carrier's 4-character SCAC (first 3 chars are used as the invoice number prefix, e.g. ABC001001). Also used for load number prefix."
-                />
-                <Input
-                  label="Invoice Prefix"
-                  value={settings.invoice_prefix || ''}
-                  onChange={(e) => handleChange('invoice_prefix', e.target.value)}
-                  placeholder="INV"
-                />
-                <Input
-                  label="Order Prefix (legacy fallback)"
-                  value={settings.order_prefix || ''}
-                  onChange={(e) => handleChange('order_prefix', e.target.value)}
-                  placeholder="ORD"
-                  helpText="Used only if no SCAC code is set above."
-                />
-                <Input
-                  label="Default Payment Terms (days)"
-                  type="number"
-                  value={settings.default_payment_terms ?? ''}
-                  onChange={(e) => handleChange('default_payment_terms', e.target.value)}
-                />
-                <Input
-                  label="Quote Validity (days)"
-                  type="number"
-                  value={settings.quote_validity_days ?? ''}
-                  onChange={(e) => handleChange('quote_validity_days', e.target.value)}
-                />
-                <Input
-                  label="Default Fuel Surcharge (%)"
-                  type="number"
-                  step="0.01"
-                  value={settings.default_fuel_surcharge_pct ?? ''}
-                  onChange={(e) =>
-                    handleChange('default_fuel_surcharge_pct', e.target.value)
-                  }
-                />
-                <CurrencyInput
-                  label="Default Labor Fee"
-                  valueCents={settings.labor_fee_cents}
-                  onChangeCents={(cents) => handleChange('labor_fee_cents', cents)}
-                  helpText="Applied to quotes and invoices by default"
-                />
-              </div>
-            </section>
+            <div id="invoices">
+              <SectionCard
+                title="Invoice & Order Defaults"
+                description="These values pre-fill when you create a new invoice or order."
+                columns={0}
+              >
+                <FieldGroup columns={2}>
+                  <Field
+                    label="Carrier SCAC Code"
+                    required
+                    helper="Required for invoicing. 4-character Standard Carrier Alpha Code (first 3 chars are used as the invoice number prefix, e.g. ABC001001). Also used for load number prefix."
+                  >
+                    <Input
+                      value={settings.scac_code || ''}
+                      onChange={(e) =>
+                        handleChange('scac_code', e.target.value.toUpperCase().slice(0, 4))
+                      }
+                      maxLength={4}
+                      placeholder="ABCD"
+                    />
+                  </Field>
+                  <Field label="Invoice Prefix">
+                    <Input
+                      value={settings.invoice_prefix || ''}
+                      onChange={(e) => handleChange('invoice_prefix', e.target.value)}
+                      placeholder="INV"
+                    />
+                  </Field>
+                  <Field label="Order Prefix (legacy fallback)" helper="Used only if no SCAC code is set above.">
+                    <Input
+                      value={settings.order_prefix || ''}
+                      onChange={(e) => handleChange('order_prefix', e.target.value)}
+                      placeholder="ORD"
+                    />
+                  </Field>
+                  <Field label="Default Payment Terms (days)">
+                    <Input
+                      type="number"
+                      value={settings.default_payment_terms ?? ''}
+                      onChange={(e) => handleChange('default_payment_terms', e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Quote Validity (days)">
+                    <Input
+                      type="number"
+                      value={settings.quote_validity_days ?? ''}
+                      onChange={(e) => handleChange('quote_validity_days', e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Default Fuel Surcharge (%)">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={settings.default_fuel_surcharge_pct ?? ''}
+                      onChange={(e) =>
+                        handleChange('default_fuel_surcharge_pct', e.target.value)
+                      }
+                    />
+                  </Field>
+                  <Field label="Default Labor Fee" helper="Applied to quotes and invoices by default">
+                    <CurrencyInput
+                      valueCents={settings.labor_fee_cents}
+                      onChangeCents={(cents) => handleChange('labor_fee_cents', cents)}
+                    />
+                  </Field>
+                </FieldGroup>
+              </SectionCard>
+            </div>
 
             {/* Regional */}
-            <section className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
-              <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100 mb-1">
-                Regional Settings
-              </h2>
-              <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">
-                Control how dates and times display across the portal.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Select
-                  label="Timezone"
-                  value={settings.timezone || 'America/New_York'}
-                  onChange={(e) => handleChange('timezone', e.target.value)}
-                  options={TIMEZONES.map((tz) => ({ value: tz, label: tz }))}
-                />
-                <Select
-                  label="Date Format"
-                  value={settings.date_format || 'MM/DD/YYYY'}
-                  onChange={(e) => handleChange('date_format', e.target.value)}
-                  options={DATE_FORMATS.map((df) => ({ value: df, label: df }))}
-                />
-                <Select
-                  label="Time Format"
-                  value={settings.time_format || '12h'}
-                  onChange={(e) => handleChange('time_format', e.target.value)}
-                  options={[
-                    { value: '12h', label: '12-hour (AM/PM) — 2:30 PM' },
-                    { value: '24h', label: '24-hour (Military) — 14:30' },
-                  ]}
-                />
-              </div>
-            </section>
+            <SectionCard
+              title="Regional Settings"
+              description="Control how dates and times display across the portal."
+              columns={0}
+            >
+              <FieldGroup columns={3}>
+                <Field label="Timezone">
+                  <Select
+                    value={settings.timezone || 'America/New_York'}
+                    onChange={(e) => handleChange('timezone', e.target.value)}
+                    options={TIMEZONES.map((tz) => ({ value: tz, label: tz }))}
+                  />
+                </Field>
+                <Field label="Date Format">
+                  <Select
+                    value={settings.date_format || 'MM/DD/YYYY'}
+                    onChange={(e) => handleChange('date_format', e.target.value)}
+                    options={DATE_FORMATS.map((df) => ({ value: df, label: df }))}
+                  />
+                </Field>
+                <Field label="Time Format">
+                  <Select
+                    value={settings.time_format || '12h'}
+                    onChange={(e) => handleChange('time_format', e.target.value)}
+                    options={[
+                      { value: '12h', label: '12-hour (AM/PM) — 2:30 PM' },
+                      { value: '24h', label: '24-hour (Military) — 14:30' },
+                    ]}
+                  />
+                </Field>
+              </FieldGroup>
+            </SectionCard>
 
             {/* ═══════════════════════════════════════════════════════ */}
             {/* Collaboration — admin-only feature toggles              */}
             {/* ═══════════════════════════════════════════════════════ */}
             {isAdmin && (
-              <section className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-                <div className="flex items-center gap-2 mb-1">
-                  <Users className="w-4 h-4 text-gray-500 dark:text-slate-400" />
-                  <h2 className="text-sm font-semibold text-gray-900 dark:text-slate-100">Collaboration</h2>
-                </div>
-                <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">
-                  Live multi-user features on the dispatcher board.
-                </p>
-
-                <label className="flex items-start justify-between gap-4 p-3 rounded-lg border border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800/60 cursor-pointer">
+              <SectionCard
+                title={<><Users className="w-4 h-4 text-muted inline -mt-0.5 mr-1.5" />Collaboration</>}
+                description="Live multi-user features on the dispatcher board."
+                columns={0}
+              >
+                <label className="flex items-start justify-between gap-[var(--space-field)] p-[var(--space-section-pad)] rounded-lg border border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800/60 cursor-pointer">
                   <div className="flex-1">
-                    <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
-                      Live presence & cursors
+                    <div className="text-body font-medium text-strong">
+                      Live presence &amp; cursors
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                    <div className="text-helper text-muted mt-[var(--space-field-helper)]">
                       Show avatars of teammates currently viewing the dispatcher board and
                       display their mouse cursors in real-time.
                     </div>
@@ -391,10 +365,10 @@ export default function CompanySettings() {
                     </button>
                   </div>
                 </label>
-              </section>
+              </SectionCard>
             )}
 
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-end gap-[var(--space-inline)]">
               <Button variant="secondary" type="button" onClick={load}>
                 Reset
               </Button>
@@ -465,8 +439,8 @@ function LogoUploader({ label, description, value, onChange, previewSize, tenant
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-1">{label}</label>
-      <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">{description}</p>
+      <label className="block text-body font-medium text-strong mb-1">{label}</label>
+      <p className="text-helper text-muted mb-3">{description}</p>
 
       {value ? (
         <div className="flex items-center gap-4">
@@ -475,11 +449,11 @@ function LogoUploader({ label, description, value, onChange, previewSize, tenant
           </div>
           <div className="flex flex-col gap-2">
             <button type="button" onClick={() => inputRef.current?.click()}
-              className="text-xs text-blue-600 hover:text-blue-700 font-medium">
+              className="text-helper text-blue-600 hover:text-blue-700 font-medium">
               Replace
             </button>
             <button type="button" onClick={handleRemove}
-              className="text-xs text-red-500 hover:text-red-600 font-medium">
+              className="text-helper text-red-500 hover:text-red-600 font-medium">
               Remove
             </button>
           </div>
@@ -499,15 +473,15 @@ function LogoUploader({ label, description, value, onChange, previewSize, tenant
             )}
           </div>
           <div>
-            <div className="text-sm font-medium text-gray-700 dark:text-slate-200 group-hover:text-blue-600">
+            <div className="text-body font-medium text-strong group-hover:text-blue-600">
               {uploading ? 'Uploading...' : 'Click to upload'}
             </div>
-            <div className="text-xs text-gray-400 dark:text-slate-500">PNG, JPG, SVG, or WebP · Max 2MB</div>
+            <div className="text-helper text-muted">PNG, JPG, SVG, or WebP · Max 2MB</div>
           </div>
         </button>
       )}
 
-      {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+      {error && <p className="text-helper text-red-500 mt-2">{error}</p>}
 
       <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
     </div>
