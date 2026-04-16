@@ -12,6 +12,7 @@ import ContainerOwnerPicker from '../../../components/ui/ContainerOwnerPicker';
 import CentsInput from '../../../components/ui/CentsInput';
 import { CHARGE_NAMES, UNITS_OF_MEASURE, chargeNameLabel, unitLabel, formatCents } from '../../../lib/charge-profile-constants';
 import ChargeProfilePickerModal from '../../../components/settings/tariff-detail/ChargeProfilePickerModal';
+import TariffHeader from '../../../components/settings/tariff-detail/TariffHeader';
 
 // Load types available in tariffs.
 // Mirrors the canonical LOAD_TYPES list in components/loads/NewLoadModal.js,
@@ -363,19 +364,10 @@ export default function TariffForm({ tariffId: propTariffId, onClose: onClosePro
       <>
       <div className="max-w-7xl pb-20">
         {/* Header */}
-        <div className="flex items-center justify-between mb-5">
-          <h1 className="text-base font-semibold text-gray-900 dark:text-slate-100">Load Tariff</h1>
-          <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-slate-500">
-            <button onClick={() => update('matching_mode', 'basic')}
-              className={`px-3 py-1 rounded ${form.matching_mode === 'basic' ? 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200 font-semibold' : 'hover:bg-gray-100 dark:hover:bg-slate-800'}`}>
-              Basic
-            </button>
-            <button onClick={() => update('matching_mode', 'advanced_route')}
-              className={`px-3 py-1 rounded ${form.matching_mode === 'advanced_route' ? 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200 font-semibold' : 'hover:bg-gray-100 dark:hover:bg-slate-800'}`}>
-              Advanced Route Matching
-            </button>
-          </div>
-        </div>
+        <TariffHeader
+          matchingMode={form.matching_mode}
+          onMatchingModeChange={(mode) => update('matching_mode', mode)}
+        />
 
         {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
 
