@@ -3,8 +3,11 @@ import { Calculator, Plus, Edit2, Trash2, Ship, Building2, Package } from 'lucid
 import SettingsLayout from '../../components/settings/SettingsLayout';
 import Button from '../../components/ui/Button';
 import Alert from '../../components/ui/Alert';
-import Select from '../../components/ui/Select';
 import PerDiemRuleModal from '../../components/settings/PerDiemRuleModal';
+import { PageHeader } from '../../components/ui/ModuleHeader';
+import { SectionCard } from '../../components/ui/FormSection';
+import FieldGroup from '../../components/ui/FieldGroup';
+import Field from '../../components/ui/Field';
 
 
 const LOAD_TYPE_OPTIONS = [
@@ -104,84 +107,78 @@ export default function PerDiemSettings() {
     <SettingsLayout
       title="Per Diem Pricing"
     >
-      <div className="max-w-6xl space-y-4">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
-              <Calculator className="w-6 h-6 text-blue-600" />
-              Per Diem Free Day Pricing
-            </h1>
-            <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
-              Configure tiered per-diem rates by Customer × Steamship Line × Container
-              Type × Load Type. When a load sits past its free days, the matching rule's
-              tiers will be charged.
-            </p>
-          </div>
-          <Button onClick={openNew}>
-            <Plus className="w-4 h-4 mr-1 inline -mt-0.5" />
-            Add Per Diem Rule
-          </Button>
-        </div>
+      <div className="max-w-6xl space-y-[var(--space-section)]">
+        <PageHeader
+          variant="plain"
+          title={<><Calculator className="w-6 h-6 text-blue-600 inline -mt-0.5 mr-2" />Per Diem Free Day Pricing</>}
+          description="Configure tiered per-diem rates by Customer × Steamship Line × Container Type × Load Type. When a load sits past its free days, the matching rule's tiers will be charged."
+          actions={<Button onClick={openNew}><Plus className="w-4 h-4 mr-1 inline -mt-0.5" />Add Per Diem Rule</Button>}
+          className="mb-[var(--space-section)]"
+        />
 
         {error && <Alert type="error" message={error} />}
 
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">
-            <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-slate-400">
-              Total Rules
-            </div>
-            <div className="text-2xl font-bold text-gray-900 dark:text-slate-100">{rules.length}</div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-[var(--space-inline)]">
+          <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-[var(--space-section-pad)]">
+            <div className="text-field-label text-muted">Total Rules</div>
+            <div className="text-2xl font-bold text-strong">{rules.length}</div>
           </div>
-          <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">
-            <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-slate-400">Enabled</div>
+          <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-[var(--space-section-pad)]">
+            <div className="text-field-label text-muted">Enabled</div>
             <div className="text-2xl font-bold text-emerald-600">{enabledCount}</div>
           </div>
-          <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">
-            <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-slate-400">Disabled</div>
-            <div className="text-2xl font-bold text-gray-400 dark:text-slate-500">
-              {rules.length - enabledCount}
-            </div>
+          <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-[var(--space-section-pad)]">
+            <div className="text-field-label text-muted">Disabled</div>
+            <div className="text-2xl font-bold text-muted">{rules.length - enabledCount}</div>
           </div>
         </div>
 
         {/* Filter */}
-        <div className="flex gap-3 items-end">
-          <Select
-            label="Filter by Load Type"
-            value={filter.load_type}
-            onChange={(e) => setFilter({ ...filter, load_type: e.target.value })}
-            options={LOAD_TYPE_OPTIONS}
-            className="w-48"
-          />
-        </div>
+        <SectionCard title="Filter" columns={0}>
+          <FieldGroup columns={2}>
+            <Field label="Load Type">
+              <select
+                value={filter.load_type}
+                onChange={(e) => setFilter({ ...filter, load_type: e.target.value })}
+                className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-body text-strong focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              >
+                {LOAD_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </FieldGroup>
+        </SectionCard>
 
         {/* Rules table */}
-        <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+        <SectionCard title="Rules" columns={0}>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-slate-800/50 text-[11px] uppercase tracking-wide text-gray-500 dark:text-slate-400">
+            <table className="w-full text-body">
+              <thead className="bg-gray-50 dark:bg-slate-800/50">
                 <tr>
-                  <th className="text-left px-4 py-2">Name</th>
-                  <th className="text-left px-4 py-2">Customer</th>
-                  <th className="text-left px-4 py-2">SSL</th>
-                  <th className="text-left px-4 py-2">Container Type</th>
-                  <th className="text-left px-4 py-2">Load Type</th>
-                  <th className="text-left px-4 py-2">Tiers</th>
-                  <th className="text-center px-4 py-2">Enabled</th>
+                  <th className="text-left px-4 py-2 text-field-label text-muted">Name</th>
+                  <th className="text-left px-4 py-2 text-field-label text-muted">Customer</th>
+                  <th className="text-left px-4 py-2 text-field-label text-muted">SSL</th>
+                  <th className="text-left px-4 py-2 text-field-label text-muted">Container Type</th>
+                  <th className="text-left px-4 py-2 text-field-label text-muted">Load Type</th>
+                  <th className="text-left px-4 py-2 text-field-label text-muted">Tiers</th>
+                  <th className="text-center px-4 py-2 text-field-label text-muted">Enabled</th>
                   <th className="w-20"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-400 dark:text-slate-500">
+                    <td colSpan={8} className="px-4 py-10 text-center text-body text-muted">
                       Loading...
                     </td>
                   </tr>
                 ) : rules.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-400 dark:text-slate-500">
+                    <td colSpan={8} className="px-4 py-10 text-center text-body text-muted">
                       No per diem rules yet. Click "Add Per Diem Rule" to create one.
                     </td>
                   </tr>
@@ -191,20 +188,20 @@ export default function PerDiemSettings() {
                       key={r.id}
                       className={`hover:bg-gray-50 dark:hover:bg-slate-800/60 ${r.is_enabled ? '' : 'opacity-50'}`}
                     >
-                      <td className="px-4 py-2 font-medium text-gray-900 dark:text-slate-100">
-                        {r.name || <span className="text-gray-400 dark:text-slate-500 italic">Unnamed</span>}
+                      <td className="px-4 py-2 font-medium text-strong">
+                        {r.name || <span className="text-muted italic">Unnamed</span>}
                       </td>
-                      <td className="px-4 py-2 text-xs text-gray-700 dark:text-slate-200">
+                      <td className="px-4 py-2 text-helper text-strong">
                         {r.customer ? (
                           <span className="flex items-center gap-1">
                             <Building2 className="w-3 h-3 text-gray-400 dark:text-slate-500" />
                             {r.customer.name}
                           </span>
                         ) : (
-                          <span className="text-gray-300 dark:text-slate-600">Any</span>
+                          <span className="text-muted">Any</span>
                         )}
                       </td>
-                      <td className="px-4 py-2 text-xs text-gray-700 dark:text-slate-200">
+                      <td className="px-4 py-2 text-helper text-strong">
                         {r.owner ? (
                           <span className="flex items-center gap-1">
                             <Ship className="w-3 h-3 text-gray-400 dark:text-slate-500" />
@@ -216,27 +213,27 @@ export default function PerDiemSettings() {
                             )}
                           </span>
                         ) : (
-                          <span className="text-gray-300 dark:text-slate-600">Any</span>
+                          <span className="text-muted">Any</span>
                         )}
                       </td>
-                      <td className="px-4 py-2 text-xs text-gray-700 dark:text-slate-200">
+                      <td className="px-4 py-2 text-helper text-strong">
                         {r.container_type ? (
                           <span className="flex items-center gap-1">
                             <Package className="w-3 h-3 text-gray-400 dark:text-slate-500" />
                             {r.container_type.code}
                           </span>
                         ) : (
-                          <span className="text-gray-300 dark:text-slate-600">Any</span>
+                          <span className="text-muted">Any</span>
                         )}
                       </td>
-                      <td className="px-4 py-2 text-xs text-gray-700 dark:text-slate-200 capitalize">
+                      <td className="px-4 py-2 text-helper text-strong capitalize">
                         {r.load_type ? (
                           r.load_type.replace('_', ' ')
                         ) : (
-                          <span className="text-gray-300 dark:text-slate-600">Any</span>
+                          <span className="text-muted">Any</span>
                         )}
                       </td>
-                      <td className="px-4 py-2 text-xs text-gray-700 dark:text-slate-200">
+                      <td className="px-4 py-2 text-helper text-strong">
                         {summarizeTiers(r.tiers)}
                       </td>
                       <td className="px-4 py-2">
@@ -279,7 +276,7 @@ export default function PerDiemSettings() {
               </tbody>
             </table>
           </div>
-        </div>
+        </SectionCard>
       </div>
 
       <PerDiemRuleModal
