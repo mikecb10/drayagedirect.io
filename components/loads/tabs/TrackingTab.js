@@ -229,11 +229,11 @@ export default function TrackingTab({ load }) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-strong flex items-center gap-2">
             <Navigation className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             Live Tracking
           </h2>
-          {driverName && <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">Driver: {driverName}</p>}
+          {driverName && <p className="text-body text-muted mt-0.5">Driver: {driverName}</p>}
         </div>
         <div className="flex items-center gap-3">
           {gpsSource ? (
@@ -255,7 +255,7 @@ export default function TrackingTab({ load }) {
         {/* Left: Routing Events Sidebar */}
         <div className="w-[240px] shrink-0 border-r border-gray-200 dark:border-slate-700 overflow-y-auto bg-gray-50/50 dark:bg-slate-900">
           <div className="px-3 py-2.5 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900">
-            <div className="text-xs font-semibold text-gray-700 dark:text-slate-200">Route Events</div>
+            <div className="text-section-title text-strong">Route Events</div>
             <div className="text-[10px] text-gray-400 dark:text-slate-500">Click to jump on map</div>
           </div>
           {moves.map((m, mIdx) => (
@@ -283,7 +283,7 @@ export default function TrackingTab({ load }) {
                       ) : (
                         <div className="w-3.5 h-3.5 rounded-full border-2 border-gray-300 dark:border-slate-600 shrink-0" />
                       )}
-                      <span className="text-xs font-medium text-gray-900 dark:text-slate-100 truncate">{labelFor(evt.event_type)}</span>
+                      <span className="text-xs font-medium text-strong truncate">{labelFor(evt.event_type)}</span>
                     </div>
                     {evt.location_name && (
                       <div className="text-[10px] text-gray-500 dark:text-slate-400 truncate mt-0.5 pl-5.5">
@@ -322,32 +322,32 @@ export default function TrackingTab({ load }) {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3">
           <div className="text-[10px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Drive Time</div>
-          <div className="text-lg font-bold text-gray-900 dark:text-slate-100 mt-1">{formatMinutes(totalDriveMin)}</div>
+          <div className="text-lg font-bold text-strong mt-1">{formatMinutes(totalDriveMin)}</div>
         </div>
         <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3">
           <div className="text-[10px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Dwell Time</div>
-          <div className="text-lg font-bold text-gray-900 dark:text-slate-100 mt-1">{formatMinutes(totalDwellMin)}</div>
+          <div className="text-lg font-bold text-strong mt-1">{formatMinutes(totalDwellMin)}</div>
         </div>
         <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3">
           <div className="text-[10px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Distance</div>
-          <div className="text-lg font-bold text-gray-900 dark:text-slate-100 mt-1">{totalMiles > 0 ? `${totalMiles.toFixed(1)} mi` : '—'}</div>
+          <div className="text-lg font-bold text-strong mt-1">{totalMiles > 0 ? `${totalMiles.toFixed(1)} mi` : '—'}</div>
         </div>
         <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3">
           <div className="text-[10px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Avg Speed</div>
-          <div className="text-lg font-bold text-gray-900 dark:text-slate-100 mt-1">{avgSpeed !== '—' ? `${avgSpeed} mph` : '—'}</div>
+          <div className="text-lg font-bold text-strong mt-1">{avgSpeed !== '—' ? `${avgSpeed} mph` : '—'}</div>
         </div>
       </div>
 
       {/* Movement Timeline */}
       <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900">
         <div className="px-4 py-3 border-b border-gray-100 dark:border-slate-800">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100">Movement Timeline</h3>
+          <h3 className="text-section-title text-strong">Movement Timeline</h3>
         </div>
         <div className="divide-y divide-gray-50 dark:divide-slate-800">
           {!hasData ? (
             <div className="px-4 py-12 text-center">
               <Truck className="w-10 h-10 mx-auto text-gray-300 dark:text-slate-600 mb-3" />
-              <p className="text-sm text-gray-500 dark:text-slate-400 font-medium">No tracking data yet</p>
+              <p className="text-body text-muted font-medium">No tracking data yet</p>
               <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
                 GPS data will appear here once the driver starts the load via the mobile app or ELD.
               </p>
@@ -370,20 +370,20 @@ export default function TrackingTab({ load }) {
                 <div className="flex-1 min-w-0">
                   {item._type === 'geofence' ? (
                     <>
-                      <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
+                      <div className="text-body font-medium text-strong">
                         {item.event_type === 'enter' ? '📍 Entered' : '🚛 Exited'} geofence
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">{item.organization?.name || 'Unknown'}</div>
+                      <div className="text-helper text-muted mt-0.5">{item.organization?.name || 'Unknown'}</div>
                     </>
                   ) : (
                     <>
-                      <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
+                      <div className="text-body font-medium text-strong">
                         {item.segment_type === 'driving' ? '🚛 Driving' : item.segment_type === 'dwell' ? '⏱ Dwell' : '⏸ Idle'}
                         {item.start_location_name && item.end_location_name && (
-                          <span className="text-gray-500 dark:text-slate-400 font-normal"> — {item.start_location_name} → {item.end_location_name}</span>
+                          <span className="text-muted font-normal"> — {item.start_location_name} → {item.end_location_name}</span>
                         )}
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5 flex items-center gap-3">
+                      <div className="text-helper text-muted mt-0.5 flex items-center gap-3">
                         {item.duration_minutes && <span>{formatMinutes(item.duration_minutes)}</span>}
                         {item.distance_miles && <span>{parseFloat(item.distance_miles).toFixed(1)} mi</span>}
                         {item.avg_speed_mph && <span>Avg {parseFloat(item.avg_speed_mph).toFixed(0)} mph</span>}
