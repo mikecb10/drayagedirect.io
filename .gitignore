@@ -55,3 +55,6 @@ venv/
 .idea/
 *.swp
 *~
+
+# Brainstorming companion artifacts
+.superpowers/
