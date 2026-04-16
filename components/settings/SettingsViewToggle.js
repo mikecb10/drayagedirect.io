@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, LayoutGrid, SidebarOpen } from 'lucide-react';
 import useSettingsViewPrefs from './useSettingsViewPrefs';
 
@@ -10,38 +11,59 @@ import useSettingsViewPrefs from './useSettingsViewPrefs';
  *
  * Self-contained — reads/writes prefs via useSettingsViewPrefs. Closes
  * on outside click. No props required.
+ *
+ * The dropdown panel is rendered into document.body via a portal so it can
+ * escape `overflow-y-auto`/`overflow-hidden` ancestors (e.g. the sticky
+ * sidebar shell). Position is computed from the trigger's bounding rect.
  */
 export default function SettingsViewToggle({ className = '' }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+  const [panelPos, setPanelPos] = useState(null); // { top, right }
+  const triggerRef = useRef(null);
+  const panelRef = useRef(null);
   const { viewMode, showTabsInSidebar, setViewMode, setShowTabsInSidebar } =
     useSettingsViewPrefs();
 
-  // Close on outside click
+  // Close on outside click (covers both trigger and the portaled panel)
   useEffect(() => {
     if (!open) return;
     function handle(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+      if (triggerRef.current?.contains(e.target)) return;
+      if (panelRef.current?.contains(e.target)) return;
+      setOpen(false);
     }
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
   }, [open]);
 
+  // Recompute panel position when opened or on viewport changes
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) return;
+    function update() {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPanelPos({
+        top: rect.bottom + 4, // 4px gap below trigger
+        right: window.innerWidth - rect.right,
+      });
+    }
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true); // capture phase to catch nested scrollers
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+  }, [open]);
+
   const tabsForcedOn = viewMode === 'card';
 
-  return (
-    <div ref={ref} className={`relative ${className}`}>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1 text-helper text-muted hover:text-strong px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
-      >
-        View
-        <ChevronDown className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-
-      {open && (
-        <div className="absolute right-0 mt-1 w-64 rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-lg p-3 z-50">
+  const panel = open && panelPos && typeof document !== 'undefined'
+    ? createPortal(
+        <div
+          ref={panelRef}
+          style={{ position: 'fixed', top: panelPos.top, right: panelPos.right }}
+          className="w-64 rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-lg p-3 z-[60]"
+        >
           {/* Layout radios */}
           <div className="text-field-label text-muted mb-[var(--space-field-label)]">Layout</div>
           <div className="space-y-1 mb-3">
@@ -90,8 +112,23 @@ export default function SettingsViewToggle({ className = '' }) {
               </p>
             )}
           </div>
-        </div>
-      )}
+        </div>,
+        document.body
+      )
+    : null;
+
+  return (
+    <div className={className}>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1 text-helper text-muted hover:text-strong px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+      >
+        View
+        <ChevronDown className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {panel}
     </div>
   );
 }

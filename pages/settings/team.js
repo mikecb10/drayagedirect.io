@@ -231,7 +231,7 @@ function TeamSettings() {
           <Alert type="success" message={`${tempPasswordInfo?.user?.name || 'User'} has been added to your team.`} />
           <div>
             <p className="text-body text-muted mb-2">
-              Share this temporary password with <strong>{tempPasswordInfo?.user?.email}</strong>. They'll be prompted to change it on first login.
+              Share this temporary password with <strong>{tempPasswordInfo?.user?.email}</strong>. They&rsquo;ll be prompted to change it on first login.
             </p>
             <div className="flex items-center gap-2 bg-gray-50 dark:bg-slate-800/50 border border-gray-200 dark:border-slate-800 rounded-lg p-3">
               <code className="flex-1 text-body font-mono text-strong">{tempPasswordInfo?.tempPassword}</code>

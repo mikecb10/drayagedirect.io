@@ -264,21 +264,21 @@ function EquipmentReferenceSettings() {
           description={currentTab?.description}
           columns={0}
         >
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-slate-800/50 text-field-label text-muted">
-                <tr>
-                  <th className="w-10"></th>
-                  <th className="text-left px-4 py-2 w-32">Code</th>
-                  <th className="text-left px-4 py-2">Label</th>
-                  <th className="text-left px-4 py-2">Description</th>
-                  <th className="text-left px-4 py-2 w-24">Source</th>
-                  <th className="text-center px-4 py-2 w-20">Enabled</th>
-                  <th className="w-20"></th>
-                </tr>
-              </thead>
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 dark:bg-slate-800/50 text-field-label text-muted">
+                    <tr>
+                      <th className="w-10"></th>
+                      <th className="text-left px-4 py-2 w-32">Code</th>
+                      <th className="text-left px-4 py-2">Label</th>
+                      <th className="text-left px-4 py-2">Description</th>
+                      <th className="text-left px-4 py-2 w-24">Source</th>
+                      <th className="text-center px-4 py-2 w-20">Enabled</th>
+                      <th className="w-20"></th>
+                    </tr>
+                  </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                     {loading ? (
                       <tr>
@@ -304,10 +304,10 @@ function EquipmentReferenceSettings() {
                       ))
                     )}
                   </tbody>
-                </SortableContext>
-              </DndContext>
-            </table>
-          </div>
+                </table>
+              </div>
+            </SortableContext>
+          </DndContext>
         </SectionCard>
       </div>
 

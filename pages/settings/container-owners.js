@@ -226,7 +226,7 @@ function ContainerOwnersSettings() {
                 ) : owners.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-4 py-10 text-center text-helper text-muted">
-                      No container owners match "{search}"
+                      No container owners match &ldquo;{search}&rdquo;
                     </td>
                   </tr>
                 ) : (

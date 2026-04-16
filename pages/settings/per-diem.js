@@ -180,7 +180,7 @@ function PerDiemSettings() {
                 ) : rules.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-4 py-10 text-center text-body text-muted">
-                      No per diem rules yet. Click "Add Per Diem Rule" to create one.
+                      No per diem rules yet. Click &ldquo;Add Per Diem Rule&rdquo; to create one.
                     </td>
                   </tr>
                 ) : (
