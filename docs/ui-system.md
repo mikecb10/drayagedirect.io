@@ -212,11 +212,68 @@ If you just need a one-off layout: raw Tailwind is fine. Don't pollute `componen
 
 - **Load detail tabs** — Plan B (2026-04-15): `NotesTab`, `TrackingTab`, `DocumentsTab`, `AuditTab`, `BillingTab`, `LoadInfoTab`. `DriverPayTab`, `RoutingTab`, and the modal layer are Plan D candidates.
 - **Settings pages** — Plan C (2026-04-16): `index`, `document-validation`, `terminal-markets`, `terminals`, `per-diem`, `container-owners`, `chassis-owners`, `equipment-reference`, `branches`, `dispatcher-colors`, `team`, `company`. `charge-profiles/*`, `tariffs/*`, `driver-tariffs/*`, and `communications/**` are Plan D candidates.
+- **Settings shell — Plan E (2026-04-16):** persistent layout via `getLayout`, view-mode toggle (sidebar / card), self-aware `<SettingsTabs />` for intra-group sibling switching. See Section 8 below.
 - **Profile page** — Plan A exemplar: `pages/settings/profile.js`. Use this as your reference composition.
 
 ---
 
-## 8. FAQ
+## 8. Settings shell (Plan E, 2026-04-16)
+
+The settings shell uses three additional primitives + a Pages Router pattern. They live in `components/settings/` rather than `components/ui/` because they're scoped to `/settings/*` only.
+
+### `useSettingsViewPrefs()` — view preferences hook
+
+```jsx
+import useSettingsViewPrefs from '../../components/settings/useSettingsViewPrefs';
+
+const { viewMode, showTabsInSidebar, setViewMode, setShowTabsInSidebar } = useSettingsViewPrefs();
+```
+
+- `viewMode` — `'sidebar'` (default) or `'card'`. Persists to `dd.settings.viewMode` localStorage.
+- `showTabsInSidebar` — boolean. Only meaningful when `viewMode === 'sidebar'`. Persists to `dd.settings.showTabsInSidebar`.
+- SSR-safe — returns defaults during server render, hydrates on mount.
+
+### `<SettingsTabs />` — self-aware sibling tabs
+
+```jsx
+import SettingsTabs from '../../components/settings/SettingsTabs';
+
+<SettingsTabs />
+```
+
+Pages render this once near the top of content. No props. The component reads pathname, finds the group via `findGroupForPath`, reads view-mode prefs, and decides whether to render. In card mode it always renders; in sidebar mode it renders only when `showTabsInSidebar` is on.
+
+### `<SettingsViewToggle />` — view dropdown
+
+```jsx
+import SettingsViewToggle from '../../components/settings/SettingsViewToggle';
+
+<SettingsViewToggle />
+```
+
+Mounted once per layout (sidebar header in sidebar mode; flex header row in card mode). Self-contained — reads/writes via `useSettingsViewPrefs`.
+
+### Pages Router persistent layout pattern
+
+Settings pages use Next.js Pages Router's `getLayout` opt-in to keep `<SettingsLayout>` mounted across `/settings/*` route changes:
+
+```jsx
+function CompanySettings() {
+  return <>…page content…</>;
+}
+
+CompanySettings.getLayout = (page) => (
+  <SettingsLayout title="Company Settings">{page}</SettingsLayout>
+);
+
+export default CompanySettings;
+```
+
+`pages/_app.js` reads `Component.getLayout` and applies it before rendering. Pages without `getLayout` use the identity wrapper, so this is backward-compatible. Keeping the layout mounted preserves sidebar scroll position, group-collapse state, and any focus state across navigation.
+
+---
+
+## 9. FAQ
 
 **Q: My page has a `<label className="text-sm font-medium">` that doesn't match `text-field-label` (uppercase).**
 A: That's the Linear/Stripe uppercase style we picked intentionally. Fields always have uppercase labels. If it looks wrong on your page, the right fix is usually "this isn't a field — it's body text with a leading word."
