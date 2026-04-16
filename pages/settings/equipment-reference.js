@@ -15,6 +15,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import SettingsLayout from '../../components/settings/SettingsLayout';
+import SettingsTabs from '../../components/settings/SettingsTabs';
 import SubTabs from '../../components/ui/SubTabs';
 import Modal from '../../components/ui/Modal';
 import Button from '../../components/ui/Button';
@@ -227,6 +228,8 @@ function EquipmentReferenceSettings() {
           }
           className="mb-[var(--space-section)]"
         />
+
+        <SettingsTabs />
 
         {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
         {reorderFlash && (

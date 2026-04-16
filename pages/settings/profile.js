@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, KeyRound } from 'lucide-react';
 import SettingsLayout from '../../components/settings/SettingsLayout';
+import SettingsTabs from '../../components/settings/SettingsTabs';
 import { PageHeader } from '../../components/ui/ModuleHeader';
 import { SectionCard } from '../../components/ui/FormSection';
 import FieldGroup from '../../components/ui/FieldGroup';
@@ -91,6 +92,8 @@ function Profile() {
           description="Update your personal information."
           className="mb-[var(--space-section)]"
         />
+
+        <SettingsTabs />
 
         {error && <Alert type="error" message={error} className="mb-[var(--space-field)]" />}
         {success && <Alert type="success" message={success} className="mb-[var(--space-field)]" />}

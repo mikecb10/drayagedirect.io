@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Palette, RotateCcw, Copy } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import SettingsLayout from '../../components/settings/SettingsLayout';
+import SettingsTabs from '../../components/settings/SettingsTabs';
 import Button from '../../components/ui/Button';
 import Alert from '../../components/ui/Alert';
 import ColorPicker from '../../components/ui/ColorPicker';
@@ -157,6 +158,8 @@ function DispatcherColorsSettings() {
           description={<>Customize how loads appear on the Dispatcher board. Row background uses the <strong className="text-strong">Status color</strong>, and a thin left-edge stripe uses the <strong className="text-strong">Load Type color</strong> so you can see both at a glance.</>}
           className="mb-[var(--space-section)]"
         />
+
+        <SettingsTabs />
 
         {/* Copy Company Preferences button — shown to non-admin users */}
         {!isAdmin && !loading && (

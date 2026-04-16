@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Calculator, Plus, Edit2, Trash2, Ship, Building2, Package } from 'lucide-react';
 import SettingsLayout from '../../components/settings/SettingsLayout';
+import SettingsTabs from '../../components/settings/SettingsTabs';
 import Button from '../../components/ui/Button';
 import Alert from '../../components/ui/Alert';
 import PerDiemRuleModal from '../../components/settings/PerDiemRuleModal';
@@ -113,6 +114,8 @@ function PerDiemSettings() {
           actions={<Button onClick={openNew}><Plus className="w-4 h-4 mr-1 inline -mt-0.5" />Add Per Diem Rule</Button>}
           className="mb-[var(--space-section)]"
         />
+
+        <SettingsTabs />
 
         {error && <Alert type="error" message={error} />}
 

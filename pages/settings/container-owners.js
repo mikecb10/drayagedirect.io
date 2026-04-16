@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Ship, Plus, Search, Edit2, Trash2, X } from 'lucide-react';
 import SettingsLayout from '../../components/settings/SettingsLayout';
+import SettingsTabs from '../../components/settings/SettingsTabs';
 import Modal from '../../components/ui/Modal';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -164,6 +165,8 @@ function ContainerOwnersSettings() {
           actions={<Button onClick={openNew}><Plus className="w-4 h-4 mr-1 inline -mt-0.5" />Add Container Owner</Button>}
           className="mb-[var(--space-section)]"
         />
+
+        <SettingsTabs />
 
         {error && <Alert type="error" message={error} />}
 

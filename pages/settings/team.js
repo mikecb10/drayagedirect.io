@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { Users, UserPlus, Copy, CheckCheck, Edit2, ToggleLeft, ToggleRight, Search } from 'lucide-react';
 import SettingsLayout from '../../components/settings/SettingsLayout';
+import SettingsTabs from '../../components/settings/SettingsTabs';
 import Modal from '../../components/ui/Modal';
 import Button from '../../components/ui/Button';
 import Alert from '../../components/ui/Alert';
@@ -110,6 +111,8 @@ function TeamSettings() {
           actions={<Button onClick={openAdd}><UserPlus className="w-4 h-4 mr-1 inline -mt-0.5" />Add New User</Button>}
           className="mb-[var(--space-section)]"
         />
+
+        <SettingsTabs />
 
         {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
 

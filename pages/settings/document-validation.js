@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FileCheck, Save, Info } from 'lucide-react';
 import SettingsLayout from '../../components/settings/SettingsLayout';
+import SettingsTabs from '../../components/settings/SettingsTabs';
 import { PageHeader } from '../../components/ui/ModuleHeader';
 import { SectionCard } from '../../components/ui/FormSection';
 import Button from '../../components/ui/Button';
@@ -129,6 +130,8 @@ function DocumentValidationSettings() {
           description="Choose which document types require dispatcher approval before being finalized. Documents of types NOT in this list are auto-approved on upload."
           className="mb-[var(--space-section)]"
         />
+
+        <SettingsTabs />
 
         <div className="mb-4 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50 dark:bg-blue-950/40 p-3 flex items-start gap-2">
           <Info className="w-4 h-4 shrink-0 text-blue-600 dark:text-blue-400 mt-0.5" />

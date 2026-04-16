@@ -15,6 +15,7 @@ import {
   Save,
 } from 'lucide-react';
 import SettingsLayout from '../../components/settings/SettingsLayout';
+import SettingsTabs from '../../components/settings/SettingsTabs';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Alert from '../../components/ui/Alert';
@@ -184,6 +185,8 @@ function ChassisOwnersSettings() {
           actions={<Button onClick={openCreate}><Plus className="w-4 h-4 mr-1 inline -mt-0.5" />Add Chassis Owner</Button>}
           className="mb-[var(--space-section)]"
         />
+
+        <SettingsTabs />
 
         {error && <Alert type="error" message={error} className="mb-4" />}
         {actionError && <Alert type="error" message={actionError} className="mb-4" />}

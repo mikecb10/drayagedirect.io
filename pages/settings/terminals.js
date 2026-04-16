@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { MapPin, Search, Ship, Train, Check, X, Pencil } from 'lucide-react';
 import SettingsLayout from '../../components/settings/SettingsLayout';
+import SettingsTabs from '../../components/settings/SettingsTabs';
 import Alert from '../../components/ui/Alert';
 import { PageHeader } from '../../components/ui/ModuleHeader';
 import { SectionCard } from '../../components/ui/FormSection';
@@ -108,6 +109,8 @@ function TerminalsPage() {
           description="Enable/disable individual port and rail terminals. Customize their display names. Only enabled terminals appear in load pickers."
           className="mb-[var(--space-section)]"
         />
+
+        <SettingsTabs />
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">

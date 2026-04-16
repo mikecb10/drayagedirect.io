@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { Upload, X, Image as ImageIcon, Users } from 'lucide-react';
 import SettingsLayout from '../../components/settings/SettingsLayout';
+import SettingsTabs from '../../components/settings/SettingsTabs';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
@@ -115,6 +116,8 @@ function CompanySettings() {
           description="Manage your company info, invoice defaults, and operational preferences."
           className="mb-[var(--space-section)]"
         />
+
+        <SettingsTabs />
 
         {error && <Alert type="error" message={error} className="mb-[var(--space-field)]" />}
         {success && <Alert type="success" message={success} className="mb-[var(--space-field)]" />}

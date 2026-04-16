@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { MapPin, Ship, Train, Search, Globe } from 'lucide-react';
 import SettingsLayout from '../../components/settings/SettingsLayout';
+import SettingsTabs from '../../components/settings/SettingsTabs';
 import Alert from '../../components/ui/Alert';
 import { PageHeader } from '../../components/ui/ModuleHeader';
 import { SectionCard } from '../../components/ui/FormSection';
@@ -92,6 +93,8 @@ function TerminalMarketsPage() {
           description="Enable the geographic markets where your operation runs. Terminals in disabled markets won't appear in pickers."
           className="mb-[var(--space-section)]"
         />
+
+        <SettingsTabs />
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

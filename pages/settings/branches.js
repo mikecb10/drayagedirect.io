@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import SettingsLayout from '../../components/settings/SettingsLayout';
+import SettingsTabs from '../../components/settings/SettingsTabs';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
@@ -267,6 +268,8 @@ function BranchesSettings() {
           ) : null}
           className="mb-[var(--space-section)]"
         />
+
+        <SettingsTabs />
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-[var(--space-inline)]">
