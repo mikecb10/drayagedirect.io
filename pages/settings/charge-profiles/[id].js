@@ -11,8 +11,7 @@ import Alert from '../../../components/ui/Alert';
 import OrgPicker from '../../../components/ui/OrgPicker';
 import CentsInput from '../../../components/ui/CentsInput';
 import DatePicker from '../../../components/ui/DatePicker';
-import ConditionBuilder from '../../../components/ui/ConditionBuilder';
-import { AR_RULES } from '../../../lib/ar-rule-definitions';
+import RulesPanel from '../../../components/settings/charge-profile-detail/RulesPanel';
 import {
   CHARGE_NAMES,
   UNITS_OF_MEASURE,
@@ -611,13 +610,10 @@ export default function ChargeProfileForm({ chargeProfileId: propId, onClose: on
         {/* ═══════════════════════════════════════════════════ */}
         {/* SECTION 3: Rules — placeholder for future          */}
         {/* ═══════════════════════════════════════════════════ */}
-        <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
-          <ConditionBuilder
-            rules={AR_RULES}
-            conditions={form.conditions || []}
-            onChange={(c) => update('conditions', c)}
-          />
-        </div>
+        <RulesPanel
+          conditions={form.conditions || []}
+          onChange={(c) => update('conditions', c)}
+        />
 
         {/* ═══════════════════════════════════════════════════ */}
         {/* SECTION 4: Link to existing + Match Resolution     */}
