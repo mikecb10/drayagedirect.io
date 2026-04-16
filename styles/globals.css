@@ -58,6 +58,7 @@
   --space-field-label: 0.375rem; /* mb-1.5 between label and input */
   --space-row: 0.75rem;          /* py-3 for DetailRow / settings list rows */
   --space-inline: 0.5rem;        /* gap-2 for adjacent inline controls */
+  --space-field-helper: 0.125rem; /* mt-0.5 — Field helper text offset */
 
   /* ==========================================================
      DESIGN SYSTEM — TYPOGRAPHY
@@ -156,6 +157,7 @@ body {
   --space-field-label: 0.25rem;
   --space-row: 0.5rem;
   --space-inline: 0.375rem;
+  --space-field-helper: 0.0625rem; /* tighter in compact */
 
   /* Typography shrink — sizes only; weights/transforms don't change. */
   --text-page-title-size: 1.25rem;
