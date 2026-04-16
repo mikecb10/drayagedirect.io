@@ -177,8 +177,8 @@ export default function NotesTab({ load }) {
                 <Icon className="w-4 h-4" strokeWidth={2} />
               </div>
               <div className="flex-1">
-                <div className="text-sm font-semibold text-gray-900 dark:text-slate-100">{aud.label}</div>
-                <div className="text-xs text-gray-500 dark:text-slate-400">{aud.description}</div>
+                <div className="text-section-title text-strong">{aud.label}</div>
+                <div className="text-helper text-muted">{aud.description}</div>
               </div>
               <span className="text-xs text-gray-400 dark:text-slate-500">{notes.length} {notes.length === 1 ? 'note' : 'notes'}</span>
             </div>
@@ -236,7 +236,7 @@ export default function NotesTab({ load }) {
                         /* Display mode */
                         <>
                           <div className="flex items-start gap-3">
-                            <p className="text-sm text-gray-800 dark:text-slate-100 whitespace-pre-wrap flex-1">{n.body}</p>
+                            <p className="text-body text-strong whitespace-pre-wrap flex-1">{n.body}</p>
                             <div className="flex items-center gap-1 shrink-0">
                               <button
                                 onClick={() => { setEditingId(n.id); setEditBody(n.body); }}
