@@ -50,7 +50,7 @@ const ALL_TYPES = (() => {
   return result;
 })();
 
-export default function DocumentValidationSettings() {
+function DocumentValidationSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -122,8 +122,7 @@ export default function DocumentValidationSettings() {
   const extendedTypes = ALL_TYPES.filter((t) => t.group === 'Extended');
 
   return (
-    <SettingsLayout title="Document Validation">
-      <div className="max-w-4xl">
+    <div className="max-w-4xl">
         <PageHeader
           variant="plain"
           title={<><FileCheck className="w-6 h-6 text-blue-600 inline -mt-0.5 mr-2" />Document Validation</>}
@@ -215,9 +214,14 @@ export default function DocumentValidationSettings() {
           </>
         )}
       </div>
-    </SettingsLayout>
   );
 }
+
+DocumentValidationSettings.getLayout = (page) => (
+  <SettingsLayout title="Document Validation">{page}</SettingsLayout>
+);
+
+export default DocumentValidationSettings;
 
 function TypeCheckbox({ type, checked, onToggle }) {
   return (

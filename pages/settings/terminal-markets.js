@@ -6,7 +6,7 @@ import { PageHeader } from '../../components/ui/ModuleHeader';
 import { SectionCard } from '../../components/ui/FormSection';
 
 
-export default function TerminalMarketsPage() {
+function TerminalMarketsPage() {
   const [markets, setMarkets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -83,8 +83,7 @@ export default function TerminalMarketsPage() {
     .reduce((s, m) => s + m.total, 0);
 
   return (
-    <SettingsLayout title="Terminal Markets">
-      <div className="space-y-6 max-w-6xl">
+    <div className="space-y-6 max-w-6xl">
         {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
 
         <PageHeader
@@ -177,9 +176,14 @@ export default function TerminalMarketsPage() {
           )}
         </SectionCard>
       </div>
-    </SettingsLayout>
   );
 }
+
+TerminalMarketsPage.getLayout = (page) => (
+  <SettingsLayout title="Terminal Markets">{page}</SettingsLayout>
+);
+
+export default TerminalMarketsPage;
 
 function StatCard({ label, value }) {
   return (

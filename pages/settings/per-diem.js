@@ -34,7 +34,7 @@ function summarizeTiers(tiers) {
   return `${tiers.length} tiers · ${formatCents(tiers[0].amount_cents)} → ${formatCents(tiers[tiers.length - 1].amount_cents)}/day`;
 }
 
-export default function PerDiemSettings() {
+function PerDiemSettings() {
   const [rules, setRules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -104,9 +104,7 @@ export default function PerDiemSettings() {
   const enabledCount = rules.filter((r) => r.is_enabled).length;
 
   return (
-    <SettingsLayout
-      title="Per Diem Pricing"
-    >
+    <>
       <div className="max-w-6xl space-y-[var(--space-section)]">
         <PageHeader
           variant="plain"
@@ -285,6 +283,12 @@ export default function PerDiemSettings() {
         editing={editing}
         onSaved={load}
       />
-    </SettingsLayout>
+    </>
   );
 }
+
+PerDiemSettings.getLayout = (page) => (
+  <SettingsLayout title="Per Diem Pricing">{page}</SettingsLayout>
+);
+
+export default PerDiemSettings;

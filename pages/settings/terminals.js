@@ -8,7 +8,7 @@ import FieldGroup from '../../components/ui/FieldGroup';
 import Field from '../../components/ui/Field';
 
 
-export default function TerminalsPage() {
+function TerminalsPage() {
   const [terminals, setTerminals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -99,8 +99,7 @@ export default function TerminalsPage() {
   }, [terminals]);
 
   return (
-    <SettingsLayout title="Terminals">
-      <div className="space-y-5 max-w-7xl">
+    <div className="space-y-5 max-w-7xl">
         {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
 
         <PageHeader
@@ -291,9 +290,14 @@ export default function TerminalsPage() {
           )}
         </SectionCard>
       </div>
-    </SettingsLayout>
   );
 }
+
+TerminalsPage.getLayout = (page) => (
+  <SettingsLayout title="Terminals">{page}</SettingsLayout>
+);
+
+export default TerminalsPage;
 
 function StatCard({ label, value, icon }) {
   return (

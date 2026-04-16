@@ -24,7 +24,7 @@ const EMPTY_OWNER = {
   notes: '',
 };
 
-export default function ContainerOwnersSettings() {
+function ContainerOwnersSettings() {
   const [owners, setOwners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -155,9 +155,7 @@ export default function ContainerOwnersSettings() {
   const tenantCount = owners.filter((o) => !o.is_system).length;
 
   return (
-    <SettingsLayout
-      title="Container Owners"
-    >
+    <>
       <div className="max-w-6xl space-y-4">
         <PageHeader
           variant="plain"
@@ -405,6 +403,12 @@ export default function ContainerOwnersSettings() {
           </div>
         </form>
       </Modal>
-    </SettingsLayout>
+    </>
   );
 }
+
+ContainerOwnersSettings.getLayout = (page) => (
+  <SettingsLayout title="Container Owners">{page}</SettingsLayout>
+);
+
+export default ContainerOwnersSettings;

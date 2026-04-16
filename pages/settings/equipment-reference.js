@@ -57,7 +57,7 @@ const TABS = [
 
 const EMPTY_FORM = { code: '', label: '', description: '' };
 
-export default function EquipmentReferenceSettings() {
+function EquipmentReferenceSettings() {
   const [activeTab, setActiveTab] = useState('container_types');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -213,7 +213,7 @@ export default function EquipmentReferenceSettings() {
   const tenantCount = items.filter((i) => !i.is_system).length;
 
   return (
-    <SettingsLayout title="Equipment Reference Data">
+    <>
       <div className="max-w-5xl space-y-4">
         <PageHeader
           variant="plain"
@@ -346,9 +346,15 @@ export default function EquipmentReferenceSettings() {
           </div>
         </form>
       </Modal>
-    </SettingsLayout>
+    </>
   );
 }
+
+EquipmentReferenceSettings.getLayout = (page) => (
+  <SettingsLayout title="Equipment Reference Data">{page}</SettingsLayout>
+);
+
+export default EquipmentReferenceSettings;
 
 // ===== Sortable table row =====
 function SortableRow({ item, onToggle, onEdit, onDelete }) {

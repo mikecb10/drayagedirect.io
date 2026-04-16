@@ -6,13 +6,12 @@ import DetailPane from '../../components/ui/DetailPane';
 import DetailRow from '../../components/ui/DetailRow';
 import { SETTINGS_SECTIONS } from '../../lib/settings-nav';
 
-export default function SettingsIndex() {
+function SettingsIndex() {
   const groups = SETTINGS_SECTIONS.filter((s) => s.group !== 'Coming Soon');
   const comingSoon = SETTINGS_SECTIONS.find((s) => s.group === 'Coming Soon')?.items || [];
 
   return (
-    <SettingsLayout title="Settings">
-      <div className="max-w-3xl">
+    <div className="max-w-3xl">
         <PageHeader
           variant="plain"
           title={<><Settings className="w-6 h-6 text-blue-600 inline -mt-0.5 mr-2" />Settings</>}
@@ -46,6 +45,11 @@ export default function SettingsIndex() {
           )}
         </div>
       </div>
-    </SettingsLayout>
   );
 }
+
+SettingsIndex.getLayout = (page) => (
+  <SettingsLayout title="Settings">{page}</SettingsLayout>
+);
+
+export default SettingsIndex;

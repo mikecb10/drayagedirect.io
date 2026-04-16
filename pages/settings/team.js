@@ -22,7 +22,7 @@ const ROLE_BADGE_COLORS = {
   custom: 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300',
 };
 
-export default function TeamSettings() {
+function TeamSettings() {
   const router = useRouter();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -101,7 +101,7 @@ export default function TeamSettings() {
   }
 
   return (
-    <SettingsLayout title="Team & Permissions">
+    <>
       <div className="max-w-6xl space-y-[var(--space-section)]">
         <PageHeader
           variant="plain"
@@ -244,9 +244,15 @@ export default function TeamSettings() {
           </div>
         </div>
       </Modal>
-    </SettingsLayout>
+    </>
   );
 }
+
+TeamSettings.getLayout = (page) => (
+  <SettingsLayout title="Team & Permissions">{page}</SettingsLayout>
+);
+
+export default TeamSettings;
 
 // ═══════════════════════════════════════════════════════════════
 // User Modal — PP-style two-tab: User Info | Permissions

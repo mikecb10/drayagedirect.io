@@ -28,7 +28,7 @@ const TIMEZONES = [
 
 const DATE_FORMATS = ['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD'];
 
-export default function CompanySettings() {
+function CompanySettings() {
   const { role } = useAuth();
   const isAdmin = role === 'admin' || role === 'super_admin';
   const [loading, setLoading] = useState(true);
@@ -108,10 +108,7 @@ export default function CompanySettings() {
   }
 
   return (
-    <SettingsLayout
-      title="Company Settings"
-    >
-      <div className="max-w-4xl">
+    <div className="max-w-4xl">
         <PageHeader
           variant="plain"
           title="Company Settings"
@@ -379,9 +376,14 @@ export default function CompanySettings() {
           </form>
         )}
       </div>
-    </SettingsLayout>
   );
 }
+
+CompanySettings.getLayout = (page) => (
+  <SettingsLayout title="Company Settings">{page}</SettingsLayout>
+);
+
+export default CompanySettings;
 
 // ── Logo Uploader Component ──────────────────────────────────
 function LogoUploader({ label, description, value, onChange, previewSize, tenantId, fileKey }) {

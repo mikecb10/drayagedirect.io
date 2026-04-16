@@ -34,7 +34,7 @@ import Field from '../../components/ui/Field';
  * deleted_at + is_enabled=false so the owner vanishes from pickers
  * without breaking references to it on historical loads.
  */
-export default function ChassisOwnersSettings() {
+function ChassisOwnersSettings() {
   const [loading, setLoading] = useState(true);
   const [owners, setOwners] = useState([]);
   const [error, setError] = useState(null);
@@ -174,7 +174,7 @@ export default function ChassisOwnersSettings() {
   const ownFleetCount = owners.filter((o) => o.is_own_fleet).length;
 
   return (
-    <SettingsLayout title="Chassis Owners">
+    <>
       <div className="max-w-5xl">
         {/* Header */}
         <PageHeader
@@ -260,9 +260,15 @@ export default function ChassisOwnersSettings() {
           onSave={handleModalSave}
         />
       )}
-    </SettingsLayout>
+    </>
   );
 }
+
+ChassisOwnersSettings.getLayout = (page) => (
+  <SettingsLayout title="Chassis Owners">{page}</SettingsLayout>
+);
+
+export default ChassisOwnersSettings;
 
 function ChassisOwnerRow({ owner, busy, onEdit, onToggle, onDelete }) {
   const address = [owner.city, owner.state].filter(Boolean).join(', ');

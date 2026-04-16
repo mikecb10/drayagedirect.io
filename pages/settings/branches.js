@@ -44,7 +44,7 @@ const EMPTY_FORM = {
   status: 'active',
 };
 
-export default function BranchesSettings() {
+function BranchesSettings() {
   const { profile, permissions } = useAuth();
   const isSuperAdmin = profile?.role === 'super_admin';
   const canAssign = isSuperAdmin || hasGranularPermission({ role: profile?.role, permissions, granular_permissions: profile?.granular_permissions }, 'branches.assign');
@@ -252,7 +252,7 @@ export default function BranchesSettings() {
   ];
 
   return (
-    <SettingsLayout title="Branches" settingsKey="branches">
+    <>
       <div className="space-y-[var(--space-section)]">
         {/* Header */}
         <PageHeader
@@ -611,6 +611,12 @@ export default function BranchesSettings() {
           </div>
         </Modal>
       )}
-    </SettingsLayout>
+    </>
   );
 }
+
+BranchesSettings.getLayout = (page) => (
+  <SettingsLayout title="Branches" settingsKey="branches">{page}</SettingsLayout>
+);
+
+export default BranchesSettings;

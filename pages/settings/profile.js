@@ -14,7 +14,7 @@ import Alert from '../../components/ui/Alert';
 import Badge from '../../components/ui/Badge';
 import { useAuth } from '../../contexts/AuthContext';
 
-export default function Profile() {
+function Profile() {
   const { profile } = useAuth();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -76,8 +76,7 @@ export default function Profile() {
   }
 
   return (
-    <SettingsLayout title="My Profile">
-      <div className="max-w-2xl">
+    <div className="max-w-2xl">
         <Link
           href="/settings"
           className="inline-flex items-center gap-1 text-helper text-muted hover:text-strong mb-[var(--space-field)]"
@@ -174,6 +173,11 @@ export default function Profile() {
           </form>
         )}
       </div>
-    </SettingsLayout>
   );
 }
+
+Profile.getLayout = (page) => (
+  <SettingsLayout title="My Profile">{page}</SettingsLayout>
+);
+
+export default Profile;

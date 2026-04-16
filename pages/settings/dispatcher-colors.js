@@ -52,7 +52,7 @@ const STATES_BY_GROUP = STATE_GROUPS.reduce((acc, group) => {
 
 const LOAD_TYPE_KEYS = Object.keys(DEFAULT_LOAD_TYPE_COLORS);
 
-export default function DispatcherColorsSettings() {
+function DispatcherColorsSettings() {
   const { role } = useAuth();
   const isAdmin = role === 'super_admin' || role === 'admin';
   const [loading, setLoading] = useState(true);
@@ -150,10 +150,7 @@ export default function DispatcherColorsSettings() {
   const effectiveType = (key) => loadTypeColors[key] || DEFAULT_LOAD_TYPE_COLORS[key];
 
   return (
-    <SettingsLayout
-      title="Dispatcher Colors"
-    >
-      <div className="max-w-5xl space-y-[var(--space-section)]">
+    <div className="max-w-5xl space-y-[var(--space-section)]">
         <PageHeader
           variant="plain"
           title={<><Palette className="w-6 h-6 text-blue-600 inline -mt-0.5 mr-2" />Dispatcher Colors</>}
@@ -306,8 +303,13 @@ export default function DispatcherColorsSettings() {
           </>
         )}
       </div>
-    </SettingsLayout>
   );
 }
+
+DispatcherColorsSettings.getLayout = (page) => (
+  <SettingsLayout title="Dispatcher Colors">{page}</SettingsLayout>
+);
+
+export default DispatcherColorsSettings;
 
 export { DEFAULT_STATE_COLORS, DEFAULT_LOAD_TYPE_COLORS };
