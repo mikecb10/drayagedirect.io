@@ -20,6 +20,8 @@ import Modal from '../../components/ui/Modal';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Alert from '../../components/ui/Alert';
+import { PageHeader } from '../../components/ui/ModuleHeader';
+import { SectionCard } from '../../components/ui/FormSection';
 import { bustCache } from '../../components/ui/ReferenceDataPicker';
 
 const TABS = [
@@ -213,27 +215,22 @@ export default function EquipmentReferenceSettings() {
   return (
     <SettingsLayout title="Equipment Reference Data">
       <div className="max-w-5xl space-y-4">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
-              <Box className="w-6 h-6 text-blue-600" />
-              Equipment Reference Data
-            </h1>
-            <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
-              Manage the reference lists used for Container Types, Container Sizes, Chassis
-              Types, and Chassis Sizes. Drag rows to reorder — the order is reflected in all
-              dropdowns across the app.
-            </p>
-          </div>
-          <Button onClick={openNew}>
-            <Plus className="w-4 h-4 mr-1 inline -mt-0.5" />
-            Add Custom Entry
-          </Button>
-        </div>
+        <PageHeader
+          variant="plain"
+          title={<><Box className="w-6 h-6 text-blue-600 inline -mt-0.5 mr-2" />Equipment Reference</>}
+          description="Manage the lookup lists for container types, container sizes, chassis types, and chassis sizes. These populate load-form dropdowns across the app."
+          actions={
+            <Button onClick={openNew}>
+              <Plus className="w-4 h-4 mr-1 inline -mt-0.5" />
+              Add {currentTab?.label.replace(' Types', ' Type').replace(' Sizes', ' Size')}
+            </Button>
+          }
+          className="mb-[var(--space-section)]"
+        />
 
         {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
         {reorderFlash && (
-          <div className="text-xs text-emerald-600 font-medium bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 transition-all">
+          <div className="text-helper text-emerald-600 font-medium bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 transition-all">
             Order saved — dropdowns across the app will reflect this order.
           </div>
         )}
@@ -244,67 +241,71 @@ export default function EquipmentReferenceSettings() {
           onChange={setActiveTab}
         />
 
-        <div className="text-xs text-gray-500 dark:text-slate-400">{currentTab?.description}</div>
-
         <div className="flex gap-3">
           <div className="rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex-1">
-            <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-slate-400">System</div>
-            <div className="text-xl font-bold text-gray-900 dark:text-slate-100">{systemCount}</div>
+            <div className="text-field-label text-muted">System</div>
+            <div className="text-xl font-bold text-strong">{systemCount}</div>
           </div>
           <div className="rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex-1">
-            <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-slate-400">Custom</div>
-            <div className="text-xl font-bold text-gray-900 dark:text-slate-100">{tenantCount}</div>
+            <div className="text-field-label text-muted">Custom</div>
+            <div className="text-xl font-bold text-strong">{tenantCount}</div>
           </div>
           <div className="rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex-1">
-            <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-slate-400">Total</div>
-            <div className="text-xl font-bold text-gray-900 dark:text-slate-100">{items.length}</div>
+            <div className="text-field-label text-muted">Total</div>
+            <div className="text-xl font-bold text-strong">{items.length}</div>
           </div>
         </div>
 
-        <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 dark:bg-slate-800/50 text-[11px] uppercase tracking-wide text-gray-500 dark:text-slate-400">
-              <tr>
-                <th className="w-10"></th>
-                <th className="text-left px-4 py-2 w-32">Code</th>
-                <th className="text-left px-4 py-2">Label</th>
-                <th className="text-left px-4 py-2">Description</th>
-                <th className="text-left px-4 py-2 w-24">Source</th>
-                <th className="text-center px-4 py-2 w-20">Enabled</th>
-                <th className="w-20"></th>
-              </tr>
-            </thead>
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-                <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
-                  {loading ? (
-                    <tr>
-                      <td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-400 dark:text-slate-500">
-                        Loading...
-                      </td>
-                    </tr>
-                  ) : items.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-400 dark:text-slate-500">
-                        No entries yet.
-                      </td>
-                    </tr>
-                  ) : (
-                    items.map((item) => (
-                      <SortableRow
-                        key={item.id}
-                        item={item}
-                        onToggle={handleToggle}
-                        onEdit={openEdit}
-                        onDelete={handleDelete}
-                      />
-                    ))
-                  )}
-                </tbody>
-              </SortableContext>
-            </DndContext>
-          </table>
-        </div>
+        <SectionCard
+          title={currentTab?.label}
+          description={currentTab?.description}
+          columns={0}
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-slate-800/50 text-field-label text-muted">
+                <tr>
+                  <th className="w-10"></th>
+                  <th className="text-left px-4 py-2 w-32">Code</th>
+                  <th className="text-left px-4 py-2">Label</th>
+                  <th className="text-left px-4 py-2">Description</th>
+                  <th className="text-left px-4 py-2 w-24">Source</th>
+                  <th className="text-center px-4 py-2 w-20">Enabled</th>
+                  <th className="w-20"></th>
+                </tr>
+              </thead>
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                  <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+                    {loading ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-10 text-center text-helper text-muted">
+                          Loading...
+                        </td>
+                      </tr>
+                    ) : items.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-10 text-center text-helper text-muted">
+                          No entries yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      items.map((item) => (
+                        <SortableRow
+                          key={item.id}
+                          item={item}
+                          onToggle={handleToggle}
+                          onEdit={openEdit}
+                          onDelete={handleDelete}
+                        />
+                      ))
+                    )}
+                  </tbody>
+                </SortableContext>
+              </DndContext>
+            </table>
+          </div>
+        </SectionCard>
       </div>
 
       <Modal
@@ -383,13 +384,13 @@ function SortableRow({ item, onToggle, onEdit, onDelete }) {
           {item.code}
         </span>
       </td>
-      <td className="px-4 py-2 font-medium text-gray-900 dark:text-slate-100">{item.label}</td>
-      <td className="px-4 py-2 text-xs text-gray-600 dark:text-slate-300">{item.description || '—'}</td>
+      <td className="px-4 py-2 font-medium text-body text-strong">{item.label}</td>
+      <td className="px-4 py-2 text-helper text-muted">{item.description || '—'}</td>
       <td className="px-4 py-2">
         {item.is_system ? (
-          <span className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-slate-500">system</span>
+          <span className="text-field-label text-muted">system</span>
         ) : (
-          <span className="text-[10px] uppercase tracking-wide font-semibold text-blue-700">custom</span>
+          <span className="text-field-label font-semibold text-blue-700">custom</span>
         )}
       </td>
       <td className="px-4 py-2">
