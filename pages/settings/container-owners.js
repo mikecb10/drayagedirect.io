@@ -4,7 +4,8 @@ import SettingsLayout from '../../components/settings/SettingsLayout';
 import Modal from '../../components/ui/Modal';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import FormSection from '../../components/ui/FormSection';
+import FormSection, { SectionCard } from '../../components/ui/FormSection';
+import { PageHeader } from '../../components/ui/ModuleHeader';
 import Alert from '../../components/ui/Alert';
 
 
@@ -158,58 +159,51 @@ export default function ContainerOwnersSettings() {
       title="Container Owners"
     >
       <div className="max-w-6xl space-y-4">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
-              <Ship className="w-6 h-6 text-blue-600" />
-              Container Owners
-            </h1>
-            <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
-              Steamship lines and container owners. DrayageDirect seeds {systemCount} common SSLs
-              — add your own for regional carriers or bonded partners.
-            </p>
-          </div>
-          <Button onClick={openNew}>
-            <Plus className="w-4 h-4 mr-1 inline -mt-0.5" />
-            Add Container Owner
-          </Button>
-        </div>
+        <PageHeader
+          variant="plain"
+          title={<><Ship className="w-6 h-6 text-blue-600 inline -mt-0.5 mr-2" />Container Owners</>}
+          description={`Steamship lines and container owners. DrayageDirect seeds ${systemCount} common SSLs — add your own for regional carriers or bonded partners.`}
+          actions={<Button onClick={openNew}><Plus className="w-4 h-4 mr-1 inline -mt-0.5" />Add Container Owner</Button>}
+          className="mb-[var(--space-section)]"
+        />
 
         {error && <Alert type="error" message={error} />}
 
         {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500 pointer-events-none" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name or SCAC..."
-            className="w-full rounded-lg border border-gray-300 dark:border-slate-700 pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-          />
-        </div>
+        <SectionCard title="Search" columns={0}>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name or SCAC..."
+              className="w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-body text-strong pl-9 pr-3 py-2 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
+          </div>
+        </SectionCard>
 
         {/* Stats */}
         <div className="flex gap-3">
           <div className="rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex-1">
-            <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-slate-400">System</div>
-            <div className="text-xl font-bold text-gray-900 dark:text-slate-100">{systemCount}</div>
+            <div className="text-field-label text-muted">System</div>
+            <div className="text-xl font-bold text-strong">{systemCount}</div>
           </div>
           <div className="rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex-1">
-            <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-slate-400">Your Custom</div>
-            <div className="text-xl font-bold text-gray-900 dark:text-slate-100">{tenantCount}</div>
+            <div className="text-field-label text-muted">Your Custom</div>
+            <div className="text-xl font-bold text-strong">{tenantCount}</div>
           </div>
           <div className="rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex-1">
-            <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-slate-400">Total</div>
-            <div className="text-xl font-bold text-gray-900 dark:text-slate-100">{owners.length}</div>
+            <div className="text-field-label text-muted">Total</div>
+            <div className="text-xl font-bold text-strong">{owners.length}</div>
           </div>
         </div>
 
         {/* Table */}
-        <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+        <SectionCard title="Container Owners" columns={0}>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-slate-800/50 text-[11px] uppercase tracking-wide text-gray-500 dark:text-slate-400">
+            <table className="w-full text-body">
+              <thead className="bg-gray-50 dark:bg-slate-800/50 text-field-label text-muted">
                 <tr>
                   <th className="text-left px-4 py-2">Name</th>
                   <th className="text-left px-4 py-2">Label</th>
@@ -224,13 +218,13 @@ export default function ContainerOwnersSettings() {
               <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-400 dark:text-slate-500">
+                    <td colSpan={8} className="px-4 py-10 text-center text-helper text-muted">
                       Loading...
                     </td>
                   </tr>
                 ) : owners.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-400 dark:text-slate-500">
+                    <td colSpan={8} className="px-4 py-10 text-center text-helper text-muted">
                       No container owners match "{search}"
                     </td>
                   </tr>
@@ -242,27 +236,27 @@ export default function ContainerOwnersSettings() {
                         key={o.id}
                         className={`hover:bg-gray-50 dark:hover:bg-slate-800/60 ${isEnabled ? '' : 'opacity-50'}`}
                       >
-                        <td className="px-4 py-2 font-medium text-gray-900 dark:text-slate-100">{o.name}</td>
-                        <td className="px-4 py-2 text-gray-600 dark:text-slate-300 text-xs">{o.label || '—'}</td>
+                        <td className="px-4 py-2 font-medium text-strong">{o.name}</td>
+                        <td className="px-4 py-2 text-helper text-muted">{o.label || '—'}</td>
                         <td className="px-4 py-2">
                           {o.scac_code ? (
                             <span className="text-[10px] uppercase tracking-wide font-mono font-semibold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
                               {o.scac_code}
                             </span>
                           ) : (
-                            <span className="text-gray-300 dark:text-slate-600">—</span>
+                            <span className="text-muted">—</span>
                           )}
                         </td>
-                        <td className="px-4 py-2 text-xs text-gray-600 dark:text-slate-300">
+                        <td className="px-4 py-2 text-helper text-muted">
                           {o.contact_name || '—'}
-                          {o.phone && <div className="text-gray-400 dark:text-slate-500">{o.phone}</div>}
+                          {o.phone && <div className="text-muted">{o.phone}</div>}
                         </td>
-                        <td className="px-4 py-2 text-xs text-gray-600 dark:text-slate-300">
+                        <td className="px-4 py-2 text-helper text-muted">
                           {[o.city, o.state].filter(Boolean).join(', ') || '—'}
                         </td>
                         <td className="px-4 py-2">
                           {o.is_system ? (
-                            <span className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-slate-500">
+                            <span className="text-[10px] uppercase tracking-wide text-muted">
                               system
                             </span>
                           ) : (
@@ -296,14 +290,14 @@ export default function ContainerOwnersSettings() {
                             <div className="flex items-center gap-1 justify-end">
                               <button
                                 onClick={() => openEdit(o)}
-                                className="text-gray-400 dark:text-slate-500 hover:text-blue-600"
+                                className="text-muted hover:text-blue-600"
                                 title="Edit"
                               >
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 onClick={() => handleDelete(o)}
-                                className="text-gray-300 dark:text-slate-600 hover:text-red-500"
+                                className="text-muted hover:text-red-500"
                                 title="Delete"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -318,7 +312,7 @@ export default function ContainerOwnersSettings() {
               </tbody>
             </table>
           </div>
-        </div>
+        </SectionCard>
       </div>
 
       {/* Add/Edit Modal */}
