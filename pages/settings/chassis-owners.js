@@ -18,6 +18,9 @@ import SettingsLayout from '../../components/settings/SettingsLayout';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Alert from '../../components/ui/Alert';
+import { PageHeader } from '../../components/ui/ModuleHeader';
+import { SectionCard } from '../../components/ui/FormSection';
+import Field from '../../components/ui/Field';
 
 /**
  * Settings → Equipment → Chassis Owners
@@ -174,23 +177,13 @@ export default function ChassisOwnersSettings() {
     <SettingsLayout title="Chassis Owners">
       <div className="max-w-5xl">
         {/* Header */}
-        <div className="mb-6 flex items-start gap-3">
-          <div className="shrink-0 w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 flex items-center justify-center">
-            <Truck className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
-              Chassis Owners
-            </h1>
-            <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
-              Directory of chassis provider profiles — pool operators (FlexiVan, TRAC, DCLI), leased fleets, and your own fleet. These profiles populate the Chassis Owner dropdown on loads and in the Umbrella editor.
-            </p>
-          </div>
-          <Button onClick={openCreate}>
-            <Plus className="w-4 h-4 mr-1.5" />
-            Add Chassis Owner
-          </Button>
-        </div>
+        <PageHeader
+          variant="plain"
+          title={<><Truck className="w-6 h-6 text-blue-600 inline -mt-0.5 mr-2" />Chassis Owners</>}
+          description="Directory of chassis provider profiles — pool operators (FlexiVan, TRAC, DCLI), leased fleets, and your own fleet. These profiles populate the Chassis Owner dropdown on loads and in the Umbrella editor."
+          actions={<Button onClick={openCreate}><Plus className="w-4 h-4 mr-1 inline -mt-0.5" />Add Chassis Owner</Button>}
+          className="mb-[var(--space-section)]"
+        />
 
         {error && <Alert type="error" message={error} className="mb-4" />}
         {actionError && <Alert type="error" message={actionError} className="mb-4" />}
@@ -205,53 +198,55 @@ export default function ChassisOwnersSettings() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by name, code, contact, or city..."
-              className="block w-full pl-9 pr-3 py-2 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              className="block w-full pl-9 pr-3 py-2 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-body text-strong placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
           </div>
-          <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-slate-400">
+          <div className="flex items-center gap-4 text-helper text-muted">
             <span>
-              <strong className="text-gray-900 dark:text-slate-100">{owners.length}</strong> total
+              <strong className="text-strong">{owners.length}</strong> total
             </span>
             <span>
-              <strong className="text-gray-900 dark:text-slate-100">{enabledCount}</strong> enabled
+              <strong className="text-strong">{enabledCount}</strong> enabled
             </span>
             <span>
-              <strong className="text-gray-900 dark:text-slate-100">{ownFleetCount}</strong> own fleet
+              <strong className="text-strong">{ownFleetCount}</strong> own fleet
             </span>
           </div>
         </div>
 
         {/* List */}
-        {loading ? (
-          <div className="py-20 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="py-20 text-center rounded-xl border border-dashed border-gray-300 dark:border-slate-700 bg-gray-50/40 dark:bg-slate-900/40">
-            <Truck className="w-10 h-10 mx-auto text-gray-400 dark:text-slate-600 mb-3" />
-            <div className="text-sm font-semibold text-gray-900 dark:text-slate-100">
-              {search ? 'No chassis owners match your search' : 'No chassis owners yet'}
+        <SectionCard title="Chassis Owners" columns={0}>
+          {loading ? (
+            <div className="py-20 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto" />
             </div>
-            <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-              {search
-                ? 'Try clearing the search'
-                : 'Create your first chassis owner profile to use them on loads and in umbrella scopes.'}
+          ) : filtered.length === 0 ? (
+            <div className="py-20 text-center rounded-xl border border-dashed border-gray-300 dark:border-slate-700 bg-gray-50/40 dark:bg-slate-900/40">
+              <Truck className="w-10 h-10 mx-auto text-gray-400 dark:text-slate-600 mb-3" />
+              <div className="text-body font-semibold text-strong">
+                {search ? 'No chassis owners match your search' : 'No chassis owners yet'}
+              </div>
+              <div className="text-helper text-muted mt-1">
+                {search
+                  ? 'Try clearing the search'
+                  : 'Create your first chassis owner profile to use them on loads and in umbrella scopes.'}
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {filtered.map((owner) => (
-              <ChassisOwnerRow
-                key={owner.id}
-                owner={owner}
-                busy={busyId === owner.id}
-                onEdit={() => openEdit(owner)}
-                onToggle={() => toggleEnabled(owner)}
-                onDelete={() => deleteOwner(owner)}
-              />
-            ))}
-          </div>
-        )}
+          ) : (
+            <div className="space-y-[var(--space-inline)]">
+              {filtered.map((owner) => (
+                <ChassisOwnerRow
+                  key={owner.id}
+                  owner={owner}
+                  busy={busyId === owner.id}
+                  onEdit={() => openEdit(owner)}
+                  onToggle={() => toggleEnabled(owner)}
+                  onDelete={() => deleteOwner(owner)}
+                />
+              ))}
+            </div>
+          )}
+        </SectionCard>
       </div>
 
       {/* Create/Edit modal */}
@@ -301,7 +296,7 @@ function ChassisOwnerRow({ owner, busy, onEdit, onToggle, onDelete }) {
             <button
               type="button"
               onClick={onEdit}
-              className="text-sm font-semibold text-gray-900 dark:text-slate-100 hover:text-blue-700 dark:hover:text-blue-400 truncate"
+              className="text-body font-semibold text-strong hover:text-blue-700 dark:hover:text-blue-400 truncate"
             >
               {owner.name}
             </button>
@@ -321,7 +316,7 @@ function ChassisOwnerRow({ owner, busy, onEdit, onToggle, onDelete }) {
               </span>
             )}
           </div>
-          <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-slate-400 flex-wrap">
+          <div className="flex items-center gap-3 text-helper text-muted flex-wrap">
             {owner.contact_name && (
               <span className="inline-flex items-center gap-1">
                 <UserIcon className="w-3 h-3" />
@@ -483,10 +478,8 @@ function ChassisOwnerModal({ initial, onClose, onSave }) {
 
             {/* Identity */}
             <div>
-              <div className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 dark:text-slate-400 mb-2">
-                Identity
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px] gap-3">
+              <h3 className="text-field-label text-muted mb-[var(--space-field-label)]">Identity</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px] gap-[var(--space-field)]">
                 <Input
                   label="Name *"
                   value={form.name}
@@ -510,10 +503,8 @@ function ChassisOwnerModal({ initial, onClose, onSave }) {
 
             {/* Contact */}
             <div>
-              <div className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 dark:text-slate-400 mb-2">
-                Point of Contact
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <h3 className="text-field-label text-muted mb-[var(--space-field-label)]">Point of Contact</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-[var(--space-field)]">
                 <Input
                   label="Contact Name"
                   value={form.contact_name}
@@ -543,10 +534,8 @@ function ChassisOwnerModal({ initial, onClose, onSave }) {
 
             {/* Address */}
             <div>
-              <div className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 dark:text-slate-400 mb-2">
-                Address
-              </div>
-              <div className="space-y-3">
+              <h3 className="text-field-label text-muted mb-[var(--space-field-label)]">Address</h3>
+              <div className="space-y-[var(--space-field)]">
                 <Input
                   label="Street"
                   value={form.address_line1}
@@ -561,7 +550,7 @@ function ChassisOwnerModal({ initial, onClose, onSave }) {
                   placeholder="Suite 500 (optional)"
                   autoComplete="off"
                 />
-                <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px_160px] gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px_160px] gap-[var(--space-field)]">
                   <Input
                     label="City"
                     value={form.city}
@@ -592,9 +581,7 @@ function ChassisOwnerModal({ initial, onClose, onSave }) {
 
             {/* Flags */}
             <div>
-              <div className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 dark:text-slate-400 mb-2">
-                Options
-              </div>
+              <h3 className="text-field-label text-muted mb-[var(--space-field-label)]">Options</h3>
               <div className="space-y-2">
                 <label className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800/60 cursor-pointer">
                   <input
@@ -604,10 +591,10 @@ function ChassisOwnerModal({ initial, onClose, onSave }) {
                     className="mt-0.5 rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500"
                   />
                   <div className="flex-1">
-                    <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
+                    <div className="text-body font-medium text-strong">
                       Own Fleet
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-slate-400">
+                    <div className="text-helper text-muted">
                       This profile represents YOUR OWN chassis fleet (not a third-party pool). Shows a different icon in the list.
                     </div>
                   </div>
@@ -620,10 +607,10 @@ function ChassisOwnerModal({ initial, onClose, onSave }) {
                     className="mt-0.5 rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500"
                   />
                   <div className="flex-1">
-                    <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
+                    <div className="text-body font-medium text-strong">
                       Enabled
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-slate-400">
+                    <div className="text-helper text-muted">
                       Disabled owners are hidden from pickers but not deleted.
                     </div>
                   </div>
@@ -632,18 +619,15 @@ function ChassisOwnerModal({ initial, onClose, onSave }) {
             </div>
 
             {/* Notes */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                Notes
-              </label>
+            <Field label="Notes">
               <textarea
                 value={form.notes}
                 onChange={(e) => handleChange('notes', e.target.value)}
                 rows={2}
                 placeholder="Internal notes (e.g. account number, special handling, etc.)"
-                className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-body text-strong placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
-            </div>
+            </Field>
           </div>
 
           {/* Footer */}
