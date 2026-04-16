@@ -96,6 +96,7 @@ export default function TariffMatchingPanel({
           onStartChange={(val) => update('effective_start', val)}
           onEndChange={(val) => update('effective_end', val)}
           startRequired
+          endRequired
         />
 
         {/* Load Type — multi-select checkboxes */}
