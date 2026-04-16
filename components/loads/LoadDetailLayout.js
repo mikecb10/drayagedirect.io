@@ -66,34 +66,18 @@ export default function LoadDetailLayout({ load, children, activeTab, onTabChang
   const prevLoadId = getAdjacentLoadId(-1);
   const nextLoadId = getAdjacentLoadId(1);
 
-  // Keyboard shortcuts:
-  //   Ctrl + ← / → = prev/next tab (horizontal movement between tabs)
+  // Keyboard shortcuts owned by this layout:
   //   Ctrl + ↑ / ↓ = prev/next load (vertical movement between loads)
   //
-  // Dependency array IS REQUIRED — without it, the effect runs on
-  // every render, stacking multiple listeners that hold stale
-  // closures over activeTab / prevLoadId / nextLoadId / onNavigate.
-  // The duplicated listeners eventually clobber each other and the
-  // keyboard stops responding (symptom: 'Ctrl+arrows freeze after
-  // routing fully'). Fixed by re-subscribing only when dependencies
-  // change.
+  // Ctrl + ← / → (tab nav) is handled by <DetailTabs /> to avoid double-
+  // firing — both listeners used to run per keydown and advance tabs by
+  // two. Single source of truth now lives in the component that actually
+  // renders the tab bar.
   useEffect(() => {
     function handleKeyDown(e) {
       if (!e.ctrlKey && !e.metaKey) return;
-      // Don't intercept when user is typing in an input/textarea/select
       const tag = document.activeElement?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-        e.preventDefault();
-        const currentIdx = TABS.findIndex((t) => t.id === activeTab);
-        if (currentIdx === -1) return;
-        const nextIdx =
-          e.key === 'ArrowLeft'
-            ? (currentIdx - 1 + TABS.length) % TABS.length
-            : (currentIdx + 1) % TABS.length;
-        handleTabChange(TABS[nextIdx].id);
-      }
 
       if (e.key === 'ArrowUp' && prevLoadId) {
         e.preventDefault();
@@ -105,10 +89,12 @@ export default function LoadDetailLayout({ load, children, activeTab, onTabChang
       }
     }
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    // Capture phase: run BEFORE any child-level listeners (e.g. Google
+    // Maps keyboard handlers inside RoutingTab).
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, prevLoadId, nextLoadId, onNavigate]);
+  }, [prevLoadId, nextLoadId, onNavigate]);
 
   function handleTabChange(id) {
     if (onTabChange) {
