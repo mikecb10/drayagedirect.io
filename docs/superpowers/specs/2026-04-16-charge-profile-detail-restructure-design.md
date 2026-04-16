@@ -10,10 +10,11 @@
 
 Decompose `pages/settings/charge-profiles/[id].js` (811 LoC monolith) into:
 - A thin page shell (~250 LoC) holding state hooks, useEffects, all handlers, and the dual-mode render
-- 2 already-self-contained sub-functions extracted to their own files (`<TagInput>`, `<LaneLocationCell>`)
-- 4 logical render sections extracted into focused sub-components (`<ChargeProfileHeader>`, `<VersionManager>`, `<RulesPanel>`, `<MatchResolutionPanel>`)
-- 4 mode-specific row table sub-components for the calculation-mode branches (`<LaneRowsTable>`, `<StatusRowsTable>`, `<EventRowsTable>`, `<MoveRowsTable>`)
-- A new `lib/charge-profile-row-shapes.js` holding the row-shape constants and helpers (`EMPTY_*`, `emptyRowForMode`, `newVersion`)
+- 10 sub-components in `components/settings/charge-profile-detail/`:
+  - 2 already-self-contained sub-functions extracted to their own files (`<TagInput>`, `<LaneLocationCell>`)
+  - 4 logical render sections (`<ChargeProfileHeader>`, `<VersionManager>`, `<RulesPanel>`, `<MatchResolutionPanel>`)
+  - 4 mode-specific row tables that render under `<VersionManager>` based on `form.calculation_mode` (`<LaneRowsTable>`, `<StatusRowsTable>`, `<EventRowsTable>`, `<MoveRowsTable>`)
+- 1 new `lib/charge-profile-row-shapes.js` holding the row-shape constants and helpers (`EMPTY_*`, `emptyRowForMode`, `newVersion`)
 
 **Hard constraint: zero behavior change.** Same hard rule as Plan G1. The AR pricing engine and the load-side charge autopulldown must remain bit-for-bit identical. The `handleSave` payload shape, the state shape, and every controlled-input value flow are preserved exactly.
 
