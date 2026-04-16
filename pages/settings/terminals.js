@@ -1,7 +1,11 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Search, Ship, Train, Check, X, Pencil } from 'lucide-react';
+import { MapPin, Search, Ship, Train, Check, X, Pencil } from 'lucide-react';
 import SettingsLayout from '../../components/settings/SettingsLayout';
 import Alert from '../../components/ui/Alert';
+import { PageHeader } from '../../components/ui/ModuleHeader';
+import { SectionCard } from '../../components/ui/FormSection';
+import FieldGroup from '../../components/ui/FieldGroup';
+import Field from '../../components/ui/Field';
 
 
 export default function TerminalsPage() {
@@ -99,13 +103,12 @@ export default function TerminalsPage() {
       <div className="space-y-5 max-w-7xl">
         {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
 
-        <div>
-          <h1 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Terminals</h1>
-          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
-            Marine ports and rail ramps from your enabled markets. The Label/Key is fixed for backend
-            integrations. You can customize the Profile Name for your team's preferred naming.
-          </p>
-        </div>
+        <PageHeader
+          variant="plain"
+          title={<><MapPin className="w-6 h-6 text-blue-600 inline -mt-0.5 mr-2" />Terminals</>}
+          description="Enable/disable individual port and rail terminals. Customize their display names. Only enabled terminals appear in load pickers."
+          className="mb-[var(--space-section)]"
+        />
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
@@ -117,56 +120,64 @@ export default function TerminalsPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
-            <input
-              type="text"
-              placeholder="Search terminals…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 pl-9 pr-3 py-2 text-sm text-gray-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            />
-          </div>
-          <select
-            value={filterMarket}
-            onChange={(e) => setFilterMarket(e.target.value)}
-            className="rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-gray-900 dark:text-slate-100"
-          >
-            <option value="">All Markets</option>
-            {markets.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            className="rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-gray-900 dark:text-slate-100"
-          >
-            <option value="">All Types</option>
-            <option value="MARINE">Marine</option>
-            <option value="RAIL">Rail</option>
-          </select>
-        </div>
+        <SectionCard title="Filter" columns={0}>
+          <FieldGroup columns={3}>
+            <Field label="Search">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search terminals…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 pl-9 pr-3 py-2 text-body text-strong focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+            </Field>
+            <Field label="Market">
+              <select
+                value={filterMarket}
+                onChange={(e) => setFilterMarket(e.target.value)}
+                className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-body text-strong"
+              >
+                <option value="">All Markets</option>
+                {markets.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Type">
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-body text-strong"
+              >
+                <option value="">All Types</option>
+                <option value="MARINE">Marine</option>
+                <option value="RAIL">Rail</option>
+              </select>
+            </Field>
+          </FieldGroup>
+        </SectionCard>
 
         {/* Table */}
-        {loading ? (
-          <div className="py-16 text-center text-sm text-gray-400 dark:text-slate-500">Loading terminals…</div>
-        ) : (
-          <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+        <SectionCard title="Terminals" columns={0}>
+          {loading ? (
+            <div className="py-16 text-center text-body text-muted">Loading terminals…</div>
+          ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-body">
                 <thead>
                   <tr className="border-b border-gray-100 dark:border-slate-800 bg-gray-50/60 dark:bg-slate-800/60">
-                    <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Market</th>
-                    <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Type</th>
-                    <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Label / Key</th>
-                    <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Profile Name</th>
-                    <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">City</th>
-                    <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">State</th>
-                    <th className="text-center px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Enabled</th>
+                    <th className="text-left px-4 py-2.5 text-field-label text-muted">Market</th>
+                    <th className="text-left px-4 py-2.5 text-field-label text-muted">Type</th>
+                    <th className="text-left px-4 py-2.5 text-field-label text-muted">Label / Key</th>
+                    <th className="text-left px-4 py-2.5 text-field-label text-muted">Profile Name</th>
+                    <th className="text-left px-4 py-2.5 text-field-label text-muted">City</th>
+                    <th className="text-left px-4 py-2.5 text-field-label text-muted">State</th>
+                    <th className="text-center px-4 py-2.5 text-field-label text-muted">Enabled</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -175,11 +186,11 @@ export default function TerminalsPage() {
                       <td className="px-4 py-2.5">
                         <div className="flex items-center gap-1.5">
                           {!t.market_enabled && (
-                            <span className="text-[9px] uppercase tracking-wide font-semibold bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 px-1.5 py-0.5 rounded">
+                            <span className="text-[9px] uppercase tracking-wide font-semibold bg-gray-100 dark:bg-slate-800 text-muted px-1.5 py-0.5 rounded">
                               market off
                             </span>
                           )}
-                          <span className="text-xs text-gray-700 dark:text-slate-200">{t.market}</span>
+                          <span className="text-helper text-strong">{t.market}</span>
                         </div>
                       </td>
                       <td className="px-4 py-2.5">
@@ -198,7 +209,7 @@ export default function TerminalsPage() {
                           {t.type}
                         </span>
                       </td>
-                      <td className="px-4 py-2.5 font-mono text-xs text-gray-500 dark:text-slate-400">{t.label}</td>
+                      <td className="px-4 py-2.5 font-mono text-helper text-muted">{t.label}</td>
                       <td className="px-4 py-2.5">
                         {editingId === t.id ? (
                           <div className="flex items-center gap-1">
@@ -206,7 +217,7 @@ export default function TerminalsPage() {
                               type="text"
                               value={editName}
                               onChange={(e) => setEditName(e.target.value)}
-                              className="block w-48 rounded border border-blue-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100"
+                              className="block w-48 rounded border border-blue-300 px-2 py-1 text-helper focus:outline-none focus:ring-2 focus:ring-blue-100"
                               autoFocus
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter') saveCustomName(t.id);
@@ -228,7 +239,7 @@ export default function TerminalsPage() {
                           </div>
                         ) : (
                           <div className="flex items-center gap-1.5 group">
-                            <span className="text-xs text-gray-900 dark:text-slate-100">
+                            <span className="text-helper text-strong">
                               {t.effective_name}
                             </span>
                             {t.custom_name && (
@@ -248,8 +259,8 @@ export default function TerminalsPage() {
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-2.5 text-xs text-gray-600 dark:text-slate-300">{t.city || '—'}</td>
-                      <td className="px-4 py-2.5 text-xs text-gray-600 dark:text-slate-300">{t.state || '—'}</td>
+                      <td className="px-4 py-2.5 text-helper text-muted">{t.city || '—'}</td>
+                      <td className="px-4 py-2.5 text-helper text-muted">{t.state || '—'}</td>
                       <td className="px-4 py-2.5 text-center">
                         <button
                           type="button"
@@ -269,7 +280,7 @@ export default function TerminalsPage() {
                   ))}
                   {filtered.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="py-12 text-center text-sm text-gray-400 dark:text-slate-500">
+                      <td colSpan={7} className="py-12 text-center text-body text-muted">
                         No terminals found
                       </td>
                     </tr>
@@ -277,8 +288,8 @@ export default function TerminalsPage() {
                 </tbody>
               </table>
             </div>
-          </div>
-        )}
+          )}
+        </SectionCard>
       </div>
     </SettingsLayout>
   );
@@ -289,9 +300,9 @@ function StatCard({ label, value, icon }) {
     <div className="rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3">
       <div className="flex items-center gap-2">
         {icon}
-        <div className="text-2xl font-semibold text-gray-900 dark:text-slate-100">{value}</div>
+        <div className="text-2xl font-semibold text-strong">{value}</div>
       </div>
-      <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">{label}</div>
+      <div className="text-helper text-muted mt-0.5">{label}</div>
     </div>
   );
 }
