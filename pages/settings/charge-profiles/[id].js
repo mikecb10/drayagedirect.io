@@ -26,55 +26,11 @@ import {
   MATCH_RESOLUTION_OPTIONS,
   getModesForUOM,
 } from '../../../lib/charge-profile-constants';
-
-// ── Empty row templates per calculation mode ──────────────────
-const EMPTY_ROW_BASE = { amount_cents: 0, minimum_amount_cents: 0, free_units: 0 };
-
-const LOCATION_TYPES = [
-  { value: 'org', label: 'Organization' },
-  { value: 'city_state', label: 'City / State' },
-  { value: 'zip', label: 'Zip Code' },
-];
-
-const EMPTY_LANE_ROW = {
-  ...EMPTY_ROW_BASE,
-  origin_type: 'org', origin_id: null, origin_label: '', origin_value: '',
-  dest_type: 'org', dest_id: null, dest_label: '', dest_value: '',
-};
-
-const EMPTY_STATUS_ROW = { ...EMPTY_ROW_BASE, from_status: '', to_status: '' };
-
-const EMPTY_EVENT_ROW = {
-  ...EMPTY_ROW_BASE, event_type: '',
-  event_location_id: null, event_location_label: '',
-  event_location_type: 'org', event_location_value: '',
-};
-
-const EMPTY_MOVE_ROW = {
-  ...EMPTY_ROW_BASE,
-  move_events: [{ event: '', event_time: 'arrived', location_id: null, location_label: '', location_type: 'org', location_value: '' }],
-  move_calc_from: 'first_event_arrived', move_calc_to: 'last_event_arrived',
-};
-
-function emptyRowForMode(mode) {
-  switch (mode) {
-    case 'by_lane': return { ...EMPTY_LANE_ROW };
-    case 'between_statuses': return { ...EMPTY_STATUS_ROW };
-    case 'by_event': return { ...EMPTY_EVENT_ROW };
-    case 'by_move': return JSON.parse(JSON.stringify(EMPTY_MOVE_ROW));
-    default: return { ...EMPTY_ROW_BASE };
-  }
-}
-
-const EMPTY_VERSION = { label: '', effective_from: '', effective_to: '', rows: [] };
-
-function newVersion(mode, idx = 1) {
-  return {
-    ...JSON.parse(JSON.stringify(EMPTY_VERSION)),
-    label: `Version ${idx}`,
-    rows: [emptyRowForMode(mode)],
-  };
-}
+import {
+  LOCATION_TYPES,
+  emptyRowForMode,
+  newVersion,
+} from '../../../lib/charge-profile-row-shapes';
 
 // ── Inline Tag Input ─────────────────────────────────────────
 function TagInput({ tags, onChange, availableTags }) {
