@@ -383,11 +383,11 @@ export default function LoadInfoTab({ load, holds: initialHolds, routingLocks, o
       {/* Identity */}
       <FormSection title="Identity">
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-1">Load Type</label>
-          <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 px-3 py-2.5 text-sm text-gray-600 dark:text-slate-300 capitalize">
+          <label className="block text-sm font-medium text-muted mb-1">Load Type</label>
+          <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 px-3 py-2.5 text-sm text-muted capitalize">
             {(form.load_type || 'import').replace('_', ' ')}
           </div>
-          <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+          <p className="mt-[var(--space-field-helper)] text-helper text-muted">
             Load type is locked after creation — the load number embeds the type
             letter. Delete and recreate to change.
           </p>
@@ -906,7 +906,7 @@ export default function LoadInfoTab({ load, holds: initialHolds, routingLocks, o
                     : isHold ? 'border-red-200 dark:border-red-800 bg-red-50/40 dark:bg-red-950/40' : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900'
                 } transition-all duration-300`}
               >
-                <div className="w-36 text-sm font-medium text-gray-900 dark:text-slate-100 shrink-0">{ht.label}</div>
+                <div className="w-36 text-body font-medium text-strong shrink-0">{ht.label}</div>
                 <div className="flex gap-1">
                   <button
                     type="button"
