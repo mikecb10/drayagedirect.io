@@ -28,9 +28,9 @@ import {
   emptyRowForMode,
   newVersion,
 } from '../../../lib/charge-profile-row-shapes';
-import TagInput from '../../../components/settings/charge-profile-detail/TagInput';
 import LaneLocationCell from '../../../components/settings/charge-profile-detail/LaneLocationCell';
 import MatchResolutionPanel from '../../../components/settings/charge-profile-detail/MatchResolutionPanel';
+import ChargeProfileHeader from '../../../components/settings/charge-profile-detail/ChargeProfileHeader';
 
 // ═══════════════════════════════════════════════════════════════
 // MAIN FORM — mirrors PortPro layout
@@ -265,49 +265,11 @@ export default function ChargeProfileForm({ chargeProfileId: propId, onClose: on
         {/* ═══════════════════════════════════════════════════ */}
         {/* SECTION 1: Header fields — compact inline layout   */}
         {/* ═══════════════════════════════════════════════════ */}
-        <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 space-y-4">
-          {/* Row 1: Name | Charge Name | Description */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-slate-300 mb-1">* Charge Profile Name</label>
-              <input type="text" value={form.name} onChange={(e) => update('name', e.target.value)}
-                placeholder="My Base Price"
-                className="block w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-slate-300 mb-1">* Charge Name</label>
-              <select value={form.charge_name} onChange={(e) => update('charge_name', e.target.value)}
-                className="block w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40">
-                <option value="">Select...</option>
-                {CHARGE_NAMES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-slate-300 mb-1">Charge Description</label>
-              <input type="text" value={form.description} onChange={(e) => update('description', e.target.value)}
-                placeholder="Enter description"
-                className="block w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40" />
-            </div>
-          </div>
-
-          {/* Row 2: Tag | Auto Add */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <TagInput tags={form.tags} onChange={(tags) => update('tags', tags)} availableTags={availableTags} />
-            <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-slate-300 mb-1">* Auto Add to Load</label>
-              <div className="flex items-center gap-4 h-[36px]">
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input type="radio" checked={!form.auto_add} onChange={() => update('auto_add', false)} className="text-blue-600 w-4 h-4" />
-                  No
-                </label>
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input type="radio" checked={form.auto_add} onChange={() => update('auto_add', true)} className="text-blue-600 w-4 h-4" />
-                  Yes
-                </label>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ChargeProfileHeader
+          form={form}
+          update={update}
+          availableTags={availableTags}
+        />
 
         {/* ═══════════════════════════════════════════════════ */}
         {/* SECTION 2: Version box — PP-style with selector    */}
