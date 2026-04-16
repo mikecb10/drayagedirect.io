@@ -12,12 +12,16 @@ export default function App({ Component, pageProps }) {
   const router = useRouter();
   const isAdminRoute = router.pathname.startsWith('/admin');
 
+  // Per-page layout opt-in: pages may export Component.getLayout to wrap
+  // themselves in a persistent layout that survives route changes (e.g. the
+  // settings shell). Pages that don't export it use the identity wrapper.
+  const getLayout = Component.getLayout ?? ((page) => page);
+  const page = getLayout(<Component {...pageProps} />);
+
   if (isAdminRoute) {
     return (
       <ThemeProvider>
-        <AdminAuthProvider>
-          <Component {...pageProps} />
-        </AdminAuthProvider>
+        <AdminAuthProvider>{page}</AdminAuthProvider>
       </ThemeProvider>
     );
   }
@@ -28,7 +32,7 @@ export default function App({ Component, pageProps }) {
         <CompactModeProvider>
           <OverlayProvider>
             <ImpersonationBanner />
-            <Component {...pageProps} />
+            {page}
             <OverlayRenderer />
           </OverlayProvider>
         </CompactModeProvider>
