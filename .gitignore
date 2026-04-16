@@ -58,3 +58,6 @@ venv/
 
 # Brainstorming companion artifacts
 .superpowers/
+
+# Tariff plan baselines (Plan G1)
+tmp/
