@@ -1,10 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { UserPlus, Copy, CheckCheck, Edit2, ToggleLeft, ToggleRight, Search } from 'lucide-react';
+import { Users, UserPlus, Copy, CheckCheck, Edit2, ToggleLeft, ToggleRight, Search } from 'lucide-react';
 import SettingsLayout from '../../components/settings/SettingsLayout';
 import Modal from '../../components/ui/Modal';
 import Button from '../../components/ui/Button';
 import Alert from '../../components/ui/Alert';
+import Input from '../../components/ui/Input';
+import { PageHeader } from '../../components/ui/ModuleHeader';
+import { SectionCard } from '../../components/ui/FormSection';
+import FieldGroup from '../../components/ui/FieldGroup';
+import Field from '../../components/ui/Field';
 import { SYSTEM_ROLES, PERMISSION_CATEGORIES, ALL_PERMISSION_KEYS, getDefaultPermissions } from '../../lib/rbac';
 
 const ROLE_BADGE_COLORS = {
@@ -97,99 +102,105 @@ export default function TeamSettings() {
 
   return (
     <SettingsLayout title="Team & Permissions">
-      <div className="max-w-6xl space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Users & Permissions</h1>
-            <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">Manage Users And Their Granted Permissions.</p>
-          </div>
-          <Button onClick={openAdd}>
-            <UserPlus className="w-4 h-4 mr-1 inline" /> Add New User
-          </Button>
-        </div>
+      <div className="max-w-6xl space-y-[var(--space-section)]">
+        <PageHeader
+          variant="plain"
+          title={<><Users className="w-6 h-6 text-blue-600 inline -mt-0.5 mr-2" />Users & Permissions</>}
+          description="Manage users and their granted permissions."
+          actions={<Button onClick={openAdd}><UserPlus className="w-4 h-4 mr-1 inline -mt-0.5" />Add New User</Button>}
+          className="mb-[var(--space-section)]"
+        />
 
         {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
 
         {/* Search + filter */}
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
-            <input type="text" placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)}
-              className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
-          </div>
-          <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}
-            className="rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 px-3 py-2 text-sm">
-            <option value="all">All</option>
-            {SYSTEM_ROLES.filter((r) => r.value !== 'custom').map((r) => (
-              <option key={r.value} value={r.value}>{r.label}</option>
-            ))}
-          </select>
-        </div>
+        <SectionCard title="Filter" columns={0}>
+          <FieldGroup columns={2}>
+            <Field label="Search">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500 pointer-events-none" />
+                <input type="text" placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)}
+                  className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-body text-strong pl-9 pr-3 py-2 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+              </div>
+            </Field>
+            <Field label="Role">
+              <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}
+                className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-body text-strong px-3 py-2">
+                <option value="all">All</option>
+                {SYSTEM_ROLES.filter((r) => r.value !== 'custom').map((r) => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
+              </select>
+            </Field>
+          </FieldGroup>
+        </SectionCard>
 
         {/* Users table */}
-        <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 dark:border-slate-800 bg-gray-50/60 dark:bg-slate-800/50">
-                <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Name</th>
-                <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">System Roles</th>
-                <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Custom Roles</th>
-                <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Email</th>
-                <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Phone</th>
-                <th className="w-24"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50 dark:divide-slate-800">
-              {loading ? (
-                <tr><td colSpan={6} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">Loading...</td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">No users found</td></tr>
-              ) : filtered.map((u) => {
-                const role = getSystemRole(u);
-                const hasCustom = (u.granular_permissions || []).length > 0 && role === 'custom';
-                return (
-                  <tr key={u.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/60">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 flex items-center justify-center text-xs font-bold shrink-0">
-                          {getInitials(u)}
+        <SectionCard title="Users" columns={0}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-body">
+              <thead>
+                <tr className="border-b border-gray-100 dark:border-slate-800 bg-gray-50/60 dark:bg-slate-800/50">
+                  <th className="text-left px-4 py-2.5 text-field-label text-muted">Name</th>
+                  <th className="text-left px-4 py-2.5 text-field-label text-muted">System Roles</th>
+                  <th className="text-left px-4 py-2.5 text-field-label text-muted">Custom Roles</th>
+                  <th className="text-left px-4 py-2.5 text-field-label text-muted">Email</th>
+                  <th className="text-left px-4 py-2.5 text-field-label text-muted">Phone</th>
+                  <th className="w-24"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50 dark:divide-slate-800">
+                {loading ? (
+                  <tr><td colSpan={6} className="px-4 py-10 text-center text-helper text-muted">Loading...</td></tr>
+                ) : filtered.length === 0 ? (
+                  <tr><td colSpan={6} className="px-4 py-10 text-center text-helper text-muted">No users found</td></tr>
+                ) : filtered.map((u) => {
+                  const role = getSystemRole(u);
+                  const hasCustom = (u.granular_permissions || []).length > 0 && role === 'custom';
+                  return (
+                    <tr key={u.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/60">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 flex items-center justify-center text-xs font-bold shrink-0">
+                            {getInitials(u)}
+                          </div>
+                          <span className="font-medium text-strong">{getUserName(u)}</span>
                         </div>
-                        <span className="font-medium text-gray-900 dark:text-slate-100">{getUserName(u)}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded ${ROLE_BADGE_COLORS[role] || 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300'}`}>
-                        {getRoleLabel(role)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {hasCustom ? (
-                        <span className="text-[10px] font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-950/60"
-                          onClick={() => openEdit(u)}>
-                          Custom Permission
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded ${ROLE_BADGE_COLORS[role] || 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300'}`}>
+                          {getRoleLabel(role)}
                         </span>
-                      ) : (
-                        <span className="text-xs text-gray-400 dark:text-slate-500">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-600 dark:text-slate-300">{u.email}</td>
-                    <td className="px-4 py-3 text-xs text-gray-600 dark:text-slate-300">{u.phone || '—'}</td>
-                    <td className="px-2 py-3">
-                      <div className="flex items-center gap-1 justify-end">
-                        <button onClick={() => openEdit(u)} className="text-gray-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 p-1" title="Edit user">
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button className="text-gray-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 p-1" title="Toggle active">
-                          {u.status === 'active' ? <ToggleRight className="w-4 h-4 text-blue-600" /> : <ToggleLeft className="w-4 h-4" />}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {hasCustom ? (
+                          <span className="text-[10px] font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-950/60"
+                            onClick={() => openEdit(u)}>
+                            Custom Permission
+                          </span>
+                        ) : (
+                          <span className="text-helper text-muted">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-helper text-muted">{u.email}</td>
+                      <td className="px-4 py-3 text-helper text-muted">{u.phone || '—'}</td>
+                      <td className="px-2 py-3">
+                        <div className="flex items-center gap-1 justify-end">
+                          <button onClick={() => openEdit(u)} className="text-gray-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 p-1" title="Edit user">
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button className="text-gray-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 p-1" title="Toggle active">
+                            {u.status === 'active' ? <ToggleRight className="w-4 h-4 text-blue-600" /> : <ToggleLeft className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </SectionCard>
       </div>
 
       {/* Add/Edit User Modal */}
@@ -216,17 +227,17 @@ export default function TeamSettings() {
         <div className="space-y-4">
           <Alert type="success" message={`${tempPasswordInfo?.user?.name || 'User'} has been added to your team.`} />
           <div>
-            <p className="text-sm text-gray-600 dark:text-slate-300 mb-2">
+            <p className="text-body text-muted mb-2">
               Share this temporary password with <strong>{tempPasswordInfo?.user?.email}</strong>. They'll be prompted to change it on first login.
             </p>
             <div className="flex items-center gap-2 bg-gray-50 dark:bg-slate-800/50 border border-gray-200 dark:border-slate-800 rounded-lg p-3">
-              <code className="flex-1 text-sm font-mono text-gray-900 dark:text-slate-100">{tempPasswordInfo?.tempPassword}</code>
+              <code className="flex-1 text-body font-mono text-strong">{tempPasswordInfo?.tempPassword}</code>
               <button onClick={() => handleCopy(tempPasswordInfo?.tempPassword)}
-                className="flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300">
+                className="flex items-center gap-1 text-helper font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300">
                 {copied ? <><CheckCheck className="w-4 h-4" /> Copied</> : <><Copy className="w-4 h-4" /> Copy</>}
               </button>
             </div>
-            <p className="text-xs text-gray-500 dark:text-slate-400 mt-2">This password will not be shown again.</p>
+            <p className="text-helper text-muted mt-2">This password will not be shown again.</p>
           </div>
           <div className="flex justify-end">
             <Button onClick={() => setTempPasswordInfo(null)}>Done</Button>
@@ -347,14 +358,14 @@ function UserModal({ isOpen, user, onClose, onSuccess }) {
         {/* Tabs */}
         <div className="flex border-b border-gray-200 dark:border-slate-800 mb-5">
           <button onClick={() => setTab('info')}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              tab === 'info' ? 'border-blue-600 text-blue-700 dark:text-blue-300' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+            className={`px-4 py-2.5 text-body font-medium border-b-2 transition-colors ${
+              tab === 'info' ? 'border-blue-600 text-blue-700 dark:text-blue-300' : 'border-transparent text-muted hover:text-strong'
             }`}>
             User Info
           </button>
           <button onClick={() => setTab('permissions')}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              tab === 'permissions' ? 'border-blue-600 text-blue-700 dark:text-blue-300' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+            className={`px-4 py-2.5 text-body font-medium border-b-2 transition-colors ${
+              tab === 'permissions' ? 'border-blue-600 text-blue-700 dark:text-blue-300' : 'border-transparent text-muted hover:text-strong'
             }`}>
             Permissions
           </button>
@@ -364,64 +375,73 @@ function UserModal({ isOpen, user, onClose, onSuccess }) {
 
         {/* ── User Info Tab ─────────────────────────────── */}
         {tab === 'info' && (
-          <div className="space-y-4">
-            <div className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">General Information</div>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">* First name</label>
-                <input type="text" value={form.first_name} onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))}
+          <div className="space-y-[var(--space-field)]">
+            <h3 className="text-field-label text-muted">General Information</h3>
+            <div className="space-y-[var(--space-field)]">
+              <Field label="First name" required>
+                <Input
+                  value={form.first_name}
+                  onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))}
                   placeholder="Enter First Name"
-                  className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">* Last name</label>
-                <input type="text" value={form.last_name} onChange={(e) => setForm((f) => ({ ...f, last_name: e.target.value }))}
+                />
+              </Field>
+              <Field label="Last name" required>
+                <Input
+                  value={form.last_name}
+                  onChange={(e) => setForm((f) => ({ ...f, last_name: e.target.value }))}
                   placeholder="Enter Last Name"
-                  className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Phone</label>
-                <input type="text" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                />
+              </Field>
+              <Field label="Phone">
+                <Input
+                  value={form.phone}
+                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                   placeholder="Enter Phone number"
-                  className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">* Email</label>
-                <input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                  placeholder="Enter email address" disabled={isEdit}
-                  className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-50 dark:disabled:bg-slate-800" />
-              </div>
+                />
+              </Field>
+              <Field label="Email" required>
+                <Input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                  placeholder="Enter email address"
+                  disabled={isEdit}
+                />
+              </Field>
 
               {/* Roles */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-2">Roles</label>
+              <Field label="Roles">
                 <div className="flex flex-wrap gap-3">
                   {SYSTEM_ROLES.filter((r) => r.value !== 'custom' && r.value !== 'super_admin').map((r) => (
                     <label key={r.value} className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={form.system_role === r.value}
                         onChange={() => handleRoleChange(form.system_role === r.value ? 'custom' : r.value)}
                         className="rounded border-gray-300 dark:border-slate-600 text-blue-600 w-4 h-4" />
-                      <span className="text-sm text-gray-700 dark:text-slate-200">{r.label}</span>
+                      <span className="text-body text-strong">{r.label}</span>
                     </label>
                   ))}
                 </div>
-              </div>
+              </Field>
 
               {/* Password (only for new users) */}
               {!isEdit && (
                 <>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">* Password</label>
-                    <input type="password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                  <Field label="Password" required>
+                    <Input
+                      type="password"
+                      value={form.password}
+                      onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
                       placeholder="Enter Password"
-                      className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">* Confirm Password</label>
-                    <input type="password" value={form.confirm_password} onChange={(e) => setForm((f) => ({ ...f, confirm_password: e.target.value }))}
+                    />
+                  </Field>
+                  <Field label="Confirm Password" required>
+                    <Input
+                      type="password"
+                      value={form.confirm_password}
+                      onChange={(e) => setForm((f) => ({ ...f, confirm_password: e.target.value }))}
                       placeholder="Repeat Password"
-                      className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
-                  </div>
+                    />
+                  </Field>
                 </>
               )}
             </div>
@@ -430,21 +450,20 @@ function UserModal({ isOpen, user, onClose, onSuccess }) {
 
         {/* ── Permissions Tab ───────────────────────────── */}
         {tab === 'permissions' && (
-          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+          <div className="space-y-[var(--space-field)] max-h-[60vh] overflow-y-auto pr-1">
             {/* Role dropdown */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Permissions Based On Role</label>
+            <Field label="Permissions Based On Role">
               <select value={form.system_role} onChange={(e) => handleRoleChange(e.target.value)}
-                className="rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 px-3 py-2 text-sm w-full max-w-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                className="rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-body text-strong px-3 py-2 w-full max-w-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
                 {SYSTEM_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
               </select>
-            </div>
+            </Field>
 
             {/* All Permissions toggle */}
             <label className="flex items-center gap-2 cursor-pointer py-1">
               <input type="checkbox" checked={granularPerms.length === ALL_PERMISSION_KEYS.length}
                 onChange={toggleAll} className="rounded border-gray-300 dark:border-slate-600 text-blue-600 w-4 h-4" />
-              <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">All Permissions</span>
+              <span className="text-body font-semibold text-strong">All Permissions</span>
             </label>
 
             {/* Permission categories */}
@@ -461,9 +480,9 @@ function UserModal({ isOpen, user, onClose, onSuccess }) {
                     <input type="checkbox" checked={allChecked} ref={(el) => { if (el) el.indeterminate = someChecked; }}
                       onChange={() => toggleCategory(cat.key)}
                       className="rounded border-gray-300 dark:border-slate-600 text-blue-600 w-4 h-4" />
-                    <span className="text-sm font-semibold text-gray-800 dark:text-slate-200">{cat.label}</span>
+                    <span className="text-body font-semibold text-strong">{cat.label}</span>
                     {checkedCount > 0 && (
-                      <span className="text-[10px] text-gray-400 dark:text-slate-500">({checkedCount}/{catKeys.length})</span>
+                      <span className="text-helper text-muted">({checkedCount}/{catKeys.length})</span>
                     )}
                   </label>
 
@@ -474,7 +493,7 @@ function UserModal({ isOpen, user, onClose, onSuccess }) {
                         <input type="checkbox" checked={granularPerms.includes(p.key)}
                           onChange={() => togglePerm(p.key)}
                           className="rounded border-gray-300 dark:border-slate-600 text-blue-600 w-3.5 h-3.5" />
-                        <span className="text-xs text-gray-700 dark:text-slate-300">{p.label}</span>
+                        <span className="text-helper text-strong">{p.label}</span>
                       </label>
                     ))}
                   </div>
@@ -485,7 +504,7 @@ function UserModal({ isOpen, user, onClose, onSuccess }) {
         )}
 
         {/* Bottom actions */}
-        <div className="flex justify-end gap-3 pt-5 mt-5 border-t border-gray-200 dark:border-slate-800">
+        <div className="flex justify-end gap-[var(--space-inline)] pt-5 mt-5 border-t border-gray-200 dark:border-slate-800">
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
           {tab === 'info' && !isEdit ? (
             <Button onClick={() => setTab('permissions')}>Next</Button>
