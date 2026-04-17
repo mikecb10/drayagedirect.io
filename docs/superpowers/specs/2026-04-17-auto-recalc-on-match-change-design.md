@@ -4,6 +4,8 @@
 **Status:** Draft, awaiting plan
 **Predecessors:** AR Charge Profile Autofill (shipped 2026-04-17, commits `49d574f..ac8f54d`). Builds on the `source_profile_id` audit trail and the auto-add engine behavior in `lib/tariff-engine.js`.
 
+**Pre-existing behavior (discovered during plan grounding):** `pages/api/tenant/loads/[id]/index.js`'s PUT handler ALREADY contains an inline auto-trigger at lines 500-517 that fires `findMatchingCharges + applyChargesToLoad` when any of a `PRICING_FIELDS` list changes. This spec's scope is therefore: (1) add safety guards to that existing trigger (DRAFT-only, empty-charges wipe), (2) add the missing line-item auto→manual flip, (3) optionally extract the logic to a shared helper for maintainability. The field list already exists and nearly matches what this spec proposed — plan will deduplicate rather than introduce a second list.
+
 ---
 
 ## 1. Goal
