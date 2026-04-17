@@ -37,6 +37,7 @@ export default function LocationConditionField({ label, field, form, isAll, onSe
       )}
       {!isAll && (
         <OrgPicker type={orgType} placeholder={`Add ${orgType}...`}
+          excludeIds={locationIds}
           onChange={(org) => { if (org) onAddLocation(org.id, org.name); }} />
       )}
     </div>

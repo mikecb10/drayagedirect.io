@@ -139,6 +139,7 @@ export default function TariffMatchingPanel({
             </div>
           )}
           <OrgPicker type="customer" placeholder="Add customer..."
+            excludeIds={form.customer_ids}
             onChange={(org) => {
               if (org) {
                 update('customer_ids', [...form.customer_ids, org.id]);
@@ -275,6 +276,7 @@ function LocationConditionField({ label, field, form, isAll, onSetAll, onAddLoca
       )}
       {!isAll && (
         <OrgPicker type={orgType} placeholder={`Add ${orgType}...`}
+          excludeIds={locationIds}
           onChange={(org) => { if (org) onAddLocation(org.id, org.name); }} />
       )}
     </div>

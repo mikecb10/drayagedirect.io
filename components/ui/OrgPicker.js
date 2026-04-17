@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Building2, Search, X, Loader2, Ship, Train, MapPin, Plus } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
@@ -28,6 +28,7 @@ const OrganizationModal = dynamic(() => import('../organizations/OrganizationMod
  *   placeholder    - input placeholder
  *   helpText       - below-input help text
  *   includeTerminals - also search system_terminals (default: true when type='terminal')
+ *   excludeIds     - array of org/terminal ids to hide from results (for multi-select callers)
  */
 export default function OrgPicker({
   label,
@@ -41,6 +42,7 @@ export default function OrgPicker({
   disabled = false,
   className = '',
   includeTerminals,
+  excludeIds,
 }) {
   const wrapperRef = useRef(null);
   const [open, setOpen] = useState(false);
@@ -50,6 +52,9 @@ export default function OrgPicker({
   const [loading, setLoading] = useState(false);
   const [selectedLabel, setSelectedLabel] = useState(valueLabel || '');
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // O(1) lookup set for already-selected ids (used by multi-select callers)
+  const excludeSet = useMemo(() => new Set(excludeIds || []), [excludeIds]);
 
   // Default: include terminals when type is 'terminal'
   const showTerminals = includeTerminals !== undefined ? includeTerminals : type === 'terminal';
@@ -172,7 +177,9 @@ export default function OrgPicker({
     onChange?.(null);
   }
 
-  const totalResults = orgResults.length + terminalResults.length;
+  const visibleOrgResults = excludeSet.size > 0 ? orgResults.filter((o) => !excludeSet.has(o.id)) : orgResults;
+  const visibleTerminalResults = excludeSet.size > 0 ? terminalResults.filter((t) => !excludeSet.has(t.id)) : terminalResults;
+  const totalResults = visibleOrgResults.length + visibleTerminalResults.length;
 
   return (
     <div ref={wrapperRef} className={`relative ${className}`}>
@@ -229,13 +236,13 @@ export default function OrgPicker({
           ) : (
             <>
               {/* System Terminals */}
-              {terminalResults.length > 0 && (
+              {visibleTerminalResults.length > 0 && (
                 <>
                   <div className="px-3 py-1.5 bg-gray-50 dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 text-[10px] uppercase tracking-wide font-semibold text-gray-500 dark:text-slate-400 sticky top-0">
                     <MapPin className="w-3 h-3 inline -mt-0.5 mr-1" />
-                    Terminals ({terminalResults.length})
+                    Terminals ({visibleTerminalResults.length})
                   </div>
-                  {terminalResults.map((t) => (
+                  {visibleTerminalResults.map((t) => (
                     <button
                       key={`t-${t.id}`}
                       type="button"
@@ -273,15 +280,15 @@ export default function OrgPicker({
               )}
 
               {/* Organizations */}
-              {orgResults.length > 0 && (
+              {visibleOrgResults.length > 0 && (
                 <>
-                  {terminalResults.length > 0 && (
+                  {visibleTerminalResults.length > 0 && (
                     <div className="px-3 py-1.5 bg-gray-50 dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 text-[10px] uppercase tracking-wide font-semibold text-gray-500 dark:text-slate-400 sticky top-0">
                       <Building2 className="w-3 h-3 inline -mt-0.5 mr-1" />
-                      Your Organizations ({orgResults.length})
+                      Your Organizations ({visibleOrgResults.length})
                     </div>
                   )}
-                  {orgResults.map((org) => (
+                  {visibleOrgResults.map((org) => (
                     <button
                       key={`o-${org.id}`}
                       type="button"
