@@ -818,35 +818,6 @@ function ChargeProfilePickerModal({ isOpen, onClose, onSelect, existingIds = [] 
 }
 
 // ── Reusable Location Condition Field ─────────────────────────
-// ── Driver dropdown ─────────────────────────────────────────
-// Used for charge sets with pay_to_mode='specified' — pin a specific
-// driver to receive pay regardless of which driver runs the load.
-function DriverPicker({ value, onChange }) {
-  const [drivers, setDrivers] = useState([]);
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch('/api/tenant/drivers');
-        if (res.ok) {
-          const data = await res.json();
-          setDrivers(data.drivers || []);
-        }
-      } catch { /* silent */ }
-    }
-    load();
-  }, []);
-  return (
-    <select value={value || ''} onChange={(e) => onChange(e.target.value || null)}
-      className="block w-full rounded border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs px-2 py-1">
-      <option value="">Select driver...</option>
-      {drivers.map((d) => (
-        <option key={d.id} value={d.id}>
-          {d.name || [d.first_name, d.last_name].filter(Boolean).join(' ')}
-        </option>
-      ))}
-    </select>
-  );
-}
 
 // ── Driver Group dropdown ───────────────────────────────────
 // Fetches /api/tenant/ap/driver-groups once and renders a simple select.
