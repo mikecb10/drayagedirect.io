@@ -1,6 +1,7 @@
 import { requireTenantUser, requirePermission, getServiceClient } from '../../../../../lib/tenant-api';
 import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
 import { PERMISSIONS } from '../../../../../lib/permissions';
+import { validateAdvancedRoute } from '../../../../../lib/advanced-route-validator';
 
 /**
  * /api/tenant/ap/tariffs
@@ -84,6 +85,18 @@ export default async function handler(req, res) {
 
     const { data, error } = await svc.from('driver_tariffs').insert(insertData).select().single();
     if (error) return res.status(500).json({ error: error.message });
+
+    if (body.advanced_route) {
+      const v = validateAdvancedRoute(body.advanced_route);
+      if (!v.ok) return res.status(400).json({ error: v.error, step: 'validate_advanced_route' });
+      const { error: arErr } = await svc.from('driver_tariff_advanced_routes').insert({
+        tenant_id: ctx.tenantId,
+        driver_tariff_id: data.id,
+        routing_template_id: body.advanced_route.routing_template_id || null,
+        moves: body.advanced_route.moves,
+      });
+      if (arErr) return res.status(500).json({ error: arErr.message, step: 'insert_advanced_route' });
+    }
 
     // Create charge sets + profile links on initial create too. Accepts
     // both { profile_ids: [...] } and { profiles: [{ charge_profile_id, ... }] }
