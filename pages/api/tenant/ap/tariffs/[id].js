@@ -1,6 +1,7 @@
 import { requireTenantUser, requirePermission, getServiceClient } from '../../../../../lib/tenant-api';
 import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
 import { PERMISSIONS } from '../../../../../lib/permissions';
+import { validateAdvancedRoute } from '../../../../../lib/advanced-route-validator';
 
 const EDITABLE_FIELDS = [
   'name', 'status', 'driver_group_id', 'priority',
@@ -26,6 +27,9 @@ export default async function handler(req, res) {
       .select(`
         *,
         driver_group:driver_groups(id, name),
+        advanced_route:driver_tariff_advanced_routes(
+          id, routing_template_id, moves
+        ),
         charge_sets:driver_tariff_charge_sets(
           id, pay_to_mode, pay_to_driver_id, notes,
           profiles:driver_tariff_charge_set_profiles(
@@ -40,6 +44,11 @@ export default async function handler(req, res) {
       `)
       .eq('id', id).eq('tenant_id', ctx.tenantId).single();
     if (error || !data) return res.status(404).json({ error: 'Tariff not found' });
+
+    if (Array.isArray(data.advanced_route)) {
+      data.advanced_route = data.advanced_route[0] || null;
+    }
+
     return res.status(200).json({ tariff: data });
   }
 
@@ -53,6 +62,28 @@ export default async function handler(req, res) {
       const { error } = await svc.from('driver_tariffs').update(updates)
         .eq('id', id).eq('tenant_id', ctx.tenantId);
       if (error) return res.status(500).json({ error: error.message });
+    }
+
+    // Upsert advanced_route if present.
+    //   null -> delete; object -> validate + upsert; absent -> no-op
+    if ('advanced_route' in body) {
+      const ar = body.advanced_route;
+      if (ar === null) {
+        const { error: delErr } = await svc.from('driver_tariff_advanced_routes').delete()
+          .eq('driver_tariff_id', id).eq('tenant_id', ctx.tenantId);
+        if (delErr) return res.status(500).json({ error: delErr.message, step: 'delete_advanced_route' });
+      } else {
+        const v = validateAdvancedRoute(ar);
+        if (!v.ok) return res.status(400).json({ error: v.error, step: 'validate_advanced_route' });
+        const { error: upErr } = await svc.from('driver_tariff_advanced_routes').upsert({
+          tenant_id: ctx.tenantId,
+          driver_tariff_id: id,
+          routing_template_id: ar.routing_template_id || null,
+          moves: ar.moves,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'driver_tariff_id' });
+        if (upErr) return res.status(500).json({ error: upErr.message, step: 'upsert_advanced_route' });
+      }
     }
 
     // Manage charge sets if provided. Accepts two equivalent payload
