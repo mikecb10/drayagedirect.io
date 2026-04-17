@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import OrgPicker from '../../ui/OrgPicker';
 
 /**
@@ -12,7 +11,12 @@ import OrgPicker from '../../ui/OrgPicker';
  *   - zip         → zip text input
  *
  * Value shape (stable across modes — unused fields null):
- *   { mode, org_id, city, state, zip }
+ *   { mode, org_id, org_label, city, state, zip }
+ *
+ * `org_label` is a UI-only denorm of the picked org's name so the
+ * OrgPicker can render the selected-state label after a page reload
+ * (it doesn't re-fetch the org by id). The server-side matcher only
+ * looks at org_id; org_label is ignored there but persisted in JSONB.
  *
  * Emits onChange(nextValue) with that full shape on any edit.
  * Switching modes clears the other fields so stale data doesn't
@@ -36,6 +40,7 @@ const US_STATES = [
 const EMPTY_VALUE = {
   mode: 'specific',
   org_id: null,
+  org_label: null,
   city: null,
   state: null,
   zip: null,
@@ -47,12 +52,10 @@ function normalizeForMode(mode) {
 
 export default function EventLocationPicker({ value, onChange, orgType = 'customer' }) {
   const v = value && value.mode ? value : EMPTY_VALUE;
-  const [orgLabel, setOrgLabel] = useState('');
 
   function setMode(nextMode) {
     if (nextMode === v.mode) return;
     onChange(normalizeForMode(nextMode));
-    setOrgLabel('');
   }
 
   function setField(field, fieldValue) {
@@ -82,14 +85,13 @@ export default function EventLocationPicker({ value, onChange, orgType = 'custom
         <OrgPicker
           type={orgType}
           placeholder={`Add ${orgType}...`}
-          value={v.org_id ? { id: v.org_id, name: orgLabel || v.org_id.slice(0, 8) } : null}
+          value={v.org_id || null}
+          valueLabel={v.org_label || ''}
           onChange={(org) => {
             if (org) {
-              setField('org_id', org.id);
-              setOrgLabel(org.name);
+              onChange({ ...v, org_id: org.id, org_label: org.name });
             } else {
-              setField('org_id', null);
-              setOrgLabel('');
+              onChange({ ...v, org_id: null, org_label: null });
             }
           }}
         />

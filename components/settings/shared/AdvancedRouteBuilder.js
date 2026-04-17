@@ -35,7 +35,7 @@ const PALETTE = [
 ];
 
 function emptyLocationMatch() {
-  return { mode: 'specific', org_id: null, city: null, state: null, zip: null };
+  return { mode: 'specific', org_id: null, org_label: null, city: null, state: null, zip: null };
 }
 
 function orgTypeForEvent(eventType) {
