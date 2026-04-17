@@ -7,6 +7,7 @@ import Button from '../../../components/ui/Button';
 import ChargeProfilePickerModal from '../../../components/settings/driver-tariff-detail/ChargeProfilePickerModal';
 import DriverGroupSelect from '../../../components/settings/driver-tariff-detail/DriverGroupSelect';
 import LocationConditionField from '../../../components/settings/driver-tariff-detail/LocationConditionField';
+import DriverTariffHeader from '../../../components/settings/driver-tariff-detail/DriverTariffHeader';
 import Alert from '../../../components/ui/Alert';
 import ReferenceDataPicker from '../../../components/ui/ReferenceDataPicker';
 import ContainerOwnerPicker from '../../../components/ui/ContainerOwnerPicker';
@@ -331,20 +332,10 @@ export default function DriverTariffForm({ tariffId: propTariffId, onClose: onCl
     return (
       <>
       <div className="max-w-7xl pb-20">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-5">
-          <h1 className="text-base font-semibold text-gray-900 dark:text-slate-100">Driver Tariff</h1>
-          <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-slate-500">
-            <button onClick={() => update('matching_mode', 'basic')}
-              className={`px-3 py-1 rounded ${form.matching_mode === 'basic' ? 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200 font-semibold' : 'hover:bg-gray-100 dark:hover:bg-slate-800'}`}>
-              Basic
-            </button>
-            <button onClick={() => update('matching_mode', 'advanced_route')}
-              className={`px-3 py-1 rounded ${form.matching_mode === 'advanced_route' ? 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200 font-semibold' : 'hover:bg-gray-100 dark:hover:bg-slate-800'}`}>
-              Advanced Route Matching
-            </button>
-          </div>
-        </div>
+        <DriverTariffHeader
+          matchingMode={form.matching_mode}
+          onMatchingModeChange={(mode) => update('matching_mode', mode)}
+        />
 
         {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
 
