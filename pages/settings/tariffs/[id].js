@@ -7,6 +7,7 @@ import ChargeProfilePickerModal from '../../../components/settings/tariff-detail
 import TariffHeader from '../../../components/settings/tariff-detail/TariffHeader';
 import TariffMatchingPanel from '../../../components/settings/tariff-detail/TariffMatchingPanel';
 import TariffChargeSetsPanel from '../../../components/settings/tariff-detail/TariffChargeSetsPanel';
+import TariffAdvancedRoutePanel from '../../../components/settings/tariff-detail/TariffAdvancedRoutePanel';
 
 export default function TariffForm({ tariffId: propTariffId, onClose: onCloseProp }) {
   const router = useRouter();
@@ -58,6 +59,13 @@ export default function TariffForm({ tariffId: propTariffId, onClose: onClosePro
   // Customer labels cache
   const [customerLabels, setCustomerLabels] = useState({});
 
+  // Advanced route state — separate from form so the panel can emit
+  // the whole blob atomically. Toggling back to Basic does NOT clear
+  // this (preserve-on-toggle) — see spec "so re-entering Advanced
+  // restores it".
+  const [advancedRoute, setAdvancedRoute] = useState(null);
+  const [routingTemplates, setRoutingTemplates] = useState([]);
+
   useEffect(() => {
     if (!isReady) return;
     async function load() {
@@ -101,6 +109,8 @@ export default function TariffForm({ tariffId: propTariffId, onClose: onClosePro
           is_tanker: t.is_tanker,
         });
 
+        setAdvancedRoute(t.advanced_route || null);
+
         if (t.charge_sets?.length > 0) {
           setChargeSets(t.charge_sets.map((cs) => ({
             id: cs.id,
@@ -125,6 +135,21 @@ export default function TariffForm({ tariffId: propTariffId, onClose: onClosePro
     }
     load();
   }, [id, isNew, isReady]);
+
+  // Fetch routing templates once (used for seeding the advanced-route
+  // builder). Silent on failure — the picker just stays empty.
+  useEffect(() => {
+    async function loadTemplates() {
+      try {
+        const res = await fetch('/api/tenant/routing-templates');
+        if (res.ok) {
+          const body = await res.json();
+          setRoutingTemplates(body.templates || []);
+        }
+      } catch { /* silent */ }
+    }
+    loadTemplates();
+  }, []);
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -279,6 +304,12 @@ export default function TariffForm({ tariffId: propTariffId, onClose: onClosePro
       effective_end: form.effective_end || null,
       charge_sets: chargeSets,
     };
+    // Only send advanced_route when the tariff is in advanced mode.
+    // Absent key = no-op on the server (PUT preserves the saved row).
+    // This is how toggling Basic <-> Advanced doesn't destroy work.
+    if (form.matching_mode === 'advanced_route') {
+      payload.advanced_route = advancedRoute;
+    }
 
     try {
       const url = isNew ? '/api/tenant/tariffs' : `/api/tenant/tariffs/${id}`;
