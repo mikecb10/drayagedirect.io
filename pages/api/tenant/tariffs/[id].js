@@ -5,6 +5,7 @@ import {
 } from '../../../../lib/tenant-api';
 import { logTenantAction, getClientIp } from '../../../../lib/tenant-audit';
 import { PERMISSIONS } from '../../../../lib/permissions';
+import { validateAdvancedRoute } from '../../../../lib/advanced-route-validator';
 
 const EDITABLE_FIELDS = [
   'name', 'status', 'effective_start', 'effective_end', 'matching_mode',
@@ -37,6 +38,9 @@ export default async function handler(req, res) {
       .from('tariffs')
       .select(`
         *,
+        advanced_route:tariff_advanced_routes(
+          id, routing_template_id, moves
+        ),
         charge_sets:tariff_charge_sets(
           *,
           profiles:tariff_charge_set_profiles(
@@ -51,6 +55,13 @@ export default async function handler(req, res) {
       .eq('id', id)
       .single();
     if (error || !data) return res.status(404).json({ error: 'Tariff not found' });
+
+    // Supabase returns to-many joins as arrays even for UNIQUE FKs.
+    // Collapse advanced_route to the single row (or null).
+    if (Array.isArray(data.advanced_route)) {
+      data.advanced_route = data.advanced_route[0] || null;
+    }
+
     return res.status(200).json({ tariff: data });
   }
 
@@ -72,6 +83,30 @@ export default async function handler(req, res) {
       .select()
       .single();
     if (error) return res.status(500).json({ error: error.message });
+
+    // Upsert advanced_route if present in the body. Accepts:
+    //   advanced_route: null   -> delete any existing row
+    //   advanced_route: {...}  -> upsert (validate first)
+    //   advanced_route: undef  -> no-op (caller didn't touch it)
+    if ('advanced_route' in body) {
+      const ar = body.advanced_route;
+      if (ar === null) {
+        const { error: delErr } = await svc.from('tariff_advanced_routes').delete()
+          .eq('tariff_id', id).eq('tenant_id', ctx.tenantId);
+        if (delErr) return res.status(500).json({ error: delErr.message, step: 'delete_advanced_route' });
+      } else {
+        const v = validateAdvancedRoute(ar);
+        if (!v.ok) return res.status(400).json({ error: v.error, step: 'validate_advanced_route' });
+        const { error: upErr } = await svc.from('tariff_advanced_routes').upsert({
+          tenant_id: ctx.tenantId,
+          tariff_id: id,
+          routing_template_id: ar.routing_template_id || null,
+          moves: ar.moves,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'tariff_id' });
+        if (upErr) return res.status(500).json({ error: upErr.message, step: 'upsert_advanced_route' });
+      }
+    }
 
     await logTenantAction(svc, {
       tenantId: ctx.tenantId,
