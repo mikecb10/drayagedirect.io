@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { ChevronDown, Info, X, Calendar } from 'lucide-react';
+import { ChevronDown, Info } from 'lucide-react';
 import DatePicker from '../../../components/ui/DatePicker';
 import SettingsLayout from '../../../components/settings/SettingsLayout';
 import Button from '../../../components/ui/Button';
@@ -12,8 +12,6 @@ import DriverPayPanel from '../../../components/settings/driver-tariff-detail/Dr
 import Alert from '../../../components/ui/Alert';
 import ReferenceDataPicker from '../../../components/ui/ReferenceDataPicker';
 import ContainerOwnerPicker from '../../../components/ui/ContainerOwnerPicker';
-import CentsInput from '../../../components/ui/CentsInput';
-import { UNITS_OF_MEASURE } from '../../../lib/charge-profile-constants';
 
 // Load types available in tariffs.
 // Mirrors the canonical LOAD_TYPES list in components/loads/NewLoadModal.js,
