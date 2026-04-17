@@ -3,8 +3,9 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { ArrowLeft, ChevronDown, Settings } from 'lucide-react';
 import TenantLayout from '../tenant/TenantLayout';
-import { SETTINGS_SECTIONS, findGroupForPath } from '../../lib/settings-nav';
-import { PERMISSIONS } from '../../lib/permissions';
+import { SETTINGS_SECTIONS, findGroupForPath, findItemForPath } from '../../lib/settings-nav';
+import { PERMISSIONS, filterByPermissions } from '../../lib/permissions';
+import { useAuth } from '../../contexts/AuthContext';
 import SettingsViewToggle from './SettingsViewToggle';
 import useSettingsViewPrefs from './useSettingsViewPrefs';
 
@@ -42,6 +43,16 @@ export default function SettingsLayout({ title, children }) {
   const [collapsed, setCollapsed] = useState(() => loadCollapsed());
   const { viewMode } = useSettingsViewPrefs();
 
+  const { role, permissions, loading: authLoading } = useAuth();
+  const user = { role, permissions };
+
+  const activeItem = findItemForPath(pathname);
+  const pageRequired = activeItem?.requiredPermission ?? [PERMISSIONS.SETTINGS, PERMISSIONS.ALL];
+
+  const filteredSections = SETTINGS_SECTIONS
+    .map((section) => ({ ...section, items: filterByPermissions(section.items, user) }))
+    .filter((section) => section.items.length > 0);
+
   // Auto-expand the group containing the active page
   useEffect(() => {
     if (activeGroup && collapsed[activeGroup]) {
@@ -64,7 +75,7 @@ export default function SettingsLayout({ title, children }) {
   return (
     <TenantLayout
       title={title || 'Settings'}
-      requiredPermission={[PERMISSIONS.SETTINGS, PERMISSIONS.ALL]}
+      requiredPermission={pageRequired}
     >
       {viewMode === 'card' ? (
         <CardModeShell pathname={pathname}>{children}</CardModeShell>
@@ -73,6 +84,8 @@ export default function SettingsLayout({ title, children }) {
           pathname={pathname}
           collapsed={collapsed}
           toggleGroup={toggleGroup}
+          filteredSections={filteredSections}
+          authLoading={authLoading}
         >
           {children}
         </SidebarModeShell>
@@ -81,7 +94,7 @@ export default function SettingsLayout({ title, children }) {
   );
 }
 
-function SidebarModeShell({ pathname, collapsed, toggleGroup, children }) {
+function SidebarModeShell({ pathname, collapsed, toggleGroup, filteredSections, authLoading, children }) {
   return (
     <div className="flex gap-0 -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 min-h-[calc(100vh-64px)]">
       {/* Left sidebar */}
@@ -98,54 +111,58 @@ function SidebarModeShell({ pathname, collapsed, toggleGroup, children }) {
 
           {/* Nav groups */}
           <nav className="py-2">
-            {SETTINGS_SECTIONS.map((section) => {
-              const isCollapsed = !!collapsed[section.group];
-              return (
-                <div key={section.group} className="mb-1">
-                  <button
-                    type="button"
-                    onClick={() => toggleGroup(section.group)}
-                    className="w-full flex items-center justify-between px-5 py-2 text-[11px] uppercase tracking-wider font-semibold text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300"
-                  >
-                    {section.group}
-                    <ChevronDown
-                      className={`w-3.5 h-3.5 transition-transform ${
-                        isCollapsed ? '-rotate-90' : ''
-                      }`}
-                    />
-                  </button>
-                  {!isCollapsed && (
-                    <div className="space-y-0.5 pb-1">
-                      {section.items.map((item) => {
-                        const Icon = item.icon;
-                        const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-                        return (
-                          <Link
-                            key={item.key}
-                            href={item.href}
-                            className={`flex items-center gap-2.5 px-5 py-2 text-sm transition-colors ${
-                              isActive
-                                ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-medium border-r-2 border-blue-600 dark:border-blue-400'
-                                : item.comingSoon
-                                  ? 'text-gray-400 dark:text-slate-500 hover:text-gray-500 dark:hover:text-slate-400 hover:bg-gray-100/60 dark:hover:bg-slate-800/60'
-                                  : 'text-gray-700 dark:text-slate-300 hover:text-gray-900 dark:hover:text-slate-100 hover:bg-gray-100/60 dark:hover:bg-slate-800/60'
-                            }`}
-                          >
-                            <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-slate-500'}`} />
-                            <span className="truncate">{item.label}</span>
-                            {item.comingSoon && (
-                              <span className="ml-auto text-[9px] uppercase tracking-wide font-semibold bg-gray-200 dark:bg-slate-800 text-gray-500 dark:text-slate-400 px-1.5 py-0.5 rounded shrink-0">
-                                Soon
-                              </span>
-                            )}
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {authLoading ? (
+              <SidebarSkeleton />
+            ) : (
+              filteredSections.map((section) => {
+                const isCollapsed = !!collapsed[section.group];
+                return (
+                  <div key={section.group} className="mb-1">
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(section.group)}
+                      className="w-full flex items-center justify-between px-5 py-2 text-[11px] uppercase tracking-wider font-semibold text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300"
+                    >
+                      {section.group}
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 transition-transform ${
+                          isCollapsed ? '-rotate-90' : ''
+                        }`}
+                      />
+                    </button>
+                    {!isCollapsed && (
+                      <div className="space-y-0.5 pb-1">
+                        {section.items.map((item) => {
+                          const Icon = item.icon;
+                          const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                          return (
+                            <Link
+                              key={item.key}
+                              href={item.href}
+                              className={`flex items-center gap-2.5 px-5 py-2 text-sm transition-colors ${
+                                isActive
+                                  ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-medium border-r-2 border-blue-600 dark:border-blue-400'
+                                  : item.comingSoon
+                                    ? 'text-gray-400 dark:text-slate-500 hover:text-gray-500 dark:hover:text-slate-400 hover:bg-gray-100/60 dark:hover:bg-slate-800/60'
+                                    : 'text-gray-700 dark:text-slate-300 hover:text-gray-900 dark:hover:text-slate-100 hover:bg-gray-100/60 dark:hover:bg-slate-800/60'
+                              }`}
+                            >
+                              <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-slate-500'}`} />
+                              <span className="truncate">{item.label}</span>
+                              {item.comingSoon && (
+                                <span className="ml-auto text-[9px] uppercase tracking-wide font-semibold bg-gray-200 dark:bg-slate-800 text-gray-500 dark:text-slate-400 px-1.5 py-0.5 rounded shrink-0">
+                                  Soon
+                                </span>
+                              )}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </nav>
         </div>
       </aside>
@@ -187,5 +204,22 @@ function CardModeShell({ pathname, children }) {
 
       {children}
     </main>
+  );
+}
+
+function SidebarSkeleton() {
+  return (
+    <div className="px-5 py-2 space-y-5 animate-pulse" aria-label="Loading settings navigation">
+      {[1, 2, 3].map((g) => (
+        <div key={g}>
+          <div className="h-3 w-20 bg-gray-200 dark:bg-slate-800 rounded mb-2" />
+          <div className="space-y-1">
+            <div className="h-7 w-full bg-gray-100 dark:bg-slate-800/60 rounded" />
+            <div className="h-7 w-4/5 bg-gray-100 dark:bg-slate-800/60 rounded" />
+            <div className="h-7 w-full bg-gray-100 dark:bg-slate-800/60 rounded" />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
