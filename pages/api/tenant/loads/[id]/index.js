@@ -6,7 +6,6 @@ import {
 import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
 import { PERMISSIONS } from '../../../../../lib/permissions';
 import { fireFieldChangeTriggers, fireStatusChangeTriggers } from '../../../../../lib/email-dispatch';
-import { findMatchingCharges, applyChargesToLoad } from '../../../../../lib/tariff-engine';
 
 // NOTE: load_type is intentionally NOT editable — the load number has the
 // type letter baked in (M/N/E/O/R/B), so changing the type would make the
@@ -495,44 +494,19 @@ export default async function handler(req, res) {
       }).catch((e) => console.error('fireStatusChangeTriggers error:', e));
     }
 
-    // Auto-recalculate tariff charges when pricing-relevant fields change.
-    // "Replace auto, keep manual" — only is_auto=true lines get replaced.
-    const PRICING_FIELDS = [
-      'customer_id', 'pickup_location_id', 'delivery_location_id', 'return_location_id',
-      'container_type', 'container_size', 'container_type_id', 'container_size_id',
-      'container_owner_id', 'chassis_type', 'chassis_size', 'chassis_owner',
-      'is_hazmat', 'is_overweight', 'is_overheight', 'is_hot', 'is_genset',
-      'is_scale', 'is_ev', 'is_street_turn', 'is_oog', 'is_bonded',
-      'is_double', 'is_tanker', 'is_liquor', 'load_type', 'branch_id',
-    ];
-    const pricingChanged = PRICING_FIELDS.some((f) => f in updates && updates[f] !== oldLoad[f]);
-    if (pricingChanged) {
-      // DRAFT-only guard: never silently modify approved / invoiced / billed
-      // charge sets. Check the load's first charge set; skip the recalc
-      // entirely if it isn't in draft status. Dispatchers can still hit
-      // "Recalculate Rates" manually on an approved set if they explicitly
-      // need to (that path is unchanged).
-      //
-      // Also removes the previous `charges.length > 0` guard — applyChargesToLoad
-      // now wipes stale auto lines even when the new state matches no tariff
-      // (see lib/tariff-engine.js's applyChargesToLoad, commit d8d79e9).
-      svc
-        .from('order_charge_sets')
-        .select('id, status')
-        .eq('order_id', id)
-        .eq('tenant_id', ctx.tenantId)
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .maybeSingle()
-        .then(({ data: firstSet }) => {
-          if (!firstSet) return; // no charge set → skip (don't auto-create on field edits)
-          if (firstSet.status !== 'draft') return; // approved/invoiced/billed → skip
-          return findMatchingCharges(svc, data, ctx.tenantId).then((charges) =>
-            applyChargesToLoad(svc, id, ctx.tenantId, charges)
-          );
-        })
-        .catch((e) => console.error('tariff auto-apply error:', e));
-    }
+    // Auto-recalc on matching-field change. Best-effort: failures are
+    // logged but never fail the load PUT. Full logic (DRAFT-only guard,
+    // no-charge-set skip, recalc pipeline) lives in the helper.
+    import('../../../../../lib/auto-recalc-trigger')
+      .then(({ maybeRecalcOnLoadChange }) =>
+        maybeRecalcOnLoadChange(svc, ctx.tenantId, oldLoad, data)
+      )
+      .then((result) => {
+        if (result?.ran) {
+          console.log(`[auto-recalc] load ${id}: applied ${result.applied} charges`);
+        }
+      })
+      .catch((e) => console.error(`[auto-recalc] load ${id} failed:`, e.message));
 
     // Auto-generate driver pay when driver is assigned
     if ('driver_id' in updates && updates.driver_id && updates.driver_id !== oldLoad.driver_id) {
