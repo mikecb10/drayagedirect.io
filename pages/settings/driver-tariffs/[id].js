@@ -5,6 +5,7 @@ import DatePicker from '../../../components/ui/DatePicker';
 import SettingsLayout from '../../../components/settings/SettingsLayout';
 import Button from '../../../components/ui/Button';
 import ChargeProfilePickerModal from '../../../components/settings/driver-tariff-detail/ChargeProfilePickerModal';
+import DriverGroupSelect from '../../../components/settings/driver-tariff-detail/DriverGroupSelect';
 import Alert from '../../../components/ui/Alert';
 import OrgPicker from '../../../components/ui/OrgPicker';
 import ReferenceDataPicker from '../../../components/ui/ReferenceDataPicker';
@@ -616,44 +617,6 @@ export default function DriverTariffForm({ tariffId: propTariffId, onClose: onCl
 
 // ── Reusable Location Condition Field ─────────────────────────
 
-// ── Driver Group dropdown ───────────────────────────────────
-// Fetches /api/tenant/ap/driver-groups once and renders a simple select.
-// Value is the group id (or null for "all groups").
-function DriverGroupSelect({ value, onChange }) {
-  const [groups, setGroups] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch('/api/tenant/ap/driver-groups');
-        if (res.ok) {
-          const data = await res.json();
-          setGroups(data.driver_groups || data.groups || []);
-        }
-      } catch {
-        // silent — user will see empty dropdown
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
-
-  return (
-    <select
-      value={value || ''}
-      onChange={(e) => onChange(e.target.value || null)}
-      disabled={loading}
-      className="block w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-    >
-      <option value="">All Driver Groups</option>
-      {groups.map((g) => (
-        <option key={g.id} value={g.id}>{g.name}</option>
-      ))}
-    </select>
-  );
-}
 
 function LocationConditionField({ label, field, form, isAll, onSetAll, onAddLocation, onRemoveLocation, orgType }) {
   const conditions = form[field] || {};
