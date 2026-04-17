@@ -55,6 +55,19 @@ export default function DriverTariffsPanel() {
 
   useEffect(() => { load(); }, [search]);
 
+  // Close overlay on Escape regardless of where focus is — the
+  // onKeyDown on the backdrop div only fires when the backdrop itself
+  // (or a non-input child) is focused, which never happens while the
+  // user is interacting with form inputs inside the panel.
+  useEffect(() => {
+    if (!overlayTariffId) return;
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') closeOverlay();
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [overlayTariffId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Open the tariff editor as an overlay layered on top of the Pay
   // Rates tab — matches the Driver Charge Profile modal UX.
   function openCreate() { setOverlayTariffId('new'); }
@@ -148,7 +161,6 @@ export default function DriverTariffsPanel() {
         <div
           className="fixed inset-0 z-50 bg-black/60 dark:bg-black/70 flex items-start justify-center overflow-y-auto py-6"
           onClick={closeOverlay}
-          onKeyDown={(e) => { if (e.key === 'Escape') closeOverlay(); }}
         >
           <div
             className="relative bg-white dark:bg-slate-950 rounded-xl shadow-2xl w-full max-w-5xl mx-4 my-4"
