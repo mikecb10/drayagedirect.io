@@ -28,6 +28,20 @@ function computeLineTotal(line) {
   return Math.round(billable * price);
 }
 
+// Fields that count as a "meaningful edit" — when a dispatcher changes any
+// of these on an auto-applied line, the line flips to is_auto=false so it
+// survives future recalcs (the auto-recalc trigger only wipes is_auto=true
+// lines). source_profile_id is preserved independently, so the audit trail
+// of "this line originated from profile X" stays intact even after flip.
+const MEANINGFUL_EDIT_FIELDS = [
+  'unit_of_measure',
+  'unit_count',
+  'free_units',
+  'per_unit_price_cents',
+  'description',
+  'name',
+];
+
 export default async function handler(req, res) {
   const ctx = await requireTenantUser(req, res);
   if (!ctx) return;
@@ -106,6 +120,32 @@ export default async function handler(req, res) {
     const { line_item_id, ...fields } = req.body || {};
     if (!line_item_id) return res.status(400).json({ error: 'line_item_id required' });
 
+    // Fetch current row so we can detect "meaningful edit" of an auto line.
+    const { data: current } = await svc
+      .from('order_charge_set_line_items')
+      .select('*')
+      .eq('tenant_id', ctx.tenantId)
+      .eq('charge_set_id', csId)
+      .eq('id', line_item_id)
+      .maybeSingle();
+
+    if (!current) return res.status(404).json({ error: 'Line item not found' });
+
+    // If the row is currently auto AND the body changes a meaningful field,
+    // flip is_auto to false so the dispatcher's edit survives future recalcs.
+    // source_profile_id is NOT touched — the audit trail of "originated
+    // from profile X" is preserved.
+    let flippedToManual = false;
+    if (current.is_auto) {
+      const meaningfullyEdited = MEANINGFUL_EDIT_FIELDS.some(
+        (f) => f in fields && fields[f] !== current[f]
+      );
+      if (meaningfullyEdited) {
+        fields.is_auto = false;
+        flippedToManual = true;
+      }
+    }
+
     fields.total_cents = computeLineTotal(fields);
 
     const { data, error } = await svc
@@ -126,7 +166,12 @@ export default async function handler(req, res) {
       action: 'load.line_item_update',
       entityType: 'order',
       entityId: id,
-      newValues: { name: data.name, amount: data.total_cents, charge_set_id: csId },
+      newValues: {
+        name: data.name,
+        amount: data.total_cents,
+        charge_set_id: csId,
+        flipped_to_manual: flippedToManual,
+      },
       ipAddress: getClientIp(req),
     });
 
