@@ -64,6 +64,7 @@ export default function TariffMatchingPanel({
   onShowAdditionalChange,
   customerLabels,
   setCustomerLabels,
+  isAdvanced = false,
 }) {
   return (
     <div className="w-[280px] lg:w-[320px] shrink-0 border-r border-gray-200 dark:border-slate-700 overflow-y-auto">
@@ -150,41 +151,44 @@ export default function TariffMatchingPanel({
             }} />
         </div>
 
-        {/* Pick Up Location */}
-        <LocationConditionField
-          label="* Pick Up Location"
-          field="pickup_conditions"
-          form={form}
-          isAll={isLocationAll('pickup_conditions')}
-          onSetAll={() => toggleLocationAll('pickup_conditions')}
-          onAddLocation={(orgId, name) => addLocationId('pickup_conditions', orgId, name)}
-          onRemoveLocation={(orgId) => removeLocationId('pickup_conditions', orgId)}
-          orgType="terminal"
-        />
+        {/* Pickup / Delivery / Return — hidden when advanced mode takes over
+            the route template. The advanced-route builder owns those slots. */}
+        {!isAdvanced && (
+          <>
+            <LocationConditionField
+              label="* Pick Up Location"
+              field="pickup_conditions"
+              form={form}
+              isAll={isLocationAll('pickup_conditions')}
+              onSetAll={() => toggleLocationAll('pickup_conditions')}
+              onAddLocation={(orgId, name) => addLocationId('pickup_conditions', orgId, name)}
+              onRemoveLocation={(orgId) => removeLocationId('pickup_conditions', orgId)}
+              orgType="terminal"
+            />
 
-        {/* Delivery Location */}
-        <LocationConditionField
-          label="* Delivery Location"
-          field="delivery_conditions"
-          form={form}
-          isAll={isLocationAll('delivery_conditions')}
-          onSetAll={() => toggleLocationAll('delivery_conditions')}
-          onAddLocation={(orgId, name) => addLocationId('delivery_conditions', orgId, name)}
-          onRemoveLocation={(orgId) => removeLocationId('delivery_conditions', orgId)}
-          orgType="warehouse"
-        />
+            <LocationConditionField
+              label="* Delivery Location"
+              field="delivery_conditions"
+              form={form}
+              isAll={isLocationAll('delivery_conditions')}
+              onSetAll={() => toggleLocationAll('delivery_conditions')}
+              onAddLocation={(orgId, name) => addLocationId('delivery_conditions', orgId, name)}
+              onRemoveLocation={(orgId) => removeLocationId('delivery_conditions', orgId)}
+              orgType="warehouse"
+            />
 
-        {/* Return Location */}
-        <LocationConditionField
-          label="Return Location"
-          field="return_conditions"
-          form={form}
-          isAll={isLocationAll('return_conditions')}
-          onSetAll={() => toggleLocationAll('return_conditions')}
-          onAddLocation={(orgId, name) => addLocationId('return_conditions', orgId, name)}
-          onRemoveLocation={(orgId) => removeLocationId('return_conditions', orgId)}
-          orgType="terminal"
-        />
+            <LocationConditionField
+              label="Return Location"
+              field="return_conditions"
+              form={form}
+              isAll={isLocationAll('return_conditions')}
+              onSetAll={() => toggleLocationAll('return_conditions')}
+              onAddLocation={(orgId, name) => addLocationId('return_conditions', orgId, name)}
+              onRemoveLocation={(orgId) => removeLocationId('return_conditions', orgId)}
+              orgType="terminal"
+            />
+          </>
+        )}
 
         {/* ── Additional Load Conditions ─────────── */}
         <button type="button" onClick={() => onShowAdditionalChange(!showAdditional)}
