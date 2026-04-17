@@ -52,6 +52,7 @@ export default async function handler(req, res) {
       unit_count,
       free_units,
       per_unit_price_cents,
+      source_profile_id,
     } = req.body || {};
 
     if (!name) return res.status(400).json({ error: 'Name is required' });
@@ -70,6 +71,8 @@ export default async function handler(req, res) {
         free_units: free_units ?? 0,
         per_unit_price_cents: per_unit_price_cents ?? 0,
         total_cents: totalCents,
+        source_profile_id: source_profile_id || null,
+        is_auto: false,
       })
       .select()
       .single();
