@@ -64,6 +64,12 @@ export default async function handler(req, res) {
       if (error) return res.status(500).json({ error: error.message });
     }
 
+    // Cross-field guard: can't switch to advanced_route mode in this
+    // PUT without also providing a route.
+    if (body.matching_mode === 'advanced_route' && !body.advanced_route) {
+      return res.status(400).json({ error: 'advanced_route is required when matching_mode=advanced_route', step: 'validate_advanced_route' });
+    }
+
     // Upsert advanced_route if present.
     //   null -> delete; object -> validate + upsert; absent -> no-op
     if ('advanced_route' in body) {

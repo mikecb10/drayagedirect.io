@@ -49,6 +49,16 @@ export default async function handler(req, res) {
     const body = req.body || {};
     if (!body.name) return res.status(400).json({ error: 'Name is required' });
 
+    // Validate advanced_route before inserting the tariff row so we
+    // never persist an orphan tariff in advanced mode without a route.
+    if (body.matching_mode === 'advanced_route' && !body.advanced_route) {
+      return res.status(400).json({ error: 'advanced_route is required when matching_mode=advanced_route', step: 'validate_advanced_route' });
+    }
+    if (body.advanced_route) {
+      const v = validateAdvancedRoute(body.advanced_route);
+      if (!v.ok) return res.status(400).json({ error: v.error, step: 'validate_advanced_route' });
+    }
+
     const insertData = {
       tenant_id: ctx.tenantId,
       name: body.name,
@@ -86,9 +96,9 @@ export default async function handler(req, res) {
     const { data, error } = await svc.from('driver_tariffs').insert(insertData).select().single();
     if (error) return res.status(500).json({ error: error.message });
 
+    // Insert advanced_route row. Already validated above before the
+    // tariff row insert, so no second validation needed.
     if (body.advanced_route) {
-      const v = validateAdvancedRoute(body.advanced_route);
-      if (!v.ok) return res.status(400).json({ error: v.error, step: 'validate_advanced_route' });
       const { error: arErr } = await svc.from('driver_tariff_advanced_routes').insert({
         tenant_id: ctx.tenantId,
         driver_tariff_id: data.id,
