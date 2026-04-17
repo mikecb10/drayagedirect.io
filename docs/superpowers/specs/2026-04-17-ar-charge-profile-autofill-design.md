@@ -25,7 +25,7 @@ No lockdown: if the tariff has no matching profile for the picked code, the form
 
 | Aspect | Rule |
 |---|---|
-| No schema changes | Migration 038 already added `source_profile_id` + `source_tariff_id` + `charge_name` columns to `tariff_line_items`. This plan only ensures the API handler persists them. No new migration. |
+| No schema changes | Migration 038 already added `source_tariff_id` + `source_profile_id` columns to `order_charge_set_line_items`. This plan ensures the POST handler persists `source_profile_id`. No new migration. |
 | No new dependencies | No npm additions. |
 | Auto-apply flow unchanged | The existing `auto_add = true` flow in `lib/tariff-engine.js` must behave identically before and after. We only ADD an option to `findMatchingCharges`; we do not refactor or extract its core. |
 | Freeform entry still allowed | Dispatcher can type any charge code, any rate. If a matching profile exists, it pre-fills; if not, no prefill happens and no error is shown. |
@@ -138,24 +138,29 @@ The Supabase query inside `findMatchingCharges` must also be audited: it current
 
 ### 3.4 Line-items POST handler update
 
-Current POST handler destructures something like `{ name, description, unit_of_measure, unit_count, free_units, per_unit_price_cents }` and inserts those. Extend to:
+Current POST handler at `pages/api/tenant/loads/[id]/charge-sets/[csId]/line-items.js` destructures `{ name, description, unit_of_measure, unit_count, free_units, per_unit_price_cents }` from `req.body` and inserts those. Extend to whitelist **`source_profile_id`** (one new field):
 
 ```js
-const { name, description, unit_of_measure, unit_count, free_units,
-        per_unit_price_cents, charge_name, source_profile_id } = req.body;
+const {
+  name,
+  description,
+  unit_of_measure,
+  unit_count,
+  free_units,
+  per_unit_price_cents,
+  source_profile_id,  // NEW
+} = req.body || {};
 
 // insert call gains:
-  charge_name: charge_name || null,
   source_profile_id: source_profile_id || null,
-  is_auto: false,  // explicit
-  // source_tariff_id is intentionally NOT set from the client body —
-  // if we trust source_profile_id, we should derive source_tariff_id
-  // server-side from the profile lookup, OR leave null and backfill
-  // later. Keep null for now; tariff attribution on manual lines can
-  // be added in a follow-up.
+  is_auto: false,  // explicit — unchanged but make intent visible
 ```
 
-Do NOT accept arbitrary fields. Explicit whitelist only.
+Explicit whitelist only. Do NOT accept arbitrary fields from the body.
+
+**What we're NOT persisting (by design for this pass):**
+- `charge_name` — the column doesn't exist on `order_charge_set_line_items` (confirmed against migration 003 + migration 038). The audit trail uses `source_profile_id` to JOIN back to `charge_profiles.charge_name` when needed. Adding the column is a future enhancement if product wants a denormalized charge code on the line row.
+- `source_tariff_id` — the column exists (migration 038) but deriving it requires a server-side JOIN at insert time. Leave `null` for manually-added lines this pass; backfill job or a follow-up plan can populate it if tariff attribution matters for audit queries.
 
 ### 3.5 Client-side: BillingTab.js
 
@@ -329,4 +334,4 @@ None at design time. All resolved during brainstorming + fresh-eyes design revie
 - Q: Prefill + lock, prefill + overwritable + audit, or prefill + overwrite silently? **A: Overwritable with subtle "· edited" badge + `source_profile_id` on the line.**
 - Q: What if user had typed fields before picking a code? **A: Picking a code resets the form (explicit rule). Prefilled fields overwrite typed values.**
 - Q: UOM dropdown values? **A: Switch BillingTab's local UOM_OPTIONS to import `UNITS_OF_MEASURE` from `lib/charge-profile-constants` so all 11 UOMs render correctly.**
-- Q: POST handler persisting `source_profile_id` / `charge_name`? **A: Whitelist both explicitly in the handler. Columns already exist from migration 038.**
+- Q: POST handler persisting `source_profile_id` / `charge_name`? **A: Whitelist `source_profile_id` only. `charge_name` column doesn't exist on `order_charge_set_line_items` — adding it requires a new migration; deferred. The audit trail uses `source_profile_id` → profile.charge_name via JOIN.**
