@@ -43,6 +43,7 @@ export default function DispatcherIndex() {
   const [tenantSettings, setTenantSettings] = useState(null); // full settings (for feature flags)
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [bulkFlash, setBulkFlash] = useState(null); // { message, kind }
+  const [lastFetchedAt, setLastFetchedAt] = useState(null);
   const saveTimerRef = useRef(null);
   const boardScrollRef = useRef(null); // scroll container for cursor tracking
 
@@ -98,6 +99,7 @@ export default function DispatcherIndex() {
       const data = await res.json();
       setLoads(data.loads || []);
       setStats(data.stats || {});
+      setLastFetchedAt(Date.now()); // NEW — update timestamp on success
       // Store pending doc order IDs for the "Pending Docs" KPI card filter
       if (data.pendingDocOrderIds) {
         sessionStorage.setItem('dd.pendingDocIds', JSON.stringify(data.pendingDocOrderIds));
@@ -547,7 +549,7 @@ export default function DispatcherIndex() {
           description="Drag column headers to reorder · right-edge drag to resize · 3-dot menu to pin or hide"
           actions={
             <>
-              <LiveIndicator connectedRef={realtimeConnectedRef} />
+              <LiveIndicator connectedRef={realtimeConnectedRef} lastFetchedAt={lastFetchedAt} />
               {livePresenceEnabled && <PresenceAvatars users={presenceUsers} />}
               <Button variant="secondary" onClick={toggleDensity} title="Toggle row density">
                 {preferences?.row_density === 'compact' ? (
