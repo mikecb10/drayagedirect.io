@@ -17,6 +17,7 @@ import { requireTenantUser, requirePermission, getServiceClient } from '../../..
 import { PERMISSIONS } from '../../../../../lib/permissions';
 import { findMatchingCharges } from '../../../../../lib/tariff-engine';
 import { formatDuration, formatPounds, formatMiles } from '../../../../../lib/pricing-uom';
+import { diagnoseAdvancedRoute } from '../../../../../lib/advanced-route-matcher';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -101,6 +102,37 @@ async function diagnoseTariffMatch(svc, load, tenantId) {
     .eq('tenant_id', tenantId)
     .order('priority', { ascending: false });
 
+  // Pre-fetch advanced_route blobs for any advanced-mode tariffs.
+  const advIds = (tariffs || []).filter((t) => t.matching_mode === 'advanced_route').map((t) => t.id);
+  const advByTariff = new Map();
+  if (advIds.length > 0) {
+    const { data: advs } = await svc
+      .from('tariff_advanced_routes')
+      .select('tariff_id, routing_template_id, moves')
+      .in('tariff_id', advIds)
+      .eq('tenant_id', tenantId);
+    for (const a of (advs || [])) advByTariff.set(a.tariff_id, a);
+  }
+
+  // Hydrate load.routing_events + container_moves so the advanced-route
+  // matcher has data to compare against.
+  if (!Array.isArray(load.routing_events)) {
+    const { data: re } = await svc
+      .from('order_routing_events')
+      .select('id, event_type, sequence, location_id, city, state, zip, move_id')
+      .eq('tenant_id', tenantId).eq('order_id', load.id)
+      .order('sequence', { ascending: true });
+    load.routing_events = re || [];
+  }
+  if (!Array.isArray(load.container_moves)) {
+    const { data: cm } = await svc
+      .from('order_container_moves')
+      .select('id, sequence')
+      .eq('tenant_id', tenantId).eq('order_id', load.id)
+      .order('sequence', { ascending: true });
+    load.container_moves = cm || [];
+  }
+
   const results = [];
 
   for (const t of tariffs || []) {
@@ -157,25 +189,36 @@ async function diagnoseTariffMatch(svc, load, tenantId) {
       checks.push({ check: 'load_type', pass: true, detail: 'all load types' });
     }
 
-    // Pickup / Delivery / Return location checks
-    for (const field of ['pickup', 'delivery', 'return']) {
-      const cond = t[`${field}_conditions`];
-      const loadOrg = load[`${field}_org`];
-      const loadId = load[`${field}_location_id`];
-      if (cond && !cond.all && cond.ids?.length > 0) {
-        if (!cond.ids.includes(loadId)) {
-          const labels = cond.ids.map((uid) => cond.labels?.[uid] || uid).join(', ');
-          checks.push({
-            check: `${field}_location`,
-            pass: false,
-            detail: `load ${field} = "${loadOrg?.name || '—'}", tariff requires [${labels}]`,
-          });
-          matched = false;
+    if (t.matching_mode === 'advanced_route') {
+      const ar = advByTariff.get(t.id) || null;
+      const r = diagnoseAdvancedRoute(ar, load);
+      checks.push({
+        check: 'advanced_route',
+        pass: r.matched,
+        detail: r.matched ? 'route matched' : r.reason,
+      });
+      if (!r.matched) matched = false;
+    } else {
+      // Pickup / Delivery / Return location checks (basic mode)
+      for (const field of ['pickup', 'delivery', 'return']) {
+        const cond = t[`${field}_conditions`];
+        const loadOrg = load[`${field}_org`];
+        const loadId = load[`${field}_location_id`];
+        if (cond && !cond.all && cond.ids?.length > 0) {
+          if (!cond.ids.includes(loadId)) {
+            const labels = cond.ids.map((uid) => cond.labels?.[uid] || uid).join(', ');
+            checks.push({
+              check: `${field}_location`,
+              pass: false,
+              detail: `load ${field} = "${loadOrg?.name || '—'}", tariff requires [${labels}]`,
+            });
+            matched = false;
+          } else {
+            checks.push({ check: `${field}_location`, pass: true, detail: loadOrg?.name || loadId });
+          }
         } else {
-          checks.push({ check: `${field}_location`, pass: true, detail: loadOrg?.name || loadId });
+          checks.push({ check: `${field}_location`, pass: true, detail: `all ${field} locations` });
         }
-      } else {
-        checks.push({ check: `${field}_location`, pass: true, detail: `all ${field} locations` });
       }
     }
 
