@@ -7,6 +7,8 @@ import { SectionCard } from '../../components/ui/FormSection';
 import DetailPane from '../../components/ui/DetailPane';
 import DetailRow from '../../components/ui/DetailRow';
 import { SETTINGS_SECTIONS } from '../../lib/settings-nav';
+import { useAuth } from '../../contexts/AuthContext';
+import { filterByPermissions } from '../../lib/permissions';
 
 // Card-mode descriptions, keyed by item.key. New items default to '' (no description).
 const ITEM_DESCRIPTIONS = {
@@ -36,8 +38,19 @@ const ITEM_DESCRIPTIONS = {
 
 function SettingsIndex() {
   const { viewMode } = useSettingsViewPrefs();
-  const groups = SETTINGS_SECTIONS.filter((s) => s.group !== 'Coming Soon');
+  const { role, permissions, loading: authLoading } = useAuth();
+  const user = { role, permissions };
+
+  const groups = SETTINGS_SECTIONS
+    .filter((s) => s.group !== 'Coming Soon')
+    .map((section) => ({ ...section, items: filterByPermissions(section.items, user) }))
+    .filter((section) => section.items.length > 0);
+
   const comingSoon = SETTINGS_SECTIONS.find((s) => s.group === 'Coming Soon')?.items || [];
+
+  if (authLoading) {
+    return <IndexSkeleton viewMode={viewMode} />;
+  }
 
   if (viewMode === 'card') {
     return <CardGridIndex groups={groups} comingSoon={comingSoon} />;
@@ -147,6 +160,32 @@ function CardGridIndex({ groups, comingSoon }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function IndexSkeleton({ viewMode }) {
+  if (viewMode === 'card') {
+    return (
+      <div className="max-w-6xl animate-pulse" aria-label="Loading settings">
+        <div className="h-7 w-32 bg-gray-200 dark:bg-slate-800 rounded mb-6" />
+        {[1, 2].map((g) => (
+          <div key={g} className="mb-6">
+            <div className="h-4 w-20 bg-gray-200 dark:bg-slate-800 rounded mb-3" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[var(--space-field)]">
+              {[1, 2, 3].map((c) => (
+                <div key={c} className="h-20 rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900/40" />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div className="max-w-3xl animate-pulse" aria-label="Loading settings">
+      <div className="h-7 w-32 bg-gray-200 dark:bg-slate-800 rounded mb-4" />
+      <div className="h-48 rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900/40" />
     </div>
   );
 }
