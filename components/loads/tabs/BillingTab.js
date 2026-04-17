@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Plus, Receipt, Trash2, Check, FileText, DollarSign, RefreshCw, ExternalLink, Tag } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Plus, Receipt, Trash2, Check, FileText, DollarSign, RefreshCw, ExternalLink, Tag, Link2 } from 'lucide-react';
 import { CHARGE_NAMES, UNITS_OF_MEASURE } from '../../../lib/charge-profile-constants';
 import { useOverlay } from '../../../contexts/OverlayContext';
 import { formatInvoiceNumber } from '../../../lib/invoice-utils';
@@ -20,13 +20,6 @@ const STATUS_STYLES = {
   rebilling: 'bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300',
   void: 'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-300',
 };
-
-const UOM_OPTIONS = [
-  { value: 'fixed', label: 'Fixed' },
-  { value: 'per_day', label: 'Per Day' },
-  { value: 'per_mile', label: 'Per Mile' },
-  { value: 'percentage', label: 'Percentage' },
-];
 
 function formatCents(cents) {
   if (cents == null) return '$0.00';
@@ -286,6 +279,9 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
     percentage_value: '',
     percentage_based_on: '',
   });
+  const [newLineSource, setNewLineSource] = useState(null);
+  const [newLineEdited, setNewLineEdited] = useState(false);
+  const abortRef = useRef(null);
 
   async function updateStatus(nextStatus) {
     setSavingStatus(true);
@@ -307,6 +303,11 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
     }
   }
 
+  function updateNewLine(patch) {
+    setNewLine((prev) => ({ ...prev, ...patch }));
+    if (newLineSource && !newLineEdited) setNewLineEdited(true);
+  }
+
   async function addLineItem() {
     if (!newLine.name.trim()) {
       onError('Line item name is required');
@@ -319,7 +320,10 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newLine),
+          body: JSON.stringify({
+            ...newLine,
+            source_profile_id: newLineSource?.profileId || null,
+          }),
         }
       );
       if (!res.ok) throw new Error('Failed to add line item');
@@ -334,6 +338,8 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
         percentage_value: '',
         percentage_based_on: '',
       });
+      setNewLineSource(null);
+      setNewLineEdited(false);
       await onChanged();
     } catch (e) {
       onError(e.message);
@@ -481,16 +487,63 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
       {/* Add line form */}
       {isEditable && (
         <div className="px-4 py-3 bg-gray-50 dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800 space-y-2">
+          {newLineSource && (
+            <div className="flex items-center gap-1.5 text-[11px] text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 rounded px-2 py-1 mb-2 border border-blue-200 dark:border-blue-900/60 w-fit">
+              <Link2 className="w-3 h-3" />
+              From <span className="font-semibold">{newLineSource.profileName}</span>
+              {newLineEdited && <span className="text-amber-600 dark:text-amber-400">· edited</span>}
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-6 gap-2">
             {/* Charge Code dropdown */}
             <div className="sm:col-span-2">
               <label className="block text-field-label text-muted mb-[var(--space-field-label)]">Charge Code</label>
               <select
                 value={newLine.charge_name}
-                onChange={(e) => {
+                onChange={async (e) => {
                   const code = e.target.value;
                   const label = CHARGE_NAMES.find((c) => c.value === code)?.label || code;
-                  setNewLine({ ...newLine, charge_name: code, name: label });
+
+                  // Picking a code is a full reset: any fields typed before the pick
+                  // may be overwritten by prefill, and the badge clears optimistically.
+                  abortRef.current?.abort();
+                  setNewLineSource(null);
+                  setNewLineEdited(false);
+                  setNewLine((prev) => ({ ...prev, charge_name: code, name: label }));
+
+                  if (!code) return;
+
+                  const ac = new AbortController();
+                  abortRef.current = ac;
+                  try {
+                    const res = await fetch(
+                      `/api/tenant/loads/${loadId}/charge-profile-preview?charge_name=${encodeURIComponent(code)}`,
+                      { signal: ac.signal }
+                    );
+                    if (res.ok) {
+                      const p = await res.json();
+                      setNewLine({
+                        charge_name: p.charge_name,
+                        name: p.name,
+                        description: p.description || '',
+                        unit_of_measure: p.unit_of_measure,
+                        unit_count: p.unit_count ?? 1,
+                        free_units: p.free_units ?? 0,
+                        per_unit_price_cents: p.per_unit_price_cents ?? null,
+                        percentage_value: p.percentage_value ?? '',
+                        percentage_based_on: p.percentage_based_on ?? '',
+                      });
+                      setNewLineSource({
+                        profileId: p.source_profile_id,
+                        profileName: p.profile_name,
+                      });
+                    }
+                    // On 404 or other non-200, leave newLine at the code+label only.
+                  } catch (err) {
+                    if (err.name !== 'AbortError') {
+                      console.warn('[billing] charge-profile-preview fetch failed:', err.message);
+                    }
+                  }
                 }}
                 className="block w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40"
               >
@@ -505,7 +558,7 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
               <label className="block text-field-label text-muted mb-[var(--space-field-label)]">UOM</label>
               <select
                 value={newLine.unit_of_measure}
-                onChange={(e) => setNewLine({ ...newLine, unit_of_measure: e.target.value })}
+                onChange={(e) => updateNewLine({ unit_of_measure: e.target.value })}
                 className="block w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40"
               >
                 {UNITS_OF_MEASURE.map((u) => (
@@ -518,7 +571,7 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
               label="Qty"
               type="number"
               value={newLine.unit_count}
-              onChange={(e) => setNewLine({ ...newLine, unit_count: parseFloat(e.target.value) || 0 })}
+              onChange={(e) => updateNewLine({ unit_count: parseFloat(e.target.value) || 0 })}
             />
             {/* Rate — or Percentage fields */}
             {newLine.unit_of_measure === 'percentage' ? (
@@ -531,7 +584,7 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
                       const calculatedCents = newLine.percentage_based_on
                         ? computePercentageAmount(chargeSet.line_items, newLine.percentage_based_on, pctValue)
                         : newLine.per_unit_price_cents;
-                      setNewLine({ ...newLine, percentage_value: pctValue, per_unit_price_cents: calculatedCents });
+                      updateNewLine({ percentage_value: pctValue, per_unit_price_cents: calculatedCents });
                     }}
                     placeholder="15"
                     className="block w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40" />
@@ -547,7 +600,7 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
                 <CurrencyInput
                   label="Rate"
                   valueCents={newLine.per_unit_price_cents}
-                  onChangeCents={(v) => setNewLine({ ...newLine, per_unit_price_cents: v })}
+                  onChangeCents={(v) => updateNewLine({ per_unit_price_cents: v })}
                 />
                 <div className="flex items-end">
                   <Button type="button" onClick={addLineItem} loading={adding} className="w-full">
@@ -566,7 +619,7 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
               <input
                 type="text"
                 value={newLine.description}
-                onChange={(e) => setNewLine({ ...newLine, description: e.target.value })}
+                onChange={(e) => updateNewLine({ description: e.target.value })}
                 placeholder="Add a note for this charge (shown on the invoice)"
                 className="block w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40"
               />
@@ -586,7 +639,7 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
                       basedOn,
                       newLine.percentage_value
                     );
-                    setNewLine({ ...newLine, percentage_based_on: basedOn, per_unit_price_cents: calculatedCents });
+                    updateNewLine({ percentage_based_on: basedOn, per_unit_price_cents: calculatedCents });
                   }}
                   className="block w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40"
                 >
