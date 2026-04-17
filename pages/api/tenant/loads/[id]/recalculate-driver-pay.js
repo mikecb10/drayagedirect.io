@@ -57,11 +57,25 @@ export default async function handler(req, res) {
   // profile conditions the same way the engine will.
   const { data: routingEvents } = await svc
     .from('order_routing_events')
-    .select('id, event_type, arrived_at, departed_at, sequence, location_id, city, state, zip')
+    .select('id, event_type, arrived_at, departed_at, sequence, location_id, city, state, zip, move_id')
     .eq('tenant_id', ctx.tenantId)
     .eq('order_id', id)
     .order('sequence', { ascending: true });
   load.routing_events = routingEvents || [];
+
+  // Hydrate container_moves too — the advanced-route matcher groups
+  // routing events by move_id and sorts moves by their sequence. Without
+  // this pre-hydration here, the engine would normally do it itself, but
+  // because we already populated load.routing_events above, the engine
+  // skips its internal hydration (Array.isArray(load.routing_events) is
+  // true) and the matcher sees zero moves, failing every advanced match.
+  const { data: containerMoves } = await svc
+    .from('order_container_moves')
+    .select('id, sequence')
+    .eq('tenant_id', ctx.tenantId)
+    .eq('order_id', id)
+    .order('sequence', { ascending: true });
+  load.container_moves = containerMoves || [];
 
   if (!load.driver_id) {
     return res.status(200).json({
