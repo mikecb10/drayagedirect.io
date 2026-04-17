@@ -507,11 +507,29 @@ export default async function handler(req, res) {
     ];
     const pricingChanged = PRICING_FIELDS.some((f) => f in updates && updates[f] !== oldLoad[f]);
     if (pricingChanged) {
-      findMatchingCharges(svc, data, ctx.tenantId)
-        .then((charges) => {
-          if (charges.length > 0) {
-            return applyChargesToLoad(svc, id, ctx.tenantId, charges);
-          }
+      // DRAFT-only guard: never silently modify approved / invoiced / billed
+      // charge sets. Check the load's first charge set; skip the recalc
+      // entirely if it isn't in draft status. Dispatchers can still hit
+      // "Recalculate Rates" manually on an approved set if they explicitly
+      // need to (that path is unchanged).
+      //
+      // Also removes the previous `charges.length > 0` guard — applyChargesToLoad
+      // now wipes stale auto lines even when the new state matches no tariff
+      // (see lib/tariff-engine.js's applyChargesToLoad, commit d8d79e9).
+      svc
+        .from('order_charge_sets')
+        .select('id, status')
+        .eq('order_id', id)
+        .eq('tenant_id', ctx.tenantId)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle()
+        .then(({ data: firstSet }) => {
+          if (!firstSet) return; // no charge set → skip (don't auto-create on field edits)
+          if (firstSet.status !== 'draft') return; // approved/invoiced/billed → skip
+          return findMatchingCharges(svc, data, ctx.tenantId).then((charges) =>
+            applyChargesToLoad(svc, id, ctx.tenantId, charges)
+          );
         })
         .catch((e) => console.error('tariff auto-apply error:', e));
     }
