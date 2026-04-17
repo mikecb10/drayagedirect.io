@@ -6,6 +6,7 @@ import ChargeProfilePickerModal from '../../../components/settings/driver-tariff
 import DriverTariffHeader from '../../../components/settings/driver-tariff-detail/DriverTariffHeader';
 import DriverPayPanel from '../../../components/settings/driver-tariff-detail/DriverPayPanel';
 import DriverTariffMatchingPanel from '../../../components/settings/driver-tariff-detail/DriverTariffMatchingPanel';
+import DriverTariffAdvancedRoutePanel from '../../../components/settings/driver-tariff-detail/DriverTariffAdvancedRoutePanel';
 import Alert from '../../../components/ui/Alert';
 
 export default function DriverTariffForm({ tariffId: propTariffId, onClose: onCloseProp }) {
@@ -64,6 +65,11 @@ export default function DriverTariffForm({ tariffId: propTariffId, onClose: onCl
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
+  // Advanced route state. Preserved when toggling back to Basic
+  // (see matching payload logic in handleSave).
+  const [advancedRoute, setAdvancedRoute] = useState(null);
+  const [routingTemplates, setRoutingTemplates] = useState([]);
+
   // (Driver group dropdown handles its own data fetching.)
 
   useEffect(() => {
@@ -109,6 +115,8 @@ export default function DriverTariffForm({ tariffId: propTariffId, onClose: onCl
           is_tanker: t.is_tanker,
         });
 
+        setAdvancedRoute(t.advanced_route || null);
+
         if (t.charge_sets?.length > 0) {
           // Flatten all charge sets' profiles into one list, deduped by
           // charge_profile_id. Pre-existing "Pay To" grouping from the
@@ -148,6 +156,19 @@ export default function DriverTariffForm({ tariffId: propTariffId, onClose: onCl
     }
     load();
   }, [id, isNew, isReady]);
+
+  useEffect(() => {
+    async function loadTemplates() {
+      try {
+        const res = await fetch('/api/tenant/routing-templates');
+        if (res.ok) {
+          const body = await res.json();
+          setRoutingTemplates(body.templates || []);
+        }
+      } catch { /* silent */ }
+    }
+    loadTemplates();
+  }, []);
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -256,6 +277,9 @@ export default function DriverTariffForm({ tariffId: propTariffId, onClose: onCl
       effective_end: form.effective_end || null,
       charge_sets,
     };
+    if (form.matching_mode === 'advanced_route') {
+      payload.advanced_route = advancedRoute;
+    }
 
     try {
       const url = isNew ? '/api/tenant/ap/tariffs' : `/api/tenant/ap/tariffs/${id}`;
@@ -299,28 +323,60 @@ export default function DriverTariffForm({ tariffId: propTariffId, onClose: onCl
 
         {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
 
-        {/* Two-panel layout like PP */}
-        <div className="flex gap-0 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 min-h-[calc(100vh-200px)]">
+        {form.matching_mode === 'advanced_route' ? (
+          <>
+            <div className="flex gap-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-0 mb-4">
+              <DriverTariffMatchingPanel
+                form={form}
+                update={update}
+                toggleLoadType={toggleLoadType}
+                toggleFlag={toggleFlag}
+                toggleLocationAll={toggleLocationAll}
+                addLocationId={addLocationId}
+                removeLocationId={removeLocationId}
+                isLocationAll={isLocationAll}
+                showAdditional={showAdditional}
+                onToggleAdditional={() => setShowAdditional((s) => !s)}
+                isAdvanced
+              />
+              <div className="flex-1 p-3">
+                <DriverTariffAdvancedRoutePanel
+                  value={advancedRoute}
+                  onChange={setAdvancedRoute}
+                  routingTemplates={routingTemplates}
+                />
+              </div>
+            </div>
 
-          <DriverTariffMatchingPanel
-            form={form}
-            update={update}
-            toggleLoadType={toggleLoadType}
-            toggleFlag={toggleFlag}
-            toggleLocationAll={toggleLocationAll}
-            addLocationId={addLocationId}
-            removeLocationId={removeLocationId}
-            isLocationAll={isLocationAll}
-            showAdditional={showAdditional}
-            onToggleAdditional={() => setShowAdditional((s) => !s)}
-          />
-
-          <DriverPayPanel
-            linkedProfiles={linkedProfiles}
-            onOpenPicker={openProfilePicker}
-            onRemoveProfile={removeProfile}
-          />
-        </div>
+            <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+              <DriverPayPanel
+                linkedProfiles={linkedProfiles}
+                onOpenPicker={openProfilePicker}
+                onRemoveProfile={removeProfile}
+              />
+            </div>
+          </>
+        ) : (
+          <div className="flex gap-0 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 min-h-[calc(100vh-200px)]">
+            <DriverTariffMatchingPanel
+              form={form}
+              update={update}
+              toggleLoadType={toggleLoadType}
+              toggleFlag={toggleFlag}
+              toggleLocationAll={toggleLocationAll}
+              addLocationId={addLocationId}
+              removeLocationId={removeLocationId}
+              isLocationAll={isLocationAll}
+              showAdditional={showAdditional}
+              onToggleAdditional={() => setShowAdditional((s) => !s)}
+            />
+            <DriverPayPanel
+              linkedProfiles={linkedProfiles}
+              onOpenPicker={openProfilePicker}
+              onRemoveProfile={removeProfile}
+            />
+          </div>
+        )}
 
         {/* Bottom actions */}
         <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-gray-200 dark:border-slate-700">
