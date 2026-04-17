@@ -368,42 +368,79 @@ export default function TariffForm({ tariffId: propTariffId, onClose: onClosePro
 
         {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
 
-        {/* Two-panel layout like PP */}
-        <div className="flex gap-0 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 min-h-[calc(100vh-200px)]">
+        {form.matching_mode === 'advanced_route' ? (
+          <>
+            {/* Advanced mode: 3-column top row (matching | route builder)
+                with Charge Sets full-width beneath. Matching panel hides
+                pickup/delivery/return via isAdvanced. */}
+            <div className="flex gap-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-0 mb-4">
+              <TariffMatchingPanel
+                form={form}
+                update={update}
+                toggleLoadType={toggleLoadType}
+                toggleFlag={toggleFlag}
+                toggleLocationAll={toggleLocationAll}
+                addLocationId={addLocationId}
+                removeLocationId={removeLocationId}
+                isLocationAll={isLocationAll}
+                showAdditional={showAdditional}
+                onShowAdditionalChange={setShowAdditional}
+                customerLabels={customerLabels}
+                setCustomerLabels={setCustomerLabels}
+                isAdvanced
+              />
+              <div className="flex-1 p-3">
+                <TariffAdvancedRoutePanel
+                  value={advancedRoute}
+                  onChange={setAdvancedRoute}
+                  routingTemplates={routingTemplates}
+                />
+              </div>
+            </div>
 
-          {/* ═══════════════════════════════════════════ */}
-          {/* LEFT PANEL — Load Matching Conditions       */}
-          {/* ═══════════════════════════════════════════ */}
-          <TariffMatchingPanel
-            form={form}
-            update={update}
-            toggleLoadType={toggleLoadType}
-            toggleFlag={toggleFlag}
-            toggleLocationAll={toggleLocationAll}
-            addLocationId={addLocationId}
-            removeLocationId={removeLocationId}
-            isLocationAll={isLocationAll}
-            showAdditional={showAdditional}
-            onShowAdditionalChange={setShowAdditional}
-            customerLabels={customerLabels}
-            setCustomerLabels={setCustomerLabels}
-          />
-
-          {/* ═══════════════════════════════════════════ */}
-          {/* RIGHT PANEL — Charge Sets                   */}
-          {/* ═══════════════════════════════════════════ */}
-          <TariffChargeSetsPanel
-            chargeSets={chargeSets}
-            onAddChargeSet={addChargeSet}
-            onRemoveChargeSet={removeChargeSet}
-            onOpenProfilePicker={openProfilePicker}
-            onRemoveProfile={removeProfile}
-            onAddChargeItem={addChargeItem}
-            onUpdateChargeItem={updateChargeItem}
-            onRemoveChargeItem={removeChargeItem}
-            onUpdateChargeSet={updateChargeSet}
-          />
-        </div>
+            <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+              <TariffChargeSetsPanel
+                chargeSets={chargeSets}
+                onAddChargeSet={addChargeSet}
+                onRemoveChargeSet={removeChargeSet}
+                onOpenProfilePicker={openProfilePicker}
+                onRemoveProfile={removeProfile}
+                onAddChargeItem={addChargeItem}
+                onUpdateChargeItem={updateChargeItem}
+                onRemoveChargeItem={removeChargeItem}
+                onUpdateChargeSet={updateChargeSet}
+              />
+            </div>
+          </>
+        ) : (
+          <div className="flex gap-0 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 min-h-[calc(100vh-200px)]">
+            <TariffMatchingPanel
+              form={form}
+              update={update}
+              toggleLoadType={toggleLoadType}
+              toggleFlag={toggleFlag}
+              toggleLocationAll={toggleLocationAll}
+              addLocationId={addLocationId}
+              removeLocationId={removeLocationId}
+              isLocationAll={isLocationAll}
+              showAdditional={showAdditional}
+              onShowAdditionalChange={setShowAdditional}
+              customerLabels={customerLabels}
+              setCustomerLabels={setCustomerLabels}
+            />
+            <TariffChargeSetsPanel
+              chargeSets={chargeSets}
+              onAddChargeSet={addChargeSet}
+              onRemoveChargeSet={removeChargeSet}
+              onOpenProfilePicker={openProfilePicker}
+              onRemoveProfile={removeProfile}
+              onAddChargeItem={addChargeItem}
+              onUpdateChargeItem={updateChargeItem}
+              onRemoveChargeItem={removeChargeItem}
+              onUpdateChargeSet={updateChargeSet}
+            />
+          </div>
+        )}
 
         {/* Bottom actions */}
         <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-gray-200 dark:border-slate-700">
