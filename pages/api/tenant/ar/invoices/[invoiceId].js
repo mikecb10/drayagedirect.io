@@ -35,7 +35,7 @@ export default async function handler(req, res) {
         payments:payment_applications(id, amount_cents, created_at,
           payment:payments_received(id, amount_cents, payment_method, payment_date, reference_number)
         ),
-        credits:credit_memos(id, amount_cents, reason, status, applied_at)
+        credits:credit_memos!invoice_id(id, amount_cents, reason, status, applied_at)
       `)
       .eq('id', invoiceId)
       .eq('tenant_id', ctx.tenantId)
@@ -84,6 +84,7 @@ export default async function handler(req, res) {
         await svc
           .from('order_charge_sets')
           .update({ status: 'approved', invoice_id: null })
+          .eq('tenant_id', ctx.tenantId)
           .in('id', junctions.map((j) => j.charge_set_id));
       }
     } else if (status === 'overdue') {

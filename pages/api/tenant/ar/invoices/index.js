@@ -143,13 +143,23 @@ export default async function handler(req, res) {
 
     if (invError) return res.status(500).json({ error: invError.message });
 
-    // Create junction rows
+    // Create junction rows — bail and roll back the invoice if this fails,
+    // otherwise we'd return 201 with an orphaned invoice that has no charge
+    // sets linked (silent partial failure).
     const junctionRows = charge_set_ids.map((csId) => ({
       tenant_id: ctx.tenantId,
       invoice_id: invoice.id,
       charge_set_id: csId,
     }));
-    await svc.from('invoice_charge_sets').insert(junctionRows);
+    const { error: junctionErr } = await svc
+      .from('invoice_charge_sets')
+      .insert(junctionRows);
+    if (junctionErr) {
+      await svc.from('invoices').delete().eq('id', invoice.id).eq('tenant_id', ctx.tenantId);
+      return res.status(500).json({
+        error: `Failed to link charge sets to invoice: ${junctionErr.message}`,
+      });
+    }
 
     // Update charge sets to 'invoiced' status and link invoice_id
     await svc

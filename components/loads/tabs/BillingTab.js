@@ -286,15 +286,53 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
   async function updateStatus(nextStatus) {
     setSavingStatus(true);
     try {
-      const res = await fetch(
-        `/api/tenant/loads/${loadId}/charge-sets/${chargeSet.id}`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: nextStatus }),
+      // Transitioning to 'invoiced' goes through the AR module endpoint so
+      // a proper `invoices` row + `invoice_charge_sets` junction get created
+      // (not just an invoice_number_base on the charge set). A bare charge-set
+      // PUT to { status: 'invoiced' } creates a "ghost invoice" the /ar module
+      // can't see — downstream payments/credits have nothing to link to.
+      //
+      // If the charge set isn't approved yet, promote it first. The /ar/invoices
+      // endpoint rejects non-approved/non-invoiced input.
+      if (nextStatus === 'invoiced' && chargeSet.status !== 'invoiced') {
+        if (chargeSet.status !== 'approved') {
+          const approveRes = await fetch(
+            `/api/tenant/loads/${loadId}/charge-sets/${chargeSet.id}`,
+            {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: 'approved' }),
+            }
+          );
+          if (!approveRes.ok) {
+            const body = await approveRes.json().catch(() => ({}));
+            throw new Error(body.error || 'Failed to approve charge set');
+          }
         }
-      );
-      if (!res.ok) throw new Error('Failed to update status');
+
+        const invoiceRes = await fetch('/api/tenant/ar/invoices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ charge_set_ids: [chargeSet.id] }),
+        });
+        if (!invoiceRes.ok) {
+          const body = await invoiceRes.json().catch(() => ({}));
+          throw new Error(body.error || 'Failed to create invoice');
+        }
+      } else {
+        const res = await fetch(
+          `/api/tenant/loads/${loadId}/charge-sets/${chargeSet.id}`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: nextStatus }),
+          }
+        );
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || 'Failed to update status');
+        }
+      }
       await onChanged();
     } catch (e) {
       onError(e.message);
