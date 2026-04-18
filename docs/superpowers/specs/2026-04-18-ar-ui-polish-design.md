@@ -51,17 +51,23 @@ Task 3b: /ar pipeline bulk action bar + handlers
 Adds a Bill To row above each charge set card's header. Inside the existing charge set loop, immediately before the status + total header row:
 
 ```jsx
-<div className="mb-2">
-  <Field label="Bill To" className="!mb-0">
-    <OrgPicker
-      customerType="customer"
-      value={chargeSet.bill_to_customer_id}
-      onChange={(newId) => saveBillTo(chargeSet.id, newId)}
-      placeholder="Select customer..."
-    />
-  </Field>
+<div className="px-4 py-2.5 border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+  <OrgPicker
+    label="Bill To"
+    type="customer"
+    value={chargeSet.bill_to_customer_id}
+    valueLabel={chargeSet.bill_to?.name}
+    onChange={(org) => saveBillTo(org?.id || null)}
+    placeholder="Select customer..."
+  />
 </div>
 ```
+
+**OrgPicker contract notes (verified against `components/ui/OrgPicker.js` + existing callers):**
+- Prop is `type`, not `customerType`
+- `onChange` receives the full org object (or `null` on clear) — consumer must extract `.id`
+- `valueLabel` is required to render the current selection on first paint (component's internal `selectedLabel` initializes from `valueLabel || ''`)
+- Built-in `label` prop (rendered inside the picker) matches the pattern used by `LoadInfoTab`, `PaymentsTab`, `ApplyPaymentsTab`, `CreditMemosTab`, and ~30 other callers; preferred over a sibling `<label>` element
 
 New helper function `saveBillTo(csId, newId)` in the component:
 

@@ -98,13 +98,12 @@ Insert a new row BEFORE `{/* Header */}` and its div. The new row must be the fi
     <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden">
       {/* Bill To row — dispatcher can pick which customer this charge set is billed to */}
       <div className="px-4 py-2.5 border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900">
-        <label className="block text-[10px] uppercase tracking-wide font-semibold text-gray-500 dark:text-slate-400 mb-1">
-          Bill To
-        </label>
         <OrgPicker
-          customerType="customer"
+          label="Bill To"
+          type="customer"
           value={chargeSet.bill_to_customer_id}
-          onChange={(newId) => saveBillTo(newId)}
+          valueLabel={chargeSet.bill_to?.name}
+          onChange={(org) => saveBillTo(org?.id || null)}
           placeholder="Select customer..."
         />
       </div>
@@ -112,13 +111,19 @@ Insert a new row BEFORE `{/* Header */}` and its div. The new row must be the fi
       <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-900">
 ```
 
+**OrgPicker contract reminders for the implementer** (these prop names differ from early drafts of the plan):
+- Prop is `type`, not `customerType`
+- `onChange` receives the full org object or `null` — extract `.id` for the UUID
+- `valueLabel` is required to render the existing Bill To on first paint
+- Use the built-in `label` prop instead of a sibling `<label>` — matches 30+ other OrgPicker callers
+
 - [ ] **Step 5: Sanity-check the edit via grep**
 
 ```bash
-grep -n "saveBillTo\|customerType=\"customer\"\|Bill To row" components/loads/tabs/BillingTab.js
+grep -n "saveBillTo\|type=\"customer\"\|Bill To row" components/loads/tabs/BillingTab.js
 ```
 
-Expected: at least 4 matches — the function definition, the call inside `onChange`, the `customerType="customer"` prop on OrgPicker, and the comment tag.
+Expected: at least 4 matches — the function definition, the call inside `onChange`, the `type="customer"` prop on OrgPicker, and the comment tag.
 
 Also verify the old read-only block was removed:
 
