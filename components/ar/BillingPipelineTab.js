@@ -31,6 +31,8 @@ export default function BillingPipelineTab() {
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState(null);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [lastClickedId, setLastClickedId] = useState(null);
 
   async function fetchAR({ silent = false } = {}) {
     if (!silent) setLoading(true);
@@ -53,6 +55,50 @@ export default function BillingPipelineTab() {
   }
 
   useEffect(() => { fetchAR(); }, [activeFilter]);
+
+  // Selection is meaningful only within the currently displayed list.
+  // When the filter or search changes, the list changes, so clear selection.
+  useEffect(() => {
+    setSelectedIds(new Set());
+    setLastClickedId(null);
+  }, [activeFilter, search]);
+
+  const visibleIds = chargeSets.map((cs) => cs.id);
+  const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
+  const someSelected = visibleIds.some((id) => selectedIds.has(id)) && !allSelected;
+
+  function toggleAll() {
+    if (allSelected || someSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(visibleIds));
+    }
+  }
+
+  function toggleRow(csId, event) {
+    event.stopPropagation();
+    if (event.shiftKey && lastClickedId) {
+      const startIdx = visibleIds.indexOf(lastClickedId);
+      const endIdx = visibleIds.indexOf(csId);
+      if (startIdx >= 0 && endIdx >= 0) {
+        const [a, b] = [Math.min(startIdx, endIdx), Math.max(startIdx, endIdx)];
+        const rangeIds = visibleIds.slice(a, b + 1);
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          for (const id of rangeIds) next.add(id);
+          return next;
+        });
+      }
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(csId)) next.delete(csId);
+        else next.add(csId);
+        return next;
+      });
+    }
+    setLastClickedId(csId);
+  }
 
   function PipelineCard({ label, count, total_cents, icon: Icon, color, filterKey, active }) {
     const colorMap = {
@@ -132,6 +178,16 @@ export default function BillingPipelineTab() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 dark:border-slate-800 bg-gray-50/60 dark:bg-slate-800/40">
+                <th className="px-3 py-2 w-10">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    ref={(el) => { if (el) el.indeterminate = someSelected; }}
+                    onChange={toggleAll}
+                    aria-label="Select all visible charge sets"
+                    className="rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                </th>
                 <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Load #</th>
                 <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Customer</th>
                 <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Charge Set</th>
@@ -145,16 +201,21 @@ export default function BillingPipelineTab() {
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-slate-800">
               {loading ? (
-                <tr><td colSpan={9} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">Loading...</td></tr>
+                <tr><td colSpan={10} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">Loading...</td></tr>
               ) : chargeSets.length === 0 ? (
-                <tr><td colSpan={9} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">
+                <tr><td colSpan={10} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">
                   {activeFilter ? 'No charge sets match this filter.' : 'No charge sets found.'}
                 </td></tr>
               ) : (
                 chargeSets.map((cs) => {
                   const badge = STATUS_BADGES[cs.status] || STATUS_BADGES.draft;
                   return (
-                    <tr key={cs.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 cursor-pointer"
+                    <tr key={cs.id}
+                      className={`cursor-pointer ${
+                        selectedIds.has(cs.id)
+                          ? 'bg-blue-50 dark:bg-blue-950/40'
+                          : 'hover:bg-gray-50 dark:hover:bg-slate-800/40'
+                      }`}
                       onClick={() =>
                         openOverlay('load', {
                           loadId: cs.order_id,
@@ -165,6 +226,16 @@ export default function BillingPipelineTab() {
                           onClose: () => fetchAR({ silent: true }),
                         })
                       }>
+                      <td className="px-3 py-2.5 w-10" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(cs.id)}
+                          onChange={(e) => toggleRow(cs.id, e)}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`Select charge set ${cs.charge_set_number || ''}`}
+                          className="rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                      </td>
                       <td className="px-4 py-2.5">
                         <span className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">
                           {cs.order?.order_number || '—'}
