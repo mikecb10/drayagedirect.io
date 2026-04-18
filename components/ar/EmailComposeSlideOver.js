@@ -122,12 +122,14 @@ export default function EmailComposeSlideOver({
 
   // ---- fetch defaults ------------------------------------------------------
   useEffect(() => {
-    if (!open || !contextId || !docType) return;
+    if (!open || !contextId || !docType) return undefined;
 
     const url =
       docType === 'invoice'
         ? `/api/tenant/ar/invoices/${contextId}/email-defaults`
         : `/api/tenant/ar/charge-sets/${contextId}/email-defaults`;
+
+    let cancelled = false;
 
     setLoading(true);
     setFetchError(null);
@@ -141,6 +143,7 @@ export default function EmailComposeSlideOver({
         return r.json();
       })
       .then((data) => {
+        if (cancelled) return;
         setTo(data.to ?? []);
         setCc(data.cc ?? []);
         setBcc(data.bcc ?? []);
@@ -155,8 +158,10 @@ export default function EmailComposeSlideOver({
         setDirty(false);
         initialLoadDoneRef.current = true;
       })
-      .catch((err) => setFetchError(err.message))
-      .finally(() => setLoading(false));
+      .catch((err) => { if (!cancelled) setFetchError(err.message); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+
+    return () => { cancelled = true; };
   }, [open, contextId, docType]);
 
   // ---- ESC key listener ----------------------------------------------------
