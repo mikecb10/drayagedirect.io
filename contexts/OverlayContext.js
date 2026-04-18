@@ -26,9 +26,11 @@ export function OverlayProvider({ children }) {
     });
 
     setTimeout(() => {
+      let poppedCallback = null;
       setStack((prev) => {
         // Safety: only pop if the last is still the one we marked closing
         if (prev.length > 0 && prev[prev.length - 1].closing) {
+          const popped = prev[prev.length - 1];
           const remaining = prev.slice(0, -1);
           // If the stack is now empty, clear the ?load= query param from the
           // URL so a refresh goes back to the clean dispatcher board.
@@ -40,10 +42,26 @@ export function OverlayProvider({ children }) {
               window.history.replaceState({}, '', url.pathname + url.search);
             }
           }
+          // Capture the onClose callback to fire after the state update so
+          // callers (e.g., BillingPipelineTab, dispatcher) can refetch the
+          // list data — keeps card positions in sync after a user makes
+          // changes inside the overlay and closes it. Captured outside the
+          // updater to avoid strict-mode double-fire.
+          if (typeof popped.props?.onClose === 'function') {
+            poppedCallback = popped.props.onClose;
+          }
           return remaining;
         }
         return prev;
       });
+      if (poppedCallback) {
+        try {
+          poppedCallback();
+        } catch (e) {
+          // Never let a consumer's refetch error crash the overlay close
+          console.error('Overlay onClose callback threw:', e);
+        }
+      }
     }, 300);
   }, []);
 

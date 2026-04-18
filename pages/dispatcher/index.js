@@ -81,8 +81,8 @@ export default function DispatcherIndex() {
   }, []);
 
   // Fetch loads whenever filters change
-  async function fetchLoads() {
-    setLoading(true);
+  async function fetchLoads({ silent = false } = {}) {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams();
@@ -132,7 +132,13 @@ export default function DispatcherIndex() {
     if (loadId && typeof loadId === 'string') {
       const tab = router.query.tab || 'info';
       const timer = setTimeout(() => {
-        openOverlay('load', { loadId, tab });
+        openOverlay('load', {
+          loadId,
+          tab,
+          // Silent refetch on close so the board reflects any edits made
+          // inside the overlay (status, driver, dates) without flashing.
+          onClose: () => fetchLoads({ silent: true }),
+        });
       }, 150);
       return () => clearTimeout(timer);
     }
@@ -433,7 +439,13 @@ export default function DispatcherIndex() {
   function openLoadOverlay(loadId, tab = 'info') {
     const displayedLoads = applyKpiFilter(loads);
     sessionStorage.setItem('dd.loadIds', JSON.stringify(displayedLoads.map((l) => l.id)));
-    openOverlay('load', { loadId, tab });
+    openOverlay('load', {
+      loadId,
+      tab,
+      // Silent refetch on close so the board reflects any edits made
+      // inside the overlay (status, driver, dates) without flashing.
+      onClose: () => fetchLoads({ silent: true }),
+    });
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
       url.searchParams.set('load', loadId);

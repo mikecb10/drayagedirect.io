@@ -32,8 +32,8 @@ export default function BillingPipelineTab() {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState(null);
 
-  async function fetchAR() {
-    setLoading(true);
+  async function fetchAR({ silent = false } = {}) {
+    if (!silent) setLoading(true);
     try {
       const params = new URLSearchParams();
       if (activeFilter && !['uncompleted_loads', 'completed_loads'].includes(activeFilter)) {
@@ -152,7 +152,16 @@ export default function BillingPipelineTab() {
                   const badge = STATUS_BADGES[cs.status] || STATUS_BADGES.draft;
                   return (
                     <tr key={cs.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 cursor-pointer"
-                      onClick={() => openOverlay('load', { loadId: cs.order_id, tab: 'billing' })}>
+                      onClick={() =>
+                        openOverlay('load', {
+                          loadId: cs.order_id,
+                          tab: 'billing',
+                          // Refetch the pipeline silently when the user closes
+                          // the overlay so card positions update live without
+                          // a visible loading flash.
+                          onClose: () => fetchAR({ silent: true }),
+                        })
+                      }>
                       <td className="px-4 py-2.5">
                         <span className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">
                           {cs.order?.order_number || '—'}
