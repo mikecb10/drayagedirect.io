@@ -41,6 +41,10 @@ function emptyLocationMatch() {
 function orgTypeForEvent(eventType) {
   if (eventType === 'pull' || eventType === 'return') return 'terminal';
   if (eventType === 'deliver') return 'warehouse';
+  // Drop, hook, hook_chassis, lift_off, terminate all typically happen
+  // at yards (the container sits there between moves). Scoping the
+  // OrgPicker to yards avoids the misleading "Add customer..." default.
+  if (['drop', 'hook', 'hook_chassis', 'lift_off', 'terminate'].includes(eventType)) return 'yard';
   return 'customer';
 }
 
