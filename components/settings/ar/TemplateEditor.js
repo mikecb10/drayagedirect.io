@@ -27,6 +27,7 @@ export default function TemplateEditor({ systemSlug }) {
     setLoading(true);
     setError(null);
     setDirty(false);
+    setRow(null);
     fetch('/api/tenant/ar/config/email-templates')
       .then((r) => r.json())
       .then((d) => {
@@ -39,9 +40,27 @@ export default function TemplateEditor({ systemSlug }) {
     return () => { cancelled = true; };
   }, [systemSlug]);
 
+  // Auto-dismiss toast after 3s; cleanup cancels the timer on unmount
+  // or on a new toast arriving (so the window restarts, matching the
+  // BillingPipelineTab pattern used elsewhere in the codebase).
+  useEffect(() => {
+    if (!toast) return undefined;
+    const id = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(id);
+  }, [toast]);
+
   function updateField(field, value) {
     setRow((r) => ({ ...r, [field]: value }));
     setDirty(true);
+  }
+
+  async function copyToken(tok) {
+    try {
+      await navigator.clipboard.writeText(tok);
+      setToast({ type: 'success', message: `Copied ${tok}` });
+    } catch {
+      setToast({ type: 'error', message: 'Copy failed — paste manually' });
+    }
   }
 
   async function save() {
@@ -59,11 +78,10 @@ export default function TemplateEditor({ systemSlug }) {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Save failed');
+      if (!res.ok || data.error) throw new Error(data.error || 'Save failed');
       setRow(data);
       setDirty(false);
       setToast({ type: 'success', message: 'Template saved' });
-      setTimeout(() => setToast(null), 3000);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -80,11 +98,10 @@ export default function TemplateEditor({ systemSlug }) {
         method: 'POST',
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Reset failed');
+      if (!res.ok || data.error) throw new Error(data.error || 'Reset failed');
       setRow(data);
       setDirty(false);
       setToast({ type: 'success', message: 'Template reset to default' });
-      setTimeout(() => setToast(null), 3000);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -112,8 +129,9 @@ export default function TemplateEditor({ systemSlug }) {
       )}
 
       <div>
-        <label className="block text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400 mb-1">Subject</label>
+        <label htmlFor={`te-${systemSlug}-subject`} className="block text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400 mb-1">Subject</label>
         <input
+          id={`te-${systemSlug}-subject`}
           type="text"
           value={row.subject}
           onChange={(e) => updateField('subject', e.target.value)}
@@ -123,7 +141,7 @@ export default function TemplateEditor({ systemSlug }) {
 
       <div>
         <div className="flex items-center justify-between mb-1">
-          <label className="block text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400">Body</label>
+          <label htmlFor={`te-${systemSlug}-body`} className="block text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400">Body</label>
           <div className="flex items-center gap-2 text-xs">
             <button
               type="button"
@@ -138,6 +156,7 @@ export default function TemplateEditor({ systemSlug }) {
           </div>
         </div>
         <textarea
+          id={`te-${systemSlug}-body`}
           rows={10}
           value={row.body_format === 'html' ? row.body_html : row.body_text}
           onChange={(e) => {
@@ -155,7 +174,7 @@ export default function TemplateEditor({ systemSlug }) {
             <button
               key={tok}
               type="button"
-              onClick={() => { navigator.clipboard?.writeText(tok); }}
+              onClick={() => copyToken(tok)}
               className="text-xs font-mono px-2 py-0.5 rounded bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800"
             >{tok}</button>
           ))}
