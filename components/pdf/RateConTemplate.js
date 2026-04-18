@@ -85,16 +85,6 @@ export default function RateConTemplate({
             </View>
           </View>
         </View>
-
-        {/* Signature block */}
-        <View style={{ marginTop: 48, flexDirection: 'row', justifyContent: 'space-between' }}>
-          <View style={{ flex: 2, borderTopWidth: 1, borderTopColor: colors.text, marginRight: 12 }}>
-            <Text style={[typography.label, { marginTop: 4 }]}>Signature</Text>
-          </View>
-          <View style={{ flex: 1, borderTopWidth: 1, borderTopColor: colors.text }}>
-            <Text style={[typography.label, { marginTop: 4 }]}>Date</Text>
-          </View>
-        </View>
       </Page>
     </Document>
   );
