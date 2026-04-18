@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import {
   Search, FileText, Check, DollarSign, Clock, AlertCircle,
   RefreshCw, ExternalLink, Truck, CheckCircle2,
+  CheckSquare, X, Download,
 } from 'lucide-react';
 import Alert from '../ui/Alert';
+import Button from '../ui/Button';
 import { useOverlay } from '../../contexts/OverlayContext';
 import { formatInvoiceNumber } from '../../lib/invoice-utils';
 
@@ -33,6 +35,8 @@ export default function BillingPipelineTab() {
   const [activeFilter, setActiveFilter] = useState(null);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [lastClickedId, setLastClickedId] = useState(null);
+  const [bulkAction, setBulkAction] = useState(null); // 'approve' | 'unapprove' | null
+  const [toast, setToast] = useState(null); // { type, message } | null
 
   async function fetchAR({ silent = false } = {}) {
     if (!silent) setLoading(true);
@@ -49,6 +53,14 @@ export default function BillingPipelineTab() {
       if (!res.ok) throw new Error('Failed to load');
       const data = await res.json();
       setChargeSets(data.charge_sets || []);
+      // Defensive: drop any selected ids that no longer match the fetched list
+      // (e.g., a bulk transition removed them from the current filter).
+      setSelectedIds((prev) => {
+        const visible = new Set((data.charge_sets || []).map((cs) => cs.id));
+        const next = new Set();
+        for (const id of prev) if (visible.has(id)) next.add(id);
+        return next;
+      });
       setCounts(data.counts || {});
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
@@ -62,6 +74,13 @@ export default function BillingPipelineTab() {
     setSelectedIds(new Set());
     setLastClickedId(null);
   }, [activeFilter, search]);
+
+  // Toast auto-dismisses after 4 seconds
+  useEffect(() => {
+    if (!toast) return;
+    const id = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(id);
+  }, [toast]);
 
   const visibleIds = chargeSets.map((cs) => cs.id);
   const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
@@ -100,6 +119,91 @@ export default function BillingPipelineTab() {
     setLastClickedId(csId);
   }
 
+  async function bulkStatusTransition(nextStatus, validFromStatuses) {
+    const actionLabel = nextStatus === 'approved' ? 'approve' : 'unapprove';
+    setBulkAction(actionLabel);
+
+    const selected = chargeSets.filter((cs) => selectedIds.has(cs.id));
+    const eligible = selected.filter((cs) => validFromStatuses.includes(cs.status));
+    const skipped = selected.length - eligible.length;
+    let succeeded = 0;
+    let failed = 0;
+
+    for (const cs of eligible) {
+      try {
+        const res = await fetch(
+          `/api/tenant/loads/${cs.order_id}/charge-sets/${cs.id}`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: nextStatus }),
+          }
+        );
+        if (!res.ok) throw new Error(await res.text());
+        succeeded++;
+      } catch (e) {
+        failed++;
+      }
+    }
+
+    setBulkAction(null);
+    setSelectedIds(new Set());
+    setLastClickedId(null);
+    await fetchAR({ silent: true });
+
+    const verb = nextStatus === 'approved' ? 'Approved' : 'Unapproved';
+    const parts = [];
+    if (succeeded > 0) parts.push(`${verb} ${succeeded}`);
+    if (skipped > 0) parts.push(`skipped ${skipped} (ineligible status)`);
+    if (failed > 0) parts.push(`${failed} failed`);
+
+    const kind = failed > 0 && succeeded === 0 ? 'error' : 'success';
+    setToast({ type: kind, message: parts.join(' · ') || 'Nothing to do' });
+  }
+
+  async function handleBulkApprove() {
+    await bulkStatusTransition('approved', ['draft', 'rate_con_sent', 'unapproved']);
+  }
+
+  async function handleBulkUnapprove() {
+    await bulkStatusTransition('unapproved', ['draft', 'rate_con_sent', 'approved']);
+  }
+
+  function handleExportCsv() {
+    const selected = chargeSets.filter((cs) => selectedIds.has(cs.id));
+    if (selected.length === 0) return;
+
+    const rows = [
+      ['Order #', 'Customer', 'Charge Set #', 'Status', 'Bill To', 'Total'],
+      ...selected.map((cs) => [
+        cs.order?.order_number || '',
+        cs.order?.customer?.name || '',
+        cs.charge_set_number || '',
+        cs.status || '',
+        cs.bill_to?.name || '',
+        `$${((cs.total_cents || 0) / 100).toFixed(2)}`,
+      ]),
+    ];
+
+    const escape = (v) => {
+      const s = String(v ?? '');
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = rows.map((row) => row.map(escape).join(',')).join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ar-billing-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    setToast({ type: 'success', message: `Exported ${selected.length} charge set${selected.length !== 1 ? 's' : ''} to CSV` });
+  }
+
   function PipelineCard({ label, count, total_cents, icon: Icon, color, filterKey, active }) {
     const colorMap = {
       gray: { bg: 'bg-gray-50 dark:bg-slate-800/50', border: 'border-gray-200 dark:border-slate-700', text: 'text-gray-700 dark:text-slate-200', iconBg: 'bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-slate-400', activeBg: 'bg-gray-100 dark:bg-slate-800 ring-2 ring-gray-400 dark:ring-slate-500' },
@@ -130,6 +234,58 @@ export default function BillingPipelineTab() {
   return (
     <div className="space-y-5">
       {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
+      {toast && (
+        <Alert
+          type={toast.type}
+          message={toast.message}
+          onClose={() => setToast(null)}
+        />
+      )}
+      {selectedIds.size > 0 && (
+        <div className="sticky top-0 z-10 flex items-center gap-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-lg px-4 py-2">
+          <div className="flex items-center gap-2 text-sm font-medium text-blue-700 dark:text-blue-300">
+            <CheckSquare className="w-4 h-4" />
+            {selectedIds.size} selected
+          </div>
+          <div className="h-4 w-px bg-blue-300 dark:bg-blue-800" />
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={handleBulkApprove}
+            loading={bulkAction === 'approve'}
+            disabled={bulkAction != null}
+          >
+            <Check className="w-3.5 h-3.5 inline -mt-0.5 mr-1" /> Approve
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={handleBulkUnapprove}
+            loading={bulkAction === 'unapprove'}
+            disabled={bulkAction != null}
+          >
+            <AlertCircle className="w-3.5 h-3.5 inline -mt-0.5 mr-1" /> Unapprove
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={handleExportCsv}
+            disabled={bulkAction != null}
+          >
+            <Download className="w-3.5 h-3.5 inline -mt-0.5 mr-1" /> Export CSV
+          </Button>
+          <div className="flex-1" />
+          <button
+            onClick={() => {
+              setSelectedIds(new Set());
+              setLastClickedId(null);
+            }}
+            className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 flex items-center gap-1"
+          >
+            <X className="w-3.5 h-3.5" /> Clear
+          </button>
+        </div>
+      )}
 
       {/* Pre-Invoice Pipeline */}
       <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
@@ -184,6 +340,7 @@ export default function BillingPipelineTab() {
                     checked={allSelected}
                     ref={(el) => { if (el) el.indeterminate = someSelected; }}
                     onChange={toggleAll}
+                    disabled={bulkAction != null}
                     aria-label="Select all visible charge sets"
                     className="rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
                   />
@@ -232,6 +389,7 @@ export default function BillingPipelineTab() {
                           checked={selectedIds.has(cs.id)}
                           onChange={(e) => toggleRow(cs.id, e)}
                           onClick={(e) => e.stopPropagation()}
+                          disabled={bulkAction != null}
                           aria-label={`Select charge set ${cs.charge_set_number || ''}`}
                           className="rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
                         />
