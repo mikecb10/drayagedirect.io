@@ -6,6 +6,8 @@ import Badge from '../ui/Badge';
 import Modal from '../ui/Modal';
 import Select from '../ui/Select';
 import { formatCents } from '../../lib/ar-utils';
+import EmailComposeSlideOver from './EmailComposeSlideOver';
+import { useEmailCompose } from '../../hooks/useEmailCompose';
 
 const STATUS_BADGES = {
   draft: { variant: 'gray', label: 'Draft' },
@@ -16,6 +18,7 @@ const STATUS_BADGES = {
 };
 
 export default function InvoicesTab() {
+  const emailCompose = useEmailCompose();
   const [invoices, setInvoices] = useState([]);
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
@@ -202,7 +205,7 @@ export default function InvoicesTab() {
                       <td className="px-4 py-2.5">
                         <div className="flex gap-1">
                           {inv.status === 'draft' && (
-                            <button onClick={() => updateStatus(inv.id, 'sent')}
+                            <button onClick={() => emailCompose.open('invoice', inv.id)}
                               className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 px-1.5 py-0.5 rounded hover:bg-blue-50 dark:hover:bg-blue-950/40">
                               Send
                             </button>
@@ -229,6 +232,15 @@ export default function InvoicesTab() {
           </table>
         </div>
       </div>
+
+      <EmailComposeSlideOver
+        open={emailCompose.isOpen}
+        onClose={emailCompose.close}
+        docType={emailCompose.docType}
+        contextId={emailCompose.contextId}
+        onSent={() => load()}
+        onSkipped={() => load()}
+      />
 
       {/* Create Invoice Modal */}
       {createOpen && (
