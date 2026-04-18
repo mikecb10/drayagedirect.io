@@ -23,7 +23,7 @@
 
 **Context:**
 - Follows migration template: `BEGIN` / `COMMIT`, `IF NOT EXISTS` guards, ends with `NOTIFY pgrst, 'reload schema'` (per `dev_migration_template.md`).
-- Extends `seed_system_email_templates_for_tenant()` (defined in migration 056) rather than replacing it — adds two more `INSERT ON CONFLICT DO NOTHING` blocks.
+- Introduces a NEW parallel function `seed_ar_email_templates_for_tenant()` rather than modifying `seed_system_email_templates_for_tenant()` from migration 056. `CREATE OR REPLACE FUNCTION` would silently drop the 13 operational seed inserts unless their whole body was reproduced — the parallel function avoids that maintenance hazard and keeps AR seeding isolated.
 - User applies via Supabase Studio SQL editor (per the pattern used for migrations 076-078).
 
 - [ ] **Step 1: Verify branch is `main`**
