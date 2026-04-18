@@ -110,6 +110,7 @@ export default async function handler(req, res) {
       pickup_location_id,
       delivery_location_id,
       return_location_id,
+      active_only,
     } = req.query;
 
     let query = svc
@@ -240,7 +241,17 @@ export default async function handler(req, res) {
       stats.pending_docs = 0;
     }
 
-    return res.status(200).json({ loads: data, stats, pendingDocOrderIds });
+    // active_only=true: hide completed + cancelled loads from the dispatcher
+    // board's main grid. Stats + KPIs are computed BEFORE this filter so the
+    // "Finished Today" KPI card still reports today's completions accurately.
+    // Per user policy: completed loads belong in the billing/AR section, not
+    // on the active dispatch board.
+    const visibleLoads =
+      active_only === 'true'
+        ? data.filter((l) => l.status !== 'completed' && l.status !== 'cancelled')
+        : data;
+
+    return res.status(200).json({ loads: visibleLoads, stats, pendingDocOrderIds });
   }
 
   if (req.method === 'POST') {

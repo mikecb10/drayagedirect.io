@@ -88,6 +88,11 @@ export default function DispatcherIndex() {
       const params = new URLSearchParams();
       if (search) params.set('search', search);
       if (dateFilter) params.set('date_filter', dateFilter);
+      // Dispatcher board hides completed + cancelled loads by default — they
+      // belong in the billing/AR section, not on active dispatch work. The
+      // "Finished Today" KPI still reports today's completions (stats are
+      // computed server-side before the active_only filter applies).
+      params.set('active_only', 'true');
       for (const [k, v] of Object.entries(filters)) {
         if (v !== '' && v != null) params.set(k, v);
       }
