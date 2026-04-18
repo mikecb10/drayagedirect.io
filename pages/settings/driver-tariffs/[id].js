@@ -323,6 +323,15 @@ export default function DriverTariffForm({ tariffId: propTariffId, onClose: onCl
 
         {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
 
+        {/* Warn when the driver tariff has a saved advanced route but is
+            currently in Basic mode. Mirrors the AR-side banner (prevents
+            silent loss of route-based matching after a mistaken toggle). */}
+        {form.matching_mode === 'basic' && advancedRoute?.moves?.length > 0 && (
+          <div className="mb-4 rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+            This driver tariff has a saved advanced route ({advancedRoute.moves.length} {advancedRoute.moves.length === 1 ? 'move' : 'moves'}). It is preserved but <b>not being used for matching</b> because the mode is Basic. Switch to <b>Advanced Route Matching</b> above to use it.
+          </div>
+        )}
+
         {form.matching_mode === 'advanced_route' ? (
           <>
             <div className="flex gap-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-0 mb-4">

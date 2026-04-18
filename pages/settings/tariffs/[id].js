@@ -368,6 +368,16 @@ export default function TariffForm({ tariffId: propTariffId, onClose: onClosePro
 
         {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
 
+        {/* Warn when the tariff has a saved advanced route but is currently
+            in Basic mode — the route is preserved (preserve-on-toggle) but
+            the engine isn't using it. Prevents a user who toggled to Basic
+            by mistake from silently losing route-based matching. */}
+        {form.matching_mode === 'basic' && advancedRoute?.moves?.length > 0 && (
+          <div className="mb-4 rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+            This tariff has a saved advanced route ({advancedRoute.moves.length} {advancedRoute.moves.length === 1 ? 'move' : 'moves'}). It is preserved but <b>not being used for matching</b> because the mode is Basic. Switch to <b>Advanced Route Matching</b> above to use it.
+          </div>
+        )}
+
         {form.matching_mode === 'advanced_route' ? (
           <>
             {/* Advanced mode: 3-column top row (matching | route builder)
