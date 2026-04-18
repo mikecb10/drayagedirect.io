@@ -54,7 +54,7 @@ export default function BillingPipelineTab() {
 
   useEffect(() => { fetchAR(); }, [activeFilter]);
 
-  function PipelineCard({ label, count, icon: Icon, color, filterKey, active }) {
+  function PipelineCard({ label, count, total_cents, icon: Icon, color, filterKey, active }) {
     const colorMap = {
       gray: { bg: 'bg-gray-50 dark:bg-slate-800/50', border: 'border-gray-200 dark:border-slate-700', text: 'text-gray-700 dark:text-slate-200', iconBg: 'bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-slate-400', activeBg: 'bg-gray-100 dark:bg-slate-800 ring-2 ring-gray-400 dark:ring-slate-500' },
       cyan: { bg: 'bg-cyan-50 dark:bg-cyan-950/30', border: 'border-cyan-200 dark:border-cyan-900/60', text: 'text-cyan-700 dark:text-cyan-300', iconBg: 'bg-cyan-100 text-cyan-600 dark:bg-cyan-950/50 dark:text-cyan-400', activeBg: 'bg-cyan-100 dark:bg-cyan-950/50 ring-2 ring-cyan-400' },
@@ -74,6 +74,9 @@ export default function BillingPipelineTab() {
           <span className={`text-lg font-bold ${c.text}`}>{count}</span>
         </div>
         <div className="text-[10px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">{label}</div>
+        <div className="text-xs font-medium text-gray-600 dark:text-slate-300 mt-1">
+          {formatCents(total_cents || 0)}
+        </div>
       </button>
     );
   }
@@ -86,11 +89,11 @@ export default function BillingPipelineTab() {
       <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
         <div className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-3">Pre-Invoice Pipeline</div>
         <div className="flex gap-3 flex-wrap">
-          <PipelineCard label="Uncompleted Loads" count={counts.uncompleted_loads || 0} icon={Truck} color="gray" filterKey="uncompleted_loads" active={activeFilter === 'uncompleted_loads'} />
-          <PipelineCard label="Completed Loads" count={counts.completed_loads || 0} icon={CheckCircle2} color="gray" filterKey="completed_loads" active={activeFilter === 'completed_loads'} />
-          <PipelineCard label="Rate Con Sent" count={counts.rate_con_sent || 0} icon={FileText} color="cyan" filterKey="rate_con_sent" active={activeFilter === 'rate_con_sent'} />
-          <PipelineCard label="Unapproved" count={counts.unapproved || 0} icon={AlertCircle} color="amber" filterKey="unapproved" active={activeFilter === 'unapproved'} />
-          <PipelineCard label="Approved" count={counts.approved || 0} icon={Check} color="blue" filterKey="approved" active={activeFilter === 'approved'} />
+          <PipelineCard label="Uncompleted Loads" count={counts.uncompleted_loads?.count || 0} total_cents={counts.uncompleted_loads?.total_cents || 0} icon={Truck} color="gray" filterKey="uncompleted_loads" active={activeFilter === 'uncompleted_loads'} />
+          <PipelineCard label="Completed Loads" count={counts.completed_loads?.count || 0} total_cents={counts.completed_loads?.total_cents || 0} icon={CheckCircle2} color="gray" filterKey="completed_loads" active={activeFilter === 'completed_loads'} />
+          <PipelineCard label="Rate Con Sent" count={counts.rate_con_sent?.count || 0} total_cents={counts.rate_con_sent?.total_cents || 0} icon={FileText} color="cyan" filterKey="rate_con_sent" active={activeFilter === 'rate_con_sent'} />
+          <PipelineCard label="Unapproved" count={counts.unapproved?.count || 0} total_cents={counts.unapproved?.total_cents || 0} icon={AlertCircle} color="amber" filterKey="unapproved" active={activeFilter === 'unapproved'} />
+          <PipelineCard label="Approved" count={counts.approved?.count || 0} total_cents={counts.approved?.total_cents || 0} icon={Check} color="blue" filterKey="approved" active={activeFilter === 'approved'} />
         </div>
       </div>
 
@@ -98,8 +101,8 @@ export default function BillingPipelineTab() {
       <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
         <div className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-3">Invoice Pipeline</div>
         <div className="flex gap-3 flex-wrap">
-          <PipelineCard label="Invoiced" count={counts.invoiced || 0} icon={DollarSign} color="emerald" filterKey="invoiced" active={activeFilter === 'invoiced'} />
-          <PipelineCard label="Rebilling" count={counts.rebilling || 0} icon={RefreshCw} color="purple" filterKey="rebilling" active={activeFilter === 'rebilling'} />
+          <PipelineCard label="Invoiced" count={counts.invoiced?.count || 0} total_cents={counts.invoiced?.total_cents || 0} icon={DollarSign} color="emerald" filterKey="invoiced" active={activeFilter === 'invoiced'} />
+          <PipelineCard label="Rebilling" count={counts.rebilling?.count || 0} total_cents={counts.rebilling?.total_cents || 0} icon={RefreshCw} color="purple" filterKey="rebilling" active={activeFilter === 'rebilling'} />
         </div>
       </div>
 

@@ -40,19 +40,22 @@ export default async function handler(req, res) {
   // filter client-side here.)
   const sets = (chargeSets || []).filter((cs) => !cs.order || cs.order.deleted_at == null);
 
-  // Compute pipeline counts
+  // Compute pipeline counts + sums per bucket.
+  // Shape: { <bucket>: { count, total_cents } } with `total`/`total_cents`
+  // at the top level preserving grand totals for backwards-compat display.
+  const emptyBucket = () => ({ count: 0, total_cents: 0 });
   const counts = {
     // Pre-Invoice Pipeline
-    uncompleted_loads: 0,
-    completed_loads: 0,
-    rate_con_sent: 0,
-    unapproved: 0,
-    approved: 0,
+    uncompleted_loads: emptyBucket(),
+    completed_loads: emptyBucket(),
+    rate_con_sent: emptyBucket(),
+    unapproved: emptyBucket(),
+    approved: emptyBucket(),
     // Invoice Pipeline
-    invoiced: 0,
-    rebilling: 0,
+    invoiced: emptyBucket(),
+    rebilling: emptyBucket(),
     // Other
-    void: 0,
+    void: emptyBucket(),
     total: sets.length,
     total_cents: 0,
   };
@@ -60,21 +63,27 @@ export default async function handler(req, res) {
   for (const cs of sets) {
     const loadStatus = cs.order?.status;
     const csStatus = cs.status;
+    const cents = cs.total_cents || 0;
 
-    counts.total_cents += cs.total_cents || 0;
+    counts.total_cents += cents;
 
-    if (csStatus === 'void') { counts.void++; continue; }
-    if (csStatus === 'invoiced' || csStatus === 'billed') { counts.invoiced++; continue; }
-    if (csStatus === 'rebilling') { counts.rebilling++; continue; }
-    if (csStatus === 'rate_con_sent') { counts.rate_con_sent++; continue; }
-    if (csStatus === 'unapproved') { counts.unapproved++; continue; }
-    if (csStatus === 'approved') { counts.approved++; continue; }
+    const addTo = (bucket) => {
+      counts[bucket].count += 1;
+      counts[bucket].total_cents += cents;
+    };
+
+    if (csStatus === 'void') { addTo('void'); continue; }
+    if (csStatus === 'invoiced' || csStatus === 'billed') { addTo('invoiced'); continue; }
+    if (csStatus === 'rebilling') { addTo('rebilling'); continue; }
+    if (csStatus === 'rate_con_sent') { addTo('rate_con_sent'); continue; }
+    if (csStatus === 'unapproved') { addTo('unapproved'); continue; }
+    if (csStatus === 'approved') { addTo('approved'); continue; }
 
     // Draft — split by load completion status
     if (loadStatus === 'completed' || loadStatus === 'delivered') {
-      counts.completed_loads++;
+      addTo('completed_loads');
     } else {
-      counts.uncompleted_loads++;
+      addTo('uncompleted_loads');
     }
   }
 
