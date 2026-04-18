@@ -48,6 +48,31 @@ function orgTypeForEvent(eventType) {
   return 'customer';
 }
 
+// Friendly label lookup for event-type pills inside move cards.
+// Falls back to the raw type if no palette entry matches (defensive).
+function eventLabel(eventType) {
+  return PALETTE.find((p) => p.type === eventType)?.label || eventType;
+}
+
+// Short, human-readable labels for the compact event pill in each row.
+// Different from eventLabel above, which is the long palette label
+// ("Pull from Terminal"). Short version keeps the row scannable without
+// forcing a line break on longer types.
+const EVENT_SHORT_LABEL = {
+  pull: 'Pull',
+  pickup: 'Pickup',
+  drop: 'Drop',
+  hook: 'Hook',
+  deliver: 'Deliver',
+  return: 'Return',
+  hook_chassis: 'Hook Chassis',
+  lift_off: 'Lift Off',
+  terminate: 'Terminate',
+};
+function eventShortLabel(eventType) {
+  return EVENT_SHORT_LABEL[eventType] || eventType;
+}
+
 export default function AdvancedRouteBuilder({ value, onChange, routingTemplates = [] }) {
   const moves = Array.isArray(value?.moves) ? value.moves : [];
   const templateId = value?.routing_template_id || null;
@@ -88,6 +113,11 @@ export default function AdvancedRouteBuilder({ value, onChange, routingTemplates
   }
 
   function onRemoveMove(mIdx) {
+    const eventCount = (moves[mIdx]?.events || []).length;
+    const msg = eventCount > 0
+      ? `Remove Container Move ${mIdx + 1}? This will delete ${eventCount} event${eventCount === 1 ? '' : 's'}.`
+      : `Remove Container Move ${mIdx + 1}?`;
+    if (!window.confirm(msg)) return;
     const next = moves.filter((_, i) => i !== mIdx).map((m, i) => ({ ...m, sequence: i }));
     emit(next);
   }
@@ -105,6 +135,8 @@ export default function AdvancedRouteBuilder({ value, onChange, routingTemplates
   }
 
   function onRemoveEvent(mIdx, eIdx) {
+    const ev = moves[mIdx]?.events?.[eIdx];
+    if (!window.confirm(`Remove ${eventLabel(ev?.event_type) || 'event'} from Container Move ${mIdx + 1}?`)) return;
     const next = moves.map((m, i) => {
       if (i !== mIdx) return m;
       const nextEvents = (m.events || [])
@@ -272,8 +304,8 @@ function MoveCard({ index, events, onRemove, onRemoveEvent, onUpdateEventLocatio
         ) : (
           events.map((e, eIdx) => (
             <div key={eIdx} className="flex items-start gap-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg p-2">
-              <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 px-2 py-1 rounded shrink-0 mt-1">
-                {e.event_type}
+              <span className="inline-block text-[11px] font-semibold text-gray-700 dark:text-slate-200 bg-gray-100 dark:bg-slate-800 px-2 py-1 rounded shrink-0 mt-1 whitespace-nowrap">
+                {eventShortLabel(e.event_type)}
               </span>
               <EventLocationPicker
                 value={e.location_match}
