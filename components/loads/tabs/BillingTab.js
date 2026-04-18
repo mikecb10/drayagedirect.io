@@ -9,6 +9,8 @@ import OrgPicker from '../../ui/OrgPicker';
 import CurrencyInput from '../../ui/CurrencyInput';
 import Input from '../../ui/Input';
 import Select from '../../ui/Select';
+import EmailComposeSlideOver from '../../ar/EmailComposeSlideOver';
+import { useEmailCompose } from '../../../hooks/useEmailCompose';
 
 const STATUS_STYLES = {
   draft: 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200',
@@ -268,6 +270,7 @@ function SummaryCard({ label, value, icon: Icon, color }) {
 function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
   const [adding, setAdding] = useState(false);
   const [savingStatus, setSavingStatus] = useState(false);
+  const emailCompose = useEmailCompose();
   const [newLine, setNewLine] = useState({
     name: '',
     charge_name: '',
@@ -340,6 +343,13 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
           const body = await invoiceRes.json().catch(() => ({}));
           throw new Error(body.error || 'Failed to create invoice');
         }
+        const invoiceData = await invoiceRes.json();
+        const newInvoiceId = invoiceData.invoice?.id;
+        await onChanged();
+        if (newInvoiceId) {
+          emailCompose.open('invoice', newInvoiceId);
+        }
+        return; // skip the generic onChanged() below — already called above
       } else {
         const res = await fetch(
           `/api/tenant/loads/${loadId}/charge-sets/${chargeSet.id}`,
@@ -737,7 +747,7 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
             <>
               {/* Rate Con Sent */}
               {chargeSet.status !== 'rate_con_sent' && (
-                <Button variant="secondary" onClick={() => updateStatus('rate_con_sent')} loading={savingStatus}
+                <Button variant="secondary" onClick={() => emailCompose.open('rate_con', chargeSet.id)} loading={savingStatus}
                   className="!text-xs !py-1.5 !text-cyan-600 dark:!text-cyan-400 !border-cyan-200 dark:!border-cyan-800 hover:!bg-cyan-50 dark:hover:!bg-cyan-950/40">
                   <FileText className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />
                   Send Rate Con
@@ -834,6 +844,15 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
           )}
         </div>
       </div>
+
+      <EmailComposeSlideOver
+        open={emailCompose.isOpen}
+        onClose={emailCompose.close}
+        docType={emailCompose.docType}
+        contextId={emailCompose.contextId}
+        onSent={() => onChanged()}
+        onSkipped={() => onChanged()}
+      />
     </div>
   );
 }
