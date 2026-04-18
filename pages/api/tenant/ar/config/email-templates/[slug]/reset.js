@@ -1,5 +1,6 @@
 import { requireTenantUser, requirePermission, getServiceClient } from '../../../../../../../lib/tenant-api';
 import { PERMISSIONS } from '../../../../../../../lib/permissions';
+import { logTenantAction, getClientIp } from '../../../../../../../lib/tenant-audit';
 import { AR_TEMPLATE_DEFAULTS, isArSystemSlug } from '../../../../../../../lib/email-dispatch';
 
 export default async function handler(req, res) {
@@ -32,5 +33,16 @@ export default async function handler(req, res) {
 
   if (error) return res.status(500).json({ error: error.message });
   if (!data) return res.status(404).json({ error: 'AR template row not found' });
+
+  await logTenantAction(svc, {
+    tenantId: ctx.tenantId,
+    userId: ctx.userId,
+    action: 'ar_email_template.reset',
+    entityType: 'email_template',
+    entityId: data.id,
+    newValues: { system_slug: slug },
+    ipAddress: getClientIp(req),
+  });
+
   return res.status(200).json(data);
 }
