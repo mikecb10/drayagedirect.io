@@ -63,7 +63,7 @@ export default async function handler(req, res) {
   // Step 5: Archive PDF to Storage (writes rate_con_pdf_url)
   let pdfStoragePath;
   try {
-    pdfStoragePath = await archiveRateConPdf(svc, id, ctx.tenantId);
+    pdfStoragePath = await archiveRateConPdf(svc, id, ctx.tenantId, pdfBuffer);
   } catch (e) {
     return res.status(500).json({ error: `Archive failed: ${e.message}`, stage: 'archive' });
   }
