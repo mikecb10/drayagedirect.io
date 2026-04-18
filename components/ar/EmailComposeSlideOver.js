@@ -81,6 +81,9 @@ export default function EmailComposeSlideOver({
   onSent,
   onSkipped,
 }) {
+  // ---- refs ----------------------------------------------------------------
+  const drawerRef = useRef(null);
+
   // ---- async state ---------------------------------------------------------
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState(null);
@@ -175,6 +178,53 @@ export default function EmailComposeSlideOver({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, busy, dirty]);
 
+  // ---- Focus trap ----------------------------------------------------------
+  // Confines Tab / Shift+Tab cycling to elements inside the drawer while open,
+  // and sets initial focus to the first focusable element after the drawer
+  // mounts. Both are hard requirements for modal-dialog accessibility
+  // (WCAG 2.4.3 focus order + WCAG 2.4.11 focus visible).
+  useEffect(() => {
+    if (!open) return undefined;
+    const drawer = drawerRef.current;
+    if (!drawer) return undefined;
+
+    const FOCUSABLE_SELECTOR = [
+      'a[href]',
+      'button:not([disabled])',
+      'input:not([disabled])',
+      'textarea:not([disabled])',
+      'select:not([disabled])',
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(',');
+
+    // Initial focus — wait a tick so React has committed the DOM
+    const initialFocusId = requestAnimationFrame(() => {
+      const focusables = drawer.querySelectorAll(FOCUSABLE_SELECTOR);
+      if (focusables.length > 0) focusables[0].focus();
+    });
+
+    function onKeyDown(e) {
+      if (e.key !== 'Tab') return;
+      const focusables = Array.from(drawer.querySelectorAll(FOCUSABLE_SELECTOR));
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+
+    drawer.addEventListener('keydown', onKeyDown);
+    return () => {
+      cancelAnimationFrame(initialFocusId);
+      drawer.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
   // ---- close with dirty guard ---------------------------------------------
   const attemptClose = useCallback(() => {
     if (busy) return;
@@ -248,7 +298,7 @@ export default function EmailComposeSlideOver({
   const title = isInvoice ? 'Send Invoice' : 'Send Rate Confirmation';
 
   return (
-    <div className="fixed inset-0 z-50 flex">
+    <div className="fixed inset-0 z-[200] flex">
       {/* Backdrop */}
       <div
         className="flex-1 bg-black/40 dark:bg-black/60"
@@ -256,10 +306,16 @@ export default function EmailComposeSlideOver({
       />
 
       {/* Drawer */}
-      <div className="flex flex-col w-full max-w-[540px] h-full bg-white dark:bg-slate-800 shadow-2xl overflow-hidden">
+      <div
+        ref={drawerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="email-compose-title"
+        className="flex flex-col w-full max-w-[540px] h-full bg-white dark:bg-slate-800 shadow-2xl overflow-hidden"
+      >
         {/* ---- Header ---- */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-slate-700 flex-shrink-0">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100">{title}</h2>
+          <h2 id="email-compose-title" className="text-base font-semibold text-gray-900 dark:text-slate-100">{title}</h2>
           <button
             type="button"
             onClick={attemptClose}
@@ -459,7 +515,7 @@ export default function EmailComposeSlideOver({
             <button
               type="button"
               onClick={doSend}
-              disabled={!canSend || (recipientsSource === 'none' && !hasValidTo)}
+              disabled={!canSend}
               className="px-5 py-2 text-sm font-medium rounded bg-blue-600 dark:bg-blue-700 text-white hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               {sending ? 'Sending…' : 'Send'}
