@@ -160,6 +160,7 @@ export default async function handler(req, res) {
       .from('email_templates')
       .select('*')
       .eq('tenant_id', ctx.tenantId)
+      .eq('category', 'operational') // exclude AR system rows (invoice_send, rate_con_send)
       .order('is_system', { ascending: false }) // system first, then custom
       .order('name', { ascending: true });
 

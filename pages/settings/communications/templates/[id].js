@@ -150,6 +150,12 @@ export default function EmailTemplateEditor() {
           throw new Error(body.error || 'Failed to load template');
         }
         const data = await res.json();
+        // AR system templates (invoice_send, rate_con_send) are managed at
+        // /settings/ar/configuration — redirect if someone deep-links here.
+        if (data.template?.category === 'ar') {
+          router.replace('/settings/ar/configuration');
+          return;
+        }
         setTemplate(data.template);
         setOriginal(data.template);
       } catch (e) {
