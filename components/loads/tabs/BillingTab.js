@@ -458,13 +458,12 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
     <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden">
       {/* Bill To row — dispatcher can pick which customer this charge set is billed to */}
       <div className="px-4 py-2.5 border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900">
-        <label className="block text-[10px] uppercase tracking-wide font-semibold text-gray-500 dark:text-slate-400 mb-1">
-          Bill To
-        </label>
         <OrgPicker
-          customerType="customer"
+          label="Bill To"
+          type="customer"
           value={chargeSet.bill_to_customer_id}
-          onChange={(newId) => saveBillTo(newId)}
+          valueLabel={chargeSet.bill_to?.name}
+          onChange={(org) => saveBillTo(org?.id || null)}
           placeholder="Select customer..."
         />
       </div>
