@@ -283,6 +283,27 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
   const [newLineEdited, setNewLineEdited] = useState(false);
   const abortRef = useRef(null);
 
+  async function saveBillTo(newCustomerId) {
+    try {
+      const res = await fetch(
+        `/api/tenant/loads/${loadId}/charge-sets/${chargeSet.id}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bill_to_customer_id: newCustomerId }),
+        }
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Failed to update Bill To');
+      }
+      // Refetch so the nested `bill_to` object refreshes alongside the id
+      await onChanged();
+    } catch (e) {
+      onError(e.message);
+    }
+  }
+
   async function updateStatus(nextStatus) {
     setSavingStatus(true);
     try {
@@ -435,6 +456,18 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
 
   return (
     <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden">
+      {/* Bill To row — dispatcher can pick which customer this charge set is billed to */}
+      <div className="px-4 py-2.5 border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <label className="block text-[10px] uppercase tracking-wide font-semibold text-gray-500 dark:text-slate-400 mb-1">
+          Bill To
+        </label>
+        <OrgPicker
+          customerType="customer"
+          value={chargeSet.bill_to_customer_id}
+          onChange={(newId) => saveBillTo(newId)}
+          placeholder="Select customer..."
+        />
+      </div>
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-900">
         <div className="flex-1">
@@ -463,9 +496,6 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
                 </span>
               )}
             </div>
-          )}
-          {chargeSet.bill_to && (
-            <div className="text-helper text-muted mt-0.5">Bill to: {chargeSet.bill_to.name}</div>
           )}
         </div>
         <div className="text-right">
