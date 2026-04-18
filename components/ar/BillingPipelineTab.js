@@ -5,7 +5,6 @@ import {
   CheckSquare, X, Download,
 } from 'lucide-react';
 import Alert from '../ui/Alert';
-import Button from '../ui/Button';
 import { useOverlay } from '../../contexts/OverlayContext';
 import { formatInvoiceNumber } from '../../lib/invoice-utils';
 
@@ -128,6 +127,7 @@ export default function BillingPipelineTab() {
     const skipped = selected.length - eligible.length;
     let succeeded = 0;
     let failed = 0;
+    let firstError = null;
 
     for (const cs of eligible) {
       try {
@@ -139,10 +139,14 @@ export default function BillingPipelineTab() {
             body: JSON.stringify({ status: nextStatus }),
           }
         );
-        if (!res.ok) throw new Error(await res.text());
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || `HTTP ${res.status}`);
+        }
         succeeded++;
       } catch (e) {
         failed++;
+        if (!firstError) firstError = e.message || 'Unknown error';
       }
     }
 
@@ -157,8 +161,12 @@ export default function BillingPipelineTab() {
     if (skipped > 0) parts.push(`skipped ${skipped} (ineligible status)`);
     if (failed > 0) parts.push(`${failed} failed`);
 
-    const kind = failed > 0 && succeeded === 0 ? 'error' : 'success';
-    setToast({ type: kind, message: parts.join(' · ') || 'Nothing to do' });
+    // Fix I4: mixed results use warning, not success
+    const kind = failed === 0 ? 'success' : succeeded === 0 ? 'error' : 'warning';
+    const baseMessage = parts.join(' · ') || 'Nothing to do';
+    const fullMessage = firstError ? `${baseMessage} — ${firstError}` : baseMessage;
+
+    setToast({ type: kind, message: fullMessage });
   }
 
   async function handleBulkApprove() {
@@ -187,7 +195,14 @@ export default function BillingPipelineTab() {
 
     const escape = (v) => {
       const s = String(v ?? '');
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      // CSV injection mitigation: values starting with =, +, -, @, tab, or CR
+      // can be interpreted as formulas by Excel/Google Sheets. Prepend a
+      // single quote to neutralize them. Then apply standard RFC 4180
+      // quoting for commas, quotes, and newlines.
+      const dangerous = /^[=+\-@\t\r]/.test(s);
+      const safe = dangerous ? `'${s}` : s;
+      const needsQuoting = dangerous || /[",\n]/.test(safe);
+      return needsQuoting ? `"${safe.replace(/"/g, '""')}"` : safe;
     };
     const csv = rows.map((row) => row.map(escape).join(',')).join('\n');
 
@@ -242,38 +257,47 @@ export default function BillingPipelineTab() {
         />
       )}
       {selectedIds.size > 0 && (
-        <div className="sticky top-0 z-10 flex items-center gap-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-lg px-4 py-2">
+        <div className="sticky top-16 z-10 flex items-center gap-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-lg px-4 py-2">
           <div className="flex items-center gap-2 text-sm font-medium text-blue-700 dark:text-blue-300">
             <CheckSquare className="w-4 h-4" />
             {selectedIds.size} selected
           </div>
           <div className="h-4 w-px bg-blue-300 dark:bg-blue-800" />
-          <Button
-            size="sm"
-            variant="secondary"
+          <button
+            type="button"
             onClick={handleBulkApprove}
-            loading={bulkAction === 'approve'}
             disabled={bulkAction != null}
+            className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-md bg-white dark:bg-slate-900 border border-blue-300 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-950/60 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Check className="w-3.5 h-3.5 inline -mt-0.5 mr-1" /> Approve
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
+            {bulkAction === 'approve' ? (
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Check className="w-3.5 h-3.5" />
+            )}
+            Approve
+          </button>
+          <button
+            type="button"
             onClick={handleBulkUnapprove}
-            loading={bulkAction === 'unapprove'}
             disabled={bulkAction != null}
+            className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-md bg-white dark:bg-slate-900 border border-blue-300 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-950/60 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <AlertCircle className="w-3.5 h-3.5 inline -mt-0.5 mr-1" /> Unapprove
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
+            {bulkAction === 'unapprove' ? (
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <AlertCircle className="w-3.5 h-3.5" />
+            )}
+            Unapprove
+          </button>
+          <button
+            type="button"
             onClick={handleExportCsv}
             disabled={bulkAction != null}
+            className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-md bg-white dark:bg-slate-900 border border-blue-300 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-950/60 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download className="w-3.5 h-3.5 inline -mt-0.5 mr-1" /> Export CSV
-          </Button>
+            <Download className="w-3.5 h-3.5" />
+            Export CSV
+          </button>
           <div className="flex-1" />
           <button
             onClick={() => {

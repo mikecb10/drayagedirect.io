@@ -25,6 +25,7 @@ export default async function handler(req, res) {
       order:orders(id, order_number, status, load_type, customer_id, created_at, deleted_at,
         customer:customers!orders_customer_id_fkey(id, name)
       ),
+      bill_to:customers!order_charge_sets_bill_to_customer_id_fkey(id, name),
       line_items:order_charge_set_line_items(id, name, total_cents, is_auto)
     `)
     .eq('tenant_id', ctx.tenantId)
