@@ -1,0 +1,261 @@
+// IMPORT DEPTH: pages/api/tenant/ar/invoices/bulk-send.js → repo root is ../../../../../
+// Same depth as [invoiceId]/send-email.js (both are one level deeper inside invoices/).
+
+import { requireTenantUser, requirePermission, getServiceClient } from '../../../../../lib/tenant-api';
+import { PERMISSIONS } from '../../../../../lib/permissions';
+import {
+  dispatchEmail,
+  resolveFromAddress,
+  resolveFromName,
+} from '../../../../../lib/email-dispatch';
+import { logManualBulkSend } from '../../../../../lib/email-dispatch/dispatcher';
+import { fetchFullConfiguration } from '../../../../../lib/email-configuration-helpers';
+import { renderInvoicePdf } from '../../../../../lib/pdf/render-invoice';
+import { archiveInvoicePdf } from '../../../../../lib/pdf/archive';
+
+export const config = { runtime: 'nodejs' };
+
+const STAGE = {
+  validate: 'validate',
+  claim: 'claim',
+  fetch_config: 'fetch_config',
+  render: 'render',
+  dispatch: 'dispatch',
+  postdispatch: 'postdispatch',
+};
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const ctx = await requireTenantUser(req, res);
+  if (!ctx) return;
+  if (!requirePermission(ctx, [PERMISSIONS.ACCOUNTS_RECEIVABLE, PERMISSIONS.ALL], res)) return;
+
+  let stage = STAGE.validate;
+  let claimedIds = [];
+  const svc = getServiceClient();
+
+  try {
+    // ── STAGE: validate ──────────────────────────────────────────────────────
+    const { group } = req.body || {};
+    if (!group || typeof group !== 'object') {
+      return res.status(400).json({ error: 'group required' });
+    }
+    const {
+      invoice_ids: invoiceIds,
+      recipients,
+      subject,
+      body_text: bodyText,
+      body_html: bodyHtml,
+      body_format: bodyFormat = 'html',
+      grouping_kind: groupingKind = 'customer',
+      group_label: groupLabel = null,
+    } = group;
+
+    if (!Array.isArray(invoiceIds) || invoiceIds.length === 0) {
+      return res.status(400).json({ error: 'group.invoice_ids (non-empty array) required' });
+    }
+    if (!recipients || !Array.isArray(recipients.to) || recipients.to.length === 0) {
+      return res.status(400).json({ error: 'group.recipients.to (non-empty array) required' });
+    }
+    if (!subject || (!bodyText && !bodyHtml)) {
+      return res.status(400).json({ error: 'group.subject and at least one body (body_text or body_html) required' });
+    }
+
+    // ── STAGE: claim ─────────────────────────────────────────────────────────
+    // claim_invoices_for_send is the plural Task-1 (migration 081) RPC.
+    // Signature: (p_invoice_ids UUID[], p_tenant_id UUID) → table(invoice_id UUID)
+    // Returns only the UUIDs that were successfully claimed (others already
+    // sent or mid-flight are silently skipped so the caller can proceed with
+    // whatever subset is available).
+    stage = STAGE.claim;
+    const { data: claimRows, error: claimErr } = await svc.rpc(
+      'claim_invoices_for_send',
+      { p_invoice_ids: invoiceIds, p_tenant_id: ctx.tenantId }
+    );
+    if (claimErr) throw new Error(`claim RPC failed: ${claimErr.message}`);
+
+    claimedIds = (claimRows ?? []).map((r) => r.invoice_id);
+    if (claimedIds.length === 0) {
+      const err = new Error('All invoices already claimed or sent');
+      err.code = 'ALL_CLAIMED';
+      throw err;
+    }
+
+    // Normalize to lowercase for UUID case-insensitive comparison; use Set for O(N) lookup.
+    const claimedSet = new Set(claimedIds.map((id) => String(id).toLowerCase()));
+    const skippedIds = invoiceIds.filter((id) => !claimedSet.has(String(id).toLowerCase()));
+
+    // ── STAGE: fetch_config ───────────────────────────────────────────────────
+    // Mirror single-invoice send-email.js exactly: pick active config by
+    // is_active + priority ordering (no kind discriminator).
+    stage = STAGE.fetch_config;
+    const { data: configRow, error: configErr } = await svc
+      .from('email_configurations')
+      .select('id')
+      .eq('tenant_id', ctx.tenantId)
+      .eq('is_active', true)
+      .order('priority', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (configErr) throw new Error(`config lookup: ${configErr.message}`);
+    if (!configRow) throw new Error('No active email sender configuration');
+
+    const fullConfig = await fetchFullConfiguration(svc, ctx.tenantId, configRow.id);
+    if (!fullConfig) throw new Error('Sender configuration lookup failed');
+
+    const { data: tenantRow } = await svc
+      .from('tenants')
+      .select('id, name, email')
+      .eq('id', ctx.tenantId)
+      .maybeSingle();
+
+    const fromAddress = resolveFromAddress(fullConfig, null, tenantRow);
+    const fromName = resolveFromName(fullConfig, tenantRow);
+    const replyTo = fullConfig.sender_address?.reply_to || null;
+
+    // ── STAGE: render ─────────────────────────────────────────────────────────
+    // For each claimed invoice: render PDF → archive to Storage (stamps pdf_url)
+    // → push SendGrid attachment. renderInvoicePdf returns a Buffer; we pass it
+    // as `preRendered` to archiveInvoicePdf so the same bytes land in Storage
+    // and in the attachment — no double-render.
+    stage = STAGE.render;
+
+    // Fetch minimal invoice data needed for the filename.
+    const { data: invoices, error: invErr } = await svc
+      .from('invoices')
+      .select('id, invoice_number, customer_id, customers:customer_id(name)')
+      .eq('tenant_id', ctx.tenantId)
+      .is('deleted_at', null)
+      .in('id', claimedIds);
+    if (invErr) throw new Error(`invoice load: ${invErr.message}`);
+
+    const invoiceMap = Object.fromEntries((invoices ?? []).map((inv) => [inv.id, inv]));
+    const primaryInvoice = invoices?.[0] ?? null;
+
+    const attachments = [];
+    for (const invoiceId of claimedIds) {
+      const inv = invoiceMap[invoiceId];
+      // renderInvoicePdf(svc, invoiceId, tenantId) → Buffer
+      const buffer = await renderInvoicePdf(svc, invoiceId, ctx.tenantId);
+      // archiveInvoicePdf(svc, invoiceId, tenantId, preRendered) → string (storagePath)
+      // Side-effect: uploads to Storage + stamps invoices.pdf_url.
+      await archiveInvoicePdf(svc, invoiceId, ctx.tenantId, buffer);
+
+      const filename = `invoice-${inv?.invoice_number || invoiceId}.pdf`;
+      // Pass raw Buffer — the SendGrid provider does the single base64
+      // conversion (providers/sendgrid.js). Pre-encoding here would be
+      // double-base64 and corrupt the attachment.
+      attachments.push({
+        content: buffer,
+        filename,
+        type: 'application/pdf',
+        disposition: 'attachment',
+      });
+    }
+
+    // ── STAGE: dispatch ───────────────────────────────────────────────────────
+    // dispatchEmail(svc, params) — mirror single-invoice endpoint exactly.
+    // recipients.to/cc/bcc come from the caller (resolved by Task 3's
+    // resolveBulkBillingRecipients and passed through the grouping modal).
+    stage = STAGE.dispatch;
+    const dispatchResult = await dispatchEmail(svc, {
+      tenantId: ctx.tenantId,
+      senderKind: fullConfig.sender_kind,
+      fromAddress,
+      fromName,
+      replyTo,
+      to: recipients.to,
+      cc: recipients.cc ?? [],
+      bcc: recipients.bcc ?? [],
+      subject,
+      html: bodyHtml || null,
+      text: bodyText || null,
+      bodyFormat,
+      attachments,
+      templateId: null,
+      configurationId: fullConfig.id,
+      sentByUserId: ctx.userId,
+      relatedEntity: { type: 'invoice_bulk', id: claimedIds.join(',') },
+      eventName: 'manual:invoice_bulk_send',
+    });
+
+    // ── STAGE: postdispatch ───────────────────────────────────────────────────
+    // Stamp sent_at + release claim on all claimed invoices.
+    // We do a direct UPDATE (no bulk release RPC) because the single-send
+    // release_invoice_claim RPC takes one invoice_id — not an array.
+    stage = STAGE.postdispatch;
+    const sentAt = new Date().toISOString();
+    // Defense-in-depth: tenant filter on UPDATE. The claim RPC already enforces
+    // tenant boundary, but service-role bypasses RLS so we re-enforce here.
+    const { error: updErr } = await svc
+      .from('invoices')
+      .update({ sent_at: sentAt, send_claimed_at: null })
+      .eq('tenant_id', ctx.tenantId)
+      .in('id', claimedIds);
+    if (updErr) throw new Error(`sent_at update: ${updErr.message}`);
+
+    // Single bulk audit-log row.
+    await logManualBulkSend(svc, {
+      tenantId: ctx.tenantId,
+      invoiceIds: claimedIds,
+      userId: ctx.userId,
+      groupingKind,
+      groupLabel: groupLabel ?? primaryInvoice?.customers?.name ?? primaryInvoice?.customer_id ?? '(group)',
+      customerId: primaryInvoice?.customer_id ?? null,
+      referenceNumber: null,
+      messageId: dispatchResult?.messageId ?? null,
+      error: null,
+    });
+
+    return res.status(200).json({
+      sent: claimedIds,
+      skipped: skippedIds,
+      message_id: dispatchResult?.messageId ?? null,
+    });
+
+  } catch (err) {
+    // Release claims so Retry can reacquire. Guard with is('sent_at', null)
+    // to avoid un-marking any invoice that succeeded before the failure.
+    if (claimedIds.length > 0 && ctx?.tenantId) {
+      // Tenant filter for defense-in-depth; sent_at IS NULL guard preserves
+      // any invoice that succeeded in a prior partial attempt.
+      await svc
+        .from('invoices')
+        .update({ send_claimed_at: null })
+        .eq('tenant_id', ctx.tenantId)
+        .in('id', claimedIds)
+        .is('sent_at', null);
+    }
+
+    // Audit-log the failure (best-effort — don't let log failure mask the real error).
+    try {
+      await logManualBulkSend(svc, {
+        tenantId: ctx?.tenantId ?? null,
+        invoiceIds: claimedIds,
+        userId: ctx?.userId ?? null,
+        groupingKind: req.body?.group?.grouping_kind ?? 'customer',
+        groupLabel: req.body?.group?.group_label ?? null,
+        customerId: null,
+        referenceNumber: null,
+        messageId: null,
+        error: `${stage}: ${err.message}`,
+      });
+    } catch (_) { /* audit-log failure is not fatal */ }
+
+    console.error(`[bulk-send] ${stage} failure:`, err);
+
+    const status =
+      err.code === 'ALL_CLAIMED' ? 409
+      : stage === STAGE.claim ? 409
+      : 502;
+
+    return res.status(status).json({
+      error: `${stage}_failed: ${err.message}`,
+      stage,
+      code: err.code ?? null,
+    });
+  }
+}

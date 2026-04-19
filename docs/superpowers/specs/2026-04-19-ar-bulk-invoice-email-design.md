@@ -249,12 +249,14 @@ Matches yesterday's convention (manual-send audit):
     "invoice_ids": ["uuid1", "uuid2", "uuid3"],
     "sent_by_user_id": "uuid-user",
     "grouping_kind": "customer",
-    "group_label": "Acme Corp"
+    "group_label": "Acme Corp",
+    "customer_id": "uuid-customer",
+    "reference_number": null
   }],
-  "messages_created": [{ "email_message_id": "uuid-msg" }]
+  "messages_created": 1
 }
 ```
-Written once per bulk-send POST (one group = one log row). Failure path writes the row with `messages_created: []` and an error field.
+Written once per bulk-send POST (one group = one log row). `messages_created` is an **integer count** (0 or 1), not a JSONB array — matches the real `email_trigger_log.messages_created` column type and the pattern used by `logManualSend` / `logManualSkip` / the inline audit block in `dispatchEmail`. Failure path writes the row with `messages_created: 0` and an `error` field inside the umbrella decision.
 
 ---
 
