@@ -31,17 +31,54 @@ export default async function handler(req, res) {
 
   const svc = getServiceClient();
 
-  // Verify invoice + tenant scope
-  const { data: invoice, error: fetchErr } = await svc
-    .from('invoices')
-    .select('id, invoice_number, status, customer_id, sent_at')
-    .eq('id', invoiceId)
-    .eq('tenant_id', ctx.tenantId)
-    .is('deleted_at', null)
-    .maybeSingle();
-  if (fetchErr) return res.status(500).json({ error: fetchErr.message });
-  if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
-  if (invoice.sent_at) return res.status(409).json({ error: 'Invoice already sent' });
+  // Atomic claim. Uses claim_invoice_for_send() RPC (migration 080) so
+  // two concurrent POSTs for the same invoice can't both pass the "not
+  // yet sent" check and double-dispatch. The RPC grabs a row-level lock,
+  // stamps send_claimed_at, and returns a discriminator telling us
+  // exactly why a claim failed (not_found / already_sent /
+  // send_in_progress). If anything after the claim errors (render,
+  // archive, dispatch), we release the claim via release_invoice_claim()
+  // with success=false so the invoice can be retried.
+  const { data: claimRows, error: claimErr } = await svc.rpc(
+    'claim_invoice_for_send',
+    { p_invoice_id: invoiceId, p_tenant_id: ctx.tenantId }
+  );
+  if (claimErr) return res.status(500).json({ error: claimErr.message });
+  const claim = Array.isArray(claimRows) ? claimRows[0] : claimRows;
+  if (!claim) return res.status(500).json({ error: 'Claim RPC returned no row' });
+  if (!claim.claim_ok) {
+    if (claim.claim_reason === 'not_found') {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+    if (claim.claim_reason === 'already_sent') {
+      return res.status(409).json({ error: 'Invoice already sent' });
+    }
+    // send_in_progress — another request currently holds the claim.
+    return res.status(409).json({ error: 'Invoice send already in progress' });
+  }
+  const invoice = {
+    id: claim.id,
+    invoice_number: claim.invoice_number,
+    status: claim.status,
+    customer_id: claim.customer_id,
+    sent_at: claim.sent_at,
+  };
+
+  // From here on, any non-success path MUST release the claim so a
+  // retry is possible. The helper below keeps the rollback in one place.
+  const releaseClaim = async () => {
+    const { error: relErr } = await svc.rpc('release_invoice_claim', {
+      p_invoice_id: invoiceId,
+      p_tenant_id: ctx.tenantId,
+      p_success: false,
+    });
+    if (relErr) {
+      console.error(
+        `Invoice ${invoiceId}: release_invoice_claim(false) failed:`,
+        relErr.message
+      );
+    }
+  };
 
   // Pick the active sender config for this tenant + hydrate it via
   // fetchFullConfiguration so the sender-address struct (local_part +
@@ -75,6 +112,7 @@ export default async function handler(req, res) {
   try {
     pdfBuffer = await renderInvoicePdf(svc, invoiceId, ctx.tenantId);
   } catch (e) {
+    await releaseClaim();
     return res.status(500).json({ error: `Render failed: ${e.message}`, stage: 'render' });
   }
 
@@ -83,6 +121,7 @@ export default async function handler(req, res) {
   try {
     pdfStoragePath = await archiveInvoicePdf(svc, invoiceId, ctx.tenantId, pdfBuffer);
   } catch (e) {
+    await releaseClaim();
     return res.status(500).json({ error: `Archive failed: ${e.message}`, stage: 'archive' });
   }
 
@@ -113,6 +152,7 @@ export default async function handler(req, res) {
       eventName: 'manual:invoice_send',
     });
   } catch (e) {
+    await releaseClaim();
     return res.status(500).json({
       error: `Email dispatch failed: ${e.message}`,
       stage: 'dispatch',
@@ -120,13 +160,15 @@ export default async function handler(req, res) {
     });
   }
 
-  // Step 7: Flip status
-  const now = new Date().toISOString();
-  const { error: updErr } = await svc
-    .from('invoices')
-    .update({ status: 'sent', sent_at: now })
-    .eq('id', invoiceId)
-    .eq('tenant_id', ctx.tenantId);
+  // Step 7: Release claim with success=true → stamps sent_at + status='sent'
+  const { data: releasedAt, error: updErr } = await svc.rpc(
+    'release_invoice_claim',
+    {
+      p_invoice_id: invoiceId,
+      p_tenant_id: ctx.tenantId,
+      p_success: true,
+    }
+  );
   if (updErr) {
     console.error(`Invoice ${invoiceId}: email sent but status update failed:`, updErr.message);
     return res.status(500).json({
@@ -135,6 +177,7 @@ export default async function handler(req, res) {
       pdf_url: pdfStoragePath,
     });
   }
+  const now = releasedAt || new Date().toISOString();
 
   // Step 8: Tenant audit log
   await logTenantAction(svc, {
