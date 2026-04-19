@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import {
-  Search, FileText, Check, DollarSign, Clock, AlertCircle,
+  Search, FileText, Check, DollarSign, AlertCircle,
   RefreshCw, ExternalLink, Truck, CheckCircle2,
-  CheckSquare, X, Download,
 } from 'lucide-react';
 import Alert from '../ui/Alert';
 import { useOverlay } from '../../contexts/OverlayContext';
 import { formatInvoiceNumber } from '../../lib/invoice-utils';
+import BulkActionBar from './BulkActionBar';
+import BulkGroupingModal from './BulkGroupingModal';
+import BulkEmailQueue from './BulkEmailQueue';
 
 const STATUS_BADGES = {
   draft: { label: 'Draft', cls: 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300' },
@@ -34,8 +36,10 @@ export default function BillingPipelineTab() {
   const [activeFilter, setActiveFilter] = useState(null);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [lastClickedId, setLastClickedId] = useState(null);
-  const [bulkAction, setBulkAction] = useState(null); // 'approve' | 'unapprove' | null
+  const [bulkAction, setBulkAction] = useState(null); // 'approve' | 'unapprove' | 'approve_invoice' | null
   const [toast, setToast] = useState(null); // { type, message } | null
+  const [groupingModalInvoices, setGroupingModalInvoices] = useState(null); // Array | null
+  const [queueState, setQueueState] = useState(null); // { kind, groups } | null
 
   async function fetchAR({ silent = false } = {}) {
     if (!silent) setLoading(true);
@@ -84,6 +88,9 @@ export default function BillingPipelineTab() {
   const visibleIds = chargeSets.map((cs) => cs.id);
   const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
   const someSelected = visibleIds.some((id) => selectedIds.has(id)) && !allSelected;
+  const selectedTotalCents = chargeSets
+    .filter((cs) => selectedIds.has(cs.id))
+    .reduce((a, cs) => a + (cs.total_cents || 0), 0);
 
   function toggleAll() {
     if (allSelected || someSelected) {
@@ -177,6 +184,70 @@ export default function BillingPipelineTab() {
     await bulkStatusTransition('unapproved', ['draft', 'rate_con_sent', 'approved']);
   }
 
+  async function handleBulkApproveAndInvoice() {
+    setBulkAction('approve_invoice');
+    const selected = chargeSets.filter((cs) => selectedIds.has(cs.id));
+    const eligible = selected.filter((cs) => cs.status === 'approved');
+    const ineligibleCount = selected.length - eligible.length;
+
+    const created = [];
+    let failed = 0;
+    let firstError = null;
+
+    for (const cs of eligible) {
+      try {
+        const res = await fetch('/api/tenant/ar/invoices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ charge_set_ids: [cs.id] }),
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || `HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        const inv = data.invoice;
+        created.push({
+          invoice_id: inv.id,
+          invoice_number: inv.invoice_number,
+          customer_id: inv.customer_id,
+          customer_name: cs.order?.customer?.name ?? 'Unknown',
+          reference_number: cs.order?.reference_number ?? null,
+          charge_set_id: cs.id,
+          total_cents: inv.total_amount_cents ?? cs.total_cents ?? 0,
+        });
+      } catch (e) {
+        failed++;
+        if (!firstError) firstError = e.message;
+      }
+    }
+
+    setBulkAction(null);
+    setSelectedIds(new Set());
+    setLastClickedId(null);
+
+    if (created.length === 0) {
+      setToast({
+        type: 'error',
+        message: failed > 0 ? `All ${failed} invoice creations failed` : 'No eligible charge sets',
+      });
+      return;
+    }
+
+    // Silent refetch so flipped charge sets disappear from current filter
+    // before the modal opens (preserves ChargeSetCard unmount rule)
+    await fetchAR({ silent: true });
+
+    const parts = [`Invoiced ${created.length}`];
+    if (ineligibleCount > 0) parts.push(`skipped ${ineligibleCount} (not approved)`);
+    if (failed > 0) parts.push(`${failed} failed`);
+    const kind = failed === 0 ? 'success' : 'warning';
+    const base = parts.join(' · ');
+    setToast({ type: kind, message: firstError ? `${base} — ${firstError}` : base });
+
+    setGroupingModalInvoices(created);
+  }
+
   function handleExportCsv() {
     const selected = chargeSets.filter((cs) => selectedIds.has(cs.id));
     if (selected.length === 0) return;
@@ -255,60 +326,6 @@ export default function BillingPipelineTab() {
           message={toast.message}
           onClose={() => setToast(null)}
         />
-      )}
-      {selectedIds.size > 0 && (
-        <div className="sticky top-16 z-10 flex items-center gap-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-lg px-4 py-2">
-          <div className="flex items-center gap-2 text-sm font-medium text-blue-700 dark:text-blue-300">
-            <CheckSquare className="w-4 h-4" />
-            {selectedIds.size} selected
-          </div>
-          <div className="h-4 w-px bg-blue-300 dark:bg-blue-800" />
-          <button
-            type="button"
-            onClick={handleBulkApprove}
-            disabled={bulkAction != null}
-            className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-md bg-white dark:bg-slate-900 border border-blue-300 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-950/60 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {bulkAction === 'approve' ? (
-              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Check className="w-3.5 h-3.5" />
-            )}
-            Approve
-          </button>
-          <button
-            type="button"
-            onClick={handleBulkUnapprove}
-            disabled={bulkAction != null}
-            className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-md bg-white dark:bg-slate-900 border border-blue-300 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-950/60 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {bulkAction === 'unapprove' ? (
-              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <AlertCircle className="w-3.5 h-3.5" />
-            )}
-            Unapprove
-          </button>
-          <button
-            type="button"
-            onClick={handleExportCsv}
-            disabled={bulkAction != null}
-            className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-md bg-white dark:bg-slate-900 border border-blue-300 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-950/60 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Download className="w-3.5 h-3.5" />
-            Export CSV
-          </button>
-          <div className="flex-1" />
-          <button
-            onClick={() => {
-              setSelectedIds(new Set());
-              setLastClickedId(null);
-            }}
-            className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 flex items-center gap-1"
-          >
-            <X className="w-3.5 h-3.5" /> Clear
-          </button>
-        </div>
       )}
 
       {/* Pre-Invoice Pipeline */}
@@ -464,6 +481,46 @@ export default function BillingPipelineTab() {
           </table>
         </div>
       </div>
+
+      <BulkActionBar
+        count={selectedIds.size}
+        totalCents={selectedTotalCents}
+        bulkAction={bulkAction}
+        onApprove={handleBulkApprove}
+        onUnapprove={handleBulkUnapprove}
+        onApproveAndInvoice={handleBulkApproveAndInvoice}
+        onExport={handleExportCsv}
+        onClear={() => {
+          setSelectedIds(new Set());
+          setLastClickedId(null);
+        }}
+      />
+
+      {groupingModalInvoices && (
+        <BulkGroupingModal
+          invoices={groupingModalInvoices}
+          onCancel={() => setGroupingModalInvoices(null)}
+          onContinue={({ kind, groups }) => {
+            setGroupingModalInvoices(null);
+            setQueueState({ kind, groups });
+          }}
+        />
+      )}
+
+      {queueState && (
+        <BulkEmailQueue
+          groups={queueState.groups}
+          groupingKind={queueState.kind}
+          onClose={() => {
+            setQueueState(null);
+            fetchAR({ silent: true });
+          }}
+          onAllSent={() => {
+            setQueueState(null);
+            fetchAR({ silent: true });
+          }}
+        />
+      )}
     </div>
   );
 }
