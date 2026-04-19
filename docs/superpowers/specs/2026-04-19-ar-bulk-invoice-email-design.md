@@ -192,26 +192,31 @@ BEGIN;
 
 CREATE OR REPLACE FUNCTION claim_invoices_for_send(
   p_invoice_ids UUID[],
-  p_user_id UUID
+  p_tenant_id   UUID
 )
 RETURNS TABLE (invoice_id UUID)
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 BEGIN
   RETURN QUERY
   UPDATE invoices
-  SET send_claimed_at = now(),
-      send_claimed_by = p_user_id
-  WHERE id = ANY(p_invoice_ids)
-    AND sent_at IS NULL
-    AND (send_claimed_at IS NULL
-         OR send_claimed_at < now() - interval '5 minutes')  -- stale-claim recovery
-  RETURNING id;
+     SET send_claimed_at = now()
+   WHERE invoices.id = ANY(p_invoice_ids)
+     AND invoices.tenant_id = p_tenant_id      -- tenant boundary
+     AND invoices.deleted_at IS NULL           -- soft-delete guard
+     AND invoices.sent_at IS NULL              -- not already sent
+     AND (
+       invoices.send_claimed_at IS NULL
+       OR invoices.send_claimed_at < now() - interval '5 minutes'  -- stale-claim recovery
+     )
+  RETURNING invoices.id;
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION claim_invoices_for_send(UUID[], UUID) TO service_role;
+GRANT EXECUTE ON FUNCTION claim_invoices_for_send(UUID[], UUID)
+  TO service_role, authenticated;
 
 NOTIFY pgrst, 'reload schema';
 
@@ -221,14 +226,15 @@ COMMIT;
 Semantics:
 - Partial-success: returns the subset of `p_invoice_ids` successfully claimed. Invoices that were already sent, or currently claimed by an active session (<5 min), are silently skipped.
 - Stale-claim recovery: claims older than 5 minutes can be overridden (covers the case where an endpoint crashed before releasing the claim).
-- Idempotent if already claimed by `p_user_id` — the `send_claimed_at < now() - interval` check lets the same user re-claim their own stale claim.
+- Tenant boundary enforced at the RPC layer: the caller must pass the requesting tenant_id; cross-tenant claims are impossible even if an attacker guesses invoice UUIDs.
+- Coexists with migration 080's `claim_invoice_for_send(UUID, UUID)` (note: different function name — plural here vs singular there — so this is not a Postgres overload. Both functions live independently in the schema.)
 
 ### 4.2 Release semantics (no migration; same columns as 080)
 
 On bulk-send failure, the endpoint releases claims with:
 ```sql
 UPDATE invoices
-SET send_claimed_at = NULL, send_claimed_by = NULL
+SET send_claimed_at = NULL
 WHERE id = ANY($1) AND sent_at IS NULL;
 ```
 Already-sent invoices (from a previous success) are not unclaimed — prevents regression of `sent_at` on a flaky retry.
@@ -283,7 +289,7 @@ Written once per bulk-send POST (one group = one log row). Failure path writes t
    - Write `email_trigger_log` row with `umbrella_decisions.type = 'manual_bulk'`, `invoice_ids: claimedIds`, `messages_created: [{email_message_id}]`.
    - Return 200 `{ sent: claimedIds, skipped: invoice_ids.filter(id => !claimedIds.includes(id)) }`.
 10. On dispatch failure:
-   - Release claims: `UPDATE invoices SET send_claimed_at = NULL, send_claimed_by = NULL WHERE id = ANY(claimedIds) AND sent_at IS NULL`.
+   - Release claims: `UPDATE invoices SET send_claimed_at = NULL WHERE id = ANY(claimedIds) AND sent_at IS NULL`.
    - Write `email_trigger_log` row with error payload + `messages_created: []`.
    - Return 502 `{ error: 'SendGrid dispatch failed: {message}' }` with the SendGrid error passed through for dispatcher-visible detail.
 

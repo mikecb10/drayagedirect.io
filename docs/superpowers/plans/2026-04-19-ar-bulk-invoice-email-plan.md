@@ -90,54 +90,61 @@ Create `db/migrations/081_bulk_invoice_claim_rpc.sql`:
 
 BEGIN;
 
+-- ── claim_invoices_for_send ──────────────────────────────────
+-- Plural overload. Coexists with 080's single-UUID signature.
 CREATE OR REPLACE FUNCTION claim_invoices_for_send(
   p_invoice_ids UUID[],
-  p_user_id UUID
+  p_tenant_id   UUID
 )
 RETURNS TABLE (invoice_id UUID)
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 BEGIN
   RETURN QUERY
   UPDATE invoices
-  SET send_claimed_at = now(),
-      send_claimed_by = p_user_id
-  WHERE id = ANY(p_invoice_ids)
-    AND sent_at IS NULL
-    AND (
-      send_claimed_at IS NULL
-      OR send_claimed_at < now() - interval '5 minutes'
-      OR send_claimed_by = p_user_id
-    )
-  RETURNING id;
+     SET send_claimed_at = now()
+   WHERE invoices.id = ANY(p_invoice_ids)
+     AND invoices.tenant_id = p_tenant_id      -- tenant boundary
+     AND invoices.deleted_at IS NULL           -- soft-delete guard
+     AND invoices.sent_at IS NULL              -- not already sent
+     AND (
+       invoices.send_claimed_at IS NULL
+       OR invoices.send_claimed_at < now() - interval '5 minutes'  -- stale-claim recovery
+     )
+  RETURNING invoices.id;
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION claim_invoices_for_send(UUID[], UUID) TO service_role;
+GRANT EXECUTE ON FUNCTION claim_invoices_for_send(UUID[], UUID)
+  TO service_role, authenticated;
 
 NOTIFY pgrst, 'reload schema';
 
 COMMIT;
 ```
 
-Name collision note: migration 080 already defines a single-UUID `claim_invoices_for_send(UUID, UUID)`. Postgres allows function overloading by signature, so `(UUID[], UUID)` is a distinct function — they coexist. Verify in Step 4.
+Name note: migration 080 defines `claim_invoice_for_send(UUID, UUID)` (singular name). Migration 081's `claim_invoices_for_send(UUID[], UUID)` (plural name) is a distinct function, not a PG overload — both live side-by-side without collision.
+
+**Schema check:** the `invoices` table must have a `send_claimed_at TIMESTAMPTZ` column (added by migration 080). It does NOT have a `send_claimed_by` column — claims are time-based only, not user-tagged. The 5-minute freshness window handles stale-claim recovery on its own.
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git branch --show-current   # must print: main
-git add db/migrations/081_bulk_invoice_claim_rpc.sql
+git add supabase/migrations/081_bulk_invoice_claim_rpc.sql
 git commit -m "$(cat <<'EOF'
 feat(ar-email): migration 081 — bulk invoice claim RPC
 
-Adds claim_invoices_for_send(UUID[], UUID) overload for bulk-send
+Adds claim_invoices_for_send(UUID[], UUID) for bulk-send
 (sub-project 2a.4). Partial-success semantics: returns the subset
 of input IDs successfully claimed. Invoices already sent or held
-by another session (<5 min) are silently skipped.
+by another session (<5 min) are silently skipped. Enforces tenant
+boundary + soft-delete guard at the RPC layer.
 
-Coexists with migration 080's single-UUID overload by PG function
-signature.
+Coexists with migration 080's claim_invoice_for_send(UUID, UUID)
+— distinct function names (plural vs singular), not a PG overload.
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
@@ -148,30 +155,43 @@ EOF
 
 Stop here and ask the user to apply `081_bulk_invoice_claim_rpc.sql` in the Supabase SQL editor (same flow as 080). After they confirm:
 
-Run a verification query in SQL editor:
+Run verification queries in SQL editor:
 ```sql
-SELECT proname, pg_get_function_identity_arguments(oid) as args
+-- Both function names should appear (distinct, not overloads)
+SELECT proname, pg_get_function_identity_arguments(oid) AS args
 FROM pg_proc
-WHERE proname = 'claim_invoices_for_send';
+WHERE proname IN ('claim_invoice_for_send', 'claim_invoices_for_send')
+ORDER BY proname;
+-- Expected:
+--   claim_invoice_for_send  | p_invoice_id uuid, p_tenant_id uuid         (from 080)
+--   claim_invoices_for_send | p_invoice_ids uuid[], p_tenant_id uuid      (from 081)
 ```
-Expected: two rows — one with `p_invoice_ids uuid, p_user_id uuid` (from 080) and one with `p_invoice_ids uuid[], p_user_id uuid` (from 081).
 
 Test partial-success semantics:
 ```sql
--- seed: pick 3 invoice IDs from a test tenant where sent_at IS NULL and send_claimed_at IS NULL
--- pre-claim one of them to simulate contention
-UPDATE invoices SET send_claimed_at = now(), send_claimed_by = auth.uid()
+-- seed: pick 3 invoice IDs from the same tenant where sent_at IS NULL
+-- and send_claimed_at IS NULL
+-- pre-claim one of them to simulate contention (freshness window = 5 min)
+UPDATE invoices SET send_claimed_at = now()
 WHERE id = '<first-invoice-id>';
 
--- claim all 3 as a different user (use a fresh UUID for p_user_id)
+-- claim all 3 with the correct tenant_id
 SELECT * FROM claim_invoices_for_send(
   ARRAY['<first>', '<second>', '<third>']::UUID[],
-  '00000000-0000-0000-0000-000000000001'::UUID
+  '<real-tenant-uuid>'::UUID
 );
--- Expected: 2 rows returned (second and third). First is held by another user.
+-- Expected: 2 rows returned (second and third). First is inside the
+-- 5-minute claim freshness window so it's skipped.
+
+-- Cross-tenant guard: try claiming with a WRONG tenant_id
+SELECT * FROM claim_invoices_for_send(
+  ARRAY['<second>', '<third>']::UUID[],
+  '00000000-0000-0000-0000-000000000000'::UUID
+);
+-- Expected: 0 rows (tenant guard excludes them).
 
 -- cleanup:
-UPDATE invoices SET send_claimed_at = NULL, send_claimed_by = NULL
+UPDATE invoices SET send_claimed_at = NULL
 WHERE id IN ('<first>', '<second>', '<third>');
 ```
 
@@ -833,7 +853,7 @@ export default async function handler(req, res) {
     stage = STAGE.claim;
     const { data: claimRows, error: claimErr } = await svc.rpc(
       'claim_invoices_for_send',
-      { p_invoice_ids: invoiceIds, p_user_id: userId }
+      { p_invoice_ids: invoiceIds, p_tenant_id: tenantId }
     );
     if (claimErr) throw new Error(`claim RPC failed: ${claimErr.message}`);
 
@@ -912,7 +932,7 @@ export default async function handler(req, res) {
     const sentAt = new Date().toISOString();
     const { error: updErr } = await svc
       .from('invoices')
-      .update({ sent_at: sentAt, send_claimed_at: null, send_claimed_by: null })
+      .update({ sent_at: sentAt, send_claimed_at: null })
       .in('id', claimedIds);
     if (updErr) throw new Error(`sent_at update: ${updErr.message}`);
 
@@ -940,7 +960,7 @@ export default async function handler(req, res) {
     if (claimedIds.length > 0) {
       await svc
         .from('invoices')
-        .update({ send_claimed_at: null, send_claimed_by: null })
+        .update({ send_claimed_at: null })
         .in('id', claimedIds)
         .is('sent_at', null);
     }
@@ -2263,7 +2283,7 @@ Result: ✅ / ❌ + notes
 
 Reset state: pick 3 fresh invoice IDs (sent_at IS NULL).
 ```sql
-UPDATE invoices SET sent_at = NULL, send_claimed_at = NULL, send_claimed_by = NULL
+UPDATE invoices SET sent_at = NULL, send_claimed_at = NULL
 WHERE id IN ('<id1>','<id2>','<id3>');
 ```
 
@@ -2279,10 +2299,10 @@ Assert: one call returns 200 with `sent.length === 3`, the other returns 409 wit
 
 Stale-claim test:
 ```sql
-UPDATE invoices SET send_claimed_at = now() - interval '10 minutes', send_claimed_by = gen_random_uuid()
+UPDATE invoices SET send_claimed_at = now() - interval '10 minutes'
 WHERE id = '<fresh-id>';
 ```
-Fire bulk-send for that id. Expected: 200 (stale claim recovered).
+Fire bulk-send for that id. Expected: 200 (stale claim recovered — past the 5-min freshness window).
 
 Result: ✅ / ❌ + notes
 
