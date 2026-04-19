@@ -70,9 +70,16 @@ export default function BillingTab({ load }) {
   const [recalculating, setRecalculating] = useState(false);
   const [recalcSuccess, setRecalcSuccess] = useState(null);
 
-  async function fetchChargeSets() {
+  async function fetchChargeSets({ silent = false } = {}) {
     if (!load?.id) return;
-    setLoading(true);
+    // silent=true skips the loading spinner so ChargeSetCard instances stay
+    // mounted across the refetch. Callers that need to preserve per-card
+    // hook state (e.g. the Approve & Invoice flow, which sets
+    // emailCompose.isOpen=true after onChanged() returns) pass silent=true.
+    // Without this, the loading spinner replaces the card tree, every
+    // ChargeSetCard unmounts, and the subsequent emailCompose.open() call
+    // lands on a dead hook instance — drawer never renders.
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const res = await fetch(`/api/tenant/loads/${load.id}/charge-sets`);
@@ -345,7 +352,12 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
         }
         const invoiceData = await invoiceRes.json();
         const newInvoiceId = invoiceData.invoice?.id;
-        await onChanged();
+        // silent refetch: keeps this ChargeSetCard mounted across the
+        // refetch so the emailCompose hook state survives until we open
+        // the drawer on the next line. Without silent, the parent's
+        // loading spinner would replace the card tree mid-flow and the
+        // open() call would land on a fresh, unmounted hook.
+        await onChanged({ silent: true });
         if (newInvoiceId) {
           emailCompose.open('invoice', newInvoiceId);
         }
