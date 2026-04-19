@@ -31,7 +31,7 @@ After 2a.4 ships, a dispatcher can invoice 20 charge sets for 5 customers in one
 6. Clicks **Send N Ready** → parallel SendGrid dispatches; row statuses update live.
 7. All-green → queue auto-closes + toast. Partial failure → queue stays open with per-row Retry buttons.
 
-Privacy invariant: **no invoice ever reaches the wrong customer**, at any grouping level. "Per reference #" is internally keyed by `(bill_to_id, reference_number)` — two customers sharing a ref still get separate emails.
+Privacy invariant: **no invoice ever reaches the wrong customer**, at any grouping level. "Per reference #" is internally keyed by `(customer_id, reference_number)` — two customers sharing a ref still get separate emails.
 
 ---
 
@@ -105,7 +105,7 @@ Layout leaves room for future **Send Rate Con** and **Invoice [date]** slots (be
 Behavior on **Approve & Invoice** click:
 - Disable bar (`bulkAction = 'approve_invoice'`).
 - Sequentially POST `/api/tenant/ar/invoices` for each eligible charge set (filter: `cs.status === 'approved'`, matching single-send Approve & Invoice; planning step verifies the endpoint accepts this set).
-- As each POST resolves, accumulate `invoices[]` (the created invoice records with `bill_to_id`, `reference_number`, `total_cents`, `invoice_id`, `charge_set_id`).
+- As each POST resolves, accumulate `invoices[]` (the created invoice records with `customer_id`, `reference_number`, `total_cents`, `invoice_id`, `charge_set_id`).
 - After loop, if any succeeded → open grouping modal with `invoices[]`. Otherwise show error toast with first error message.
 - On partial failure show toast: `{M} of {N} invoiced · {N-M} failed` in warning variant (matches existing bulk-approve pattern).
 
@@ -126,11 +126,11 @@ Sample labels truncate at ~5 entries with `…` suffix.
 Footer buttons: **Cancel** (ghost) + **Continue →** (primary). Cancel closes the modal; the N invoices already created stay invoiced (no auto-void — matches single-send's no-undo convention).
 
 `computeGroups(invoices, kind)` logic:
-- `customer`: `groupBy(invoices, i => i.bill_to_id)`. Group key = `bill_to_id`. Label = customer name.
-- `reference`: `groupBy(invoices, i => i.reference_number ? ${i.bill_to_id}::${i.reference_number} : i.bill_to_id)`. Null/empty refs collapse with customer-level key, preventing no-ref invoices from forming singleton groups. Label = reference # or `customer name (no ref)`.
+- `customer`: `groupBy(invoices, i => i.customer_id)`. Group key = `customer_id`. Label = customer name.
+- `reference`: `groupBy(invoices, i => i.reference_number ? ${i.customer_id}::${i.reference_number} : i.customer_id)`. Null/empty refs collapse with customer-level key, preventing no-ref invoices from forming singleton groups. Label = reference # or `customer name (no ref)`.
 - `charge_set`: `i => i.invoice_id`. Group key = invoice_id. Label = `INV-{number}`.
 
-Each group returns `{ key, kind, label, bill_to_id, reference_number?, invoice_ids[], charge_set_ids[], total_cents }`.
+Each group returns `{ key, kind, label, customer_id, reference_number?, invoice_ids[], charge_set_ids[], total_cents }`.
 
 ### 3.3 Queue dashboard
 
@@ -303,17 +303,17 @@ Extends the 2a.2 single-invoice defaults endpoint to accept an array.
 ```typescript
 {
   invoice_ids: string[];           // NEW: was previously singular invoice_id
-  bill_to_id?: string;             // optional hint; derived from invoices if absent
+  customer_id?: string;             // optional hint; derived from invoices if absent
 }
 ```
 
 **Handler flow:**
 1. Load all invoices (validate tenant ownership).
-2. Resolve `bill_to_id` from first invoice (all invoices in a group must share the same bill_to, guaranteed by grouping logic; server asserts).
+2. Resolve `customer_id` from first invoice (all invoices in a group must share the same bill_to, guaranteed by grouping logic; server asserts).
 3. Load the AR invoice template row (unchanged).
 4. Build context: merge variables that would have resolved per-invoice into a plural shape — e.g. `{{invoice.numbers}}` = comma-joined list, `{{invoice.total_cents}}` = sum, `{{invoice.count}}` = length.
 5. Render subject + body.
-6. Resolve recipients via `resolveBulkRecipients(bill_to_id, invoice_ids)` → `{to, cc, bcc}`. Defaults to customer billing email; if none set, returns empty `to` array.
+6. Resolve recipients via `resolveBulkRecipients(customer_id, invoice_ids)` → `{to, cc, bcc}`. Defaults to customer billing email; if none set, returns empty `to` array.
 7. Return:
 ```typescript
 {
@@ -376,7 +376,7 @@ Existing `{{invoice.number}}` (singular) resolves to the first invoice number wh
 {
   invoices: Array<{
     invoice_id: string;
-    bill_to_id: string;
+    customer_id: string;
     reference_number: string | null;
     total_cents: number;
     charge_set_id: string;
@@ -574,14 +574,14 @@ Mirrors 2a.2/2a.3 pattern — 7 headless + 1 UI click-through.
 
 **Gate 3 — Grouping logic (client-side unit tests)**
 Test `computeGroups(invoices, kind)`:
-- `customer`: 6 invoices across 3 bill_to_ids → 3 groups with correct `invoice_ids[]` and sum of `total_cents`.
+- `customer`: 6 invoices across 3 customer_ids → 3 groups with correct `invoice_ids[]` and sum of `total_cents`.
 - `reference`: same invoices where two customers share ref `"PO-100"` → 2 separate groups for those (no cross-leak).
 - `reference` with null refs: invoices without a ref fall back into the customer-level group, not singleton groups.
 - `charge_set`: N invoices → N groups, each with `invoice_ids.length === 1`.
 - Invariant across all kinds: `sum(group.invoice_ids.length for group in groups) === N`.
 
 **Gate 4 — Email-defaults batch endpoint**
-- `POST /email-templates/invoice/defaults { invoice_ids: [5 uuids], bill_to_id }` against seeded data.
+- `POST /email-templates/invoice/defaults { invoice_ids: [5 uuids], customer_id }` against seeded data.
 - Verify response shape: `{ recipients: {to, cc, bcc}, subject, body, body_format, attachments[5] }`.
 - Verify subject/body template resolution matches single-send output for the first invoice (canonical comparison).
 - Verify new tokens (`{{invoice.numbers}}`, `{{invoice.count}}`, `{{invoice.total_cents}}`) render correctly.

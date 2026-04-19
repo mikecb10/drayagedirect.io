@@ -225,7 +225,7 @@ umbrella_decisions: [{
   invoice_ids: [<uuid>, ...],
   grouping_kind: 'customer' | 'reference' | 'charge_set',
   group_label: <string>,
-  bill_to_id: <uuid>,
+  customer_id: <uuid>,
   reference_number: <string | null>
 }]
 messages_created: [{ email_message_id: <uuid> }]   // on success
@@ -246,7 +246,7 @@ If dispatcher.js has a `logManualSend({ tenantId, invoiceId, messageId, userId }
  * @param {string} args.userId
  * @param {'customer'|'reference'|'charge_set'} args.groupingKind
  * @param {string} args.groupLabel
- * @param {string} args.billToId
+ * @param {string} args.customerId
  * @param {string|null} args.referenceNumber
  * @param {string|null} args.messageId   // null on failure
  * @param {string|null} args.error        // error message on failure, null on success
@@ -254,7 +254,7 @@ If dispatcher.js has a `logManualSend({ tenantId, invoiceId, messageId, userId }
 export async function logManualBulkSend(svc, args) {
   const {
     tenantId, invoiceIds, userId, groupingKind, groupLabel,
-    billToId, referenceNumber, messageId, error,
+    customerId, referenceNumber, messageId, error,
   } = args;
 
   const umbrellaDecision = {
@@ -263,7 +263,7 @@ export async function logManualBulkSend(svc, args) {
     invoice_ids: invoiceIds,
     grouping_kind: groupingKind,
     group_label: groupLabel,
-    bill_to_id: billToId,
+    customer_id: customerId,
     reference_number: referenceNumber,
     ...(error ? { error } : {}),
   };
@@ -322,7 +322,7 @@ Current signature: `resolveBillingRecipients(svc, customerId, tenantId, emailTyp
 
 - [ ] **Step 2: Define expected behavior of the bulk variant**
 
-Bulk requirement: all invoice_ids in a group share the same `bill_to_id` (guaranteed by grouping logic). The bulk-send endpoint can therefore just call the existing function once per group. No new function is strictly required — but a convenience wrapper makes the call site clearer and allows the spec's guarantee to be asserted server-side.
+Bulk requirement: all invoice_ids in a group share the same `customer_id` (guaranteed by grouping logic). The bulk-send endpoint can therefore just call the existing function once per group. No new function is strictly required — but a convenience wrapper makes the call site clearer and allows the spec's guarantee to be asserted server-side.
 
 Add `resolveBulkBillingRecipients(svc, customerId, tenantId, emailType, invoiceIds)`:
 - Asserts `invoiceIds` is non-empty
@@ -359,7 +359,7 @@ export async function resolveBulkBillingRecipients(
   // Cross-check: every invoice in the group must belong to customerId within tenantId.
   const { data: rows, error } = await svc
     .from('invoices')
-    .select('id, bill_to_id')
+    .select('id, customer_id')
     .eq('tenant_id', tenantId)
     .in('id', invoiceIds);
 
@@ -373,10 +373,10 @@ export async function resolveBulkBillingRecipients(
     );
   }
 
-  const mismatched = rows.filter((r) => r.bill_to_id !== customerId);
+  const mismatched = rows.filter((r) => r.customer_id !== customerId);
   if (mismatched.length > 0) {
     throw new Error(
-      `bulk recipient verification failed: ${mismatched.length} invoice(s) have a different bill_to_id than group customer`
+      `bulk recipient verification failed: ${mismatched.length} invoice(s) have a different customer_id than group customer`
     );
   }
 
@@ -402,7 +402,7 @@ git commit -m "$(cat <<'EOF'
 feat(ar-email): resolveBulkBillingRecipients with cross-customer guard
 
 Bulk-send variant of resolveBillingRecipients that asserts every
-invoice_id in the group shares the requested bill_to_id. Defense
+invoice_id in the group shares the requested customer_id. Defense
 against grouping bugs that could otherwise leak invoices across
 customers — the design-spec privacy invariant enforced at the
 dispatch layer.
@@ -586,7 +586,7 @@ Prepend to `lib/email-dispatch/context-builder.js` (or add a new exported functi
 ```javascript
 /**
  * Build a template-rendering context for a bulk-invoice email.
- * All invoice_ids must belong to the same bill_to_id (caller asserts).
+ * All invoice_ids must belong to the same customer_id (caller asserts).
  *
  * Returns the same shape as buildInvoiceContext but with
  * ctx.invoices = [invoice, invoice, ...] populated. ctx.invoice
@@ -647,7 +647,7 @@ export default async function handler(req, res) {
 
   try {
     const { tenantId, userId } = await getTenantFromRequest(req);
-    const { invoice_ids, bill_to_id: billToHint } = req.body || {};
+    const { invoice_ids, customer_id: customerIdHint } = req.body || {};
 
     if (!Array.isArray(invoice_ids) || invoice_ids.length === 0) {
       return res.status(400).json({ error: 'invoice_ids (non-empty array) required' });
@@ -658,10 +658,10 @@ export default async function handler(req, res) {
     // 1. Build context from all invoices (also validates they belong to tenant)
     const { context, formatPrefs } = await buildBulkInvoiceContext(svc, tenantId, invoice_ids);
 
-    // 2. Derive bill_to_id from context (all invoices share it by caller contract)
-    const billToId = context.invoice.bill_to_id || billToHint;
-    if (!billToId) {
-      return res.status(400).json({ error: 'bill_to_id could not be resolved' });
+    // 2. Derive customer_id from context (all invoices share it by caller contract)
+    const customerId = context.invoice.customer_id || customerIdHint;
+    if (!customerId) {
+      return res.status(400).json({ error: 'customer_id could not be resolved' });
     }
 
     // 3. Load AR invoice template (category='ar', slug='invoice_send')
@@ -683,7 +683,7 @@ export default async function handler(req, res) {
 
     // 5. Resolve recipients (delegates to existing resolveBillingRecipients + cross-customer guard)
     const { to } = await resolveBulkBillingRecipients(
-      svc, billToId, tenantId, 'invoice', invoice_ids
+      svc, customerId, tenantId, 'invoice', invoice_ids
     );
 
     // 6. Build attachments array (one per invoice)
@@ -944,7 +944,7 @@ export default async function handler(req, res) {
       userId,
       groupingKind: group.grouping_kind ?? 'customer',
       groupLabel: group.group_label ?? primaryInvoice.customer?.name ?? '(group)',
-      billToId: primaryInvoice.bill_to_id,
+      customerId: primaryInvoice.customer_id,
       referenceNumber: primaryInvoice.order?.reference_number ?? null,
       messageId: dispatchResult.messageId ?? null,
       error: null,
@@ -972,7 +972,7 @@ export default async function handler(req, res) {
         userId: req.__userId ?? null,
         groupingKind: req.body?.group?.grouping_kind ?? 'customer',
         groupLabel: req.body?.group?.group_label ?? null,
-        billToId: null,
+        customerId: null,
         referenceNumber: null,
         messageId: null,
         error: `${stage}: ${err.message}`,
@@ -1049,13 +1049,13 @@ EOF
 
 - [ ] **Step 1: Define computeGroups semantics**
 
-Input: `invoices: Array<{invoice_id, bill_to_id, customer_name, reference_number, charge_set_id, total_cents}>`
+Input: `invoices: Array<{invoice_id, customer_id, customer_name, reference_number, charge_set_id, total_cents}>`
 Kinds: `'customer' | 'reference' | 'charge_set'`
-Output: `Array<{key, kind, label, bill_to_id, customer_name, reference_number?, invoice_ids, charge_set_ids, total_cents}>`
+Output: `Array<{key, kind, label, customer_id, customer_name, reference_number?, invoice_ids, charge_set_ids, total_cents}>`
 
 Invariants (enforced with assertions):
-- Per-`customer`: one group per distinct `bill_to_id`
-- Per-`reference`: one group per distinct `(bill_to_id, reference_number)`; null/empty ref falls back into the customer-level group (label = `"${customer_name} (no ref)"`)
+- Per-`customer`: one group per distinct `customer_id`
+- Per-`reference`: one group per distinct `(customer_id, reference_number)`; null/empty ref falls back into the customer-level group (label = `"${customer_name} (no ref)"`)
 - Per-`charge_set`: one group per charge_set_id
 - For every kind: `Σ(group.invoice_ids.length) === input.length`
 
@@ -1086,12 +1086,12 @@ export function computeGroups(invoices, kind) {
   const keyFn = (inv) => {
     switch (kind) {
       case 'customer':
-        return inv.bill_to_id;
+        return inv.customer_id;
       case 'reference':
         // null/empty ref → customer-level key (fallback)
         return inv.reference_number
-          ? `${inv.bill_to_id}::${inv.reference_number}`
-          : inv.bill_to_id;
+          ? `${inv.customer_id}::${inv.reference_number}`
+          : inv.customer_id;
       case 'charge_set':
         return inv.charge_set_id ?? inv.invoice_id;  // fallback to invoice if charge_set absent
       default:
@@ -1132,7 +1132,7 @@ export function computeGroups(invoices, kind) {
       key: raw.key,
       kind,
       label: labelFn(raw),
-      bill_to_id: first.bill_to_id,
+      customer_id: first.customer_id,
       customer_name: first.customer_name,
       reference_number: first.reference_number ?? null,
       invoice_ids,
@@ -1259,7 +1259,7 @@ feat(ar-email): BulkGroupingModal + pure computeGroups helper
 Three-choice grouping modal (customer / reference / charge_set)
 for the 2a.4 bulk flow. computeGroups is exported for unit-test
 coverage (Task 13 Gate 3). Enforces Σ(invoice_ids) == input
-invariant and (bill_to_id, reference_number) pairing per the
+invariant and (customer_id, reference_number) pairing per the
 spec's cross-customer-leak guard.
 
 Dark mode variants on every gray/white/border class.
@@ -1331,7 +1331,7 @@ export function useBulkEmailQueue(groups, groupingKind) {
           fetch('/api/tenant/ar/invoices/email-defaults-bulk', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ invoice_ids: g.invoice_ids, bill_to_id: g.bill_to_id }),
+            body: JSON.stringify({ invoice_ids: g.invoice_ids, customer_id: g.customer_id }),
           }).then(async (res) => {
             if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
             return res.json();
@@ -1990,7 +1990,7 @@ async function handleBulkApproveAndInvoice() {
       created.push({
         invoice_id: inv.id,
         invoice_number: inv.invoice_number,
-        bill_to_id: inv.bill_to_id,
+        customer_id: inv.customer_id,
         customer_name: cs.order?.customer?.name ?? inv.customer_name ?? 'Unknown',
         reference_number: cs.order?.reference_number ?? null,
         charge_set_id: cs.id,
@@ -2174,11 +2174,11 @@ Create `/tmp/gate3_computeGroups.mjs`:
 import { computeGroups } from '../../../../app-drayagedirect/components/ar/BulkGroupingModal.js';   // adjust path for your shell
 
 const fixtures = [
-  { invoice_id: 'i1', charge_set_id: 'c1', bill_to_id: 'A', customer_name: 'Acme', reference_number: 'PO-100', total_cents: 1000, invoice_number: 'INV-0001' },
-  { invoice_id: 'i2', charge_set_id: 'c2', bill_to_id: 'A', customer_name: 'Acme', reference_number: 'PO-100', total_cents: 2000, invoice_number: 'INV-0002' },
-  { invoice_id: 'i3', charge_set_id: 'c3', bill_to_id: 'A', customer_name: 'Acme', reference_number: 'PO-200', total_cents: 3000, invoice_number: 'INV-0003' },
-  { invoice_id: 'i4', charge_set_id: 'c4', bill_to_id: 'B', customer_name: 'Beta',  reference_number: 'PO-100', total_cents: 4000, invoice_number: 'INV-0004' },   // same ref as A, different customer
-  { invoice_id: 'i5', charge_set_id: 'c5', bill_to_id: 'C', customer_name: 'Gamma', reference_number: null,     total_cents: 5000, invoice_number: 'INV-0005' },   // no ref
+  { invoice_id: 'i1', charge_set_id: 'c1', customer_id: 'A', customer_name: 'Acme', reference_number: 'PO-100', total_cents: 1000, invoice_number: 'INV-0001' },
+  { invoice_id: 'i2', charge_set_id: 'c2', customer_id: 'A', customer_name: 'Acme', reference_number: 'PO-100', total_cents: 2000, invoice_number: 'INV-0002' },
+  { invoice_id: 'i3', charge_set_id: 'c3', customer_id: 'A', customer_name: 'Acme', reference_number: 'PO-200', total_cents: 3000, invoice_number: 'INV-0003' },
+  { invoice_id: 'i4', charge_set_id: 'c4', customer_id: 'B', customer_name: 'Beta',  reference_number: 'PO-100', total_cents: 4000, invoice_number: 'INV-0004' },   // same ref as A, different customer
+  { invoice_id: 'i5', charge_set_id: 'c5', customer_id: 'C', customer_name: 'Gamma', reference_number: null,     total_cents: 5000, invoice_number: 'INV-0005' },   // no ref
 ];
 
 function check(name, cond) {
@@ -2423,10 +2423,10 @@ No gaps identified.
 **2. Placeholder scan.** No "TBD", "TODO", "implement later" in the plan. Two spots explicitly call out implementer verification ("verify exact prop surface during Task 10" in Task 9, "verify against the single-send call site in BillingTab from 2a.2" in Task 12) — these are not placeholders but notes about file-reading context the implementer should do at the task boundary. Every task has complete code in its steps.
 
 **3. Type consistency.** Cross-task checks:
-- `computeGroups` (Task 7) returns `{key, kind, label, bill_to_id, customer_name, reference_number, invoice_ids, charge_set_ids, total_cents}`. Consumed in Task 8 (`useBulkEmailQueue`), Task 9 (`BulkEmailQueue`), Task 12 (`queueState.groups`). Matches.
-- `logManualBulkSend` (Task 2) takes `{tenantId, invoiceIds, userId, groupingKind, groupLabel, billToId, referenceNumber, messageId, error}`. Called in Task 6 with the same arg names. Matches.
+- `computeGroups` (Task 7) returns `{key, kind, label, customer_id, customer_name, reference_number, invoice_ids, charge_set_ids, total_cents}`. Consumed in Task 8 (`useBulkEmailQueue`), Task 9 (`BulkEmailQueue`), Task 12 (`queueState.groups`). Matches.
+- `logManualBulkSend` (Task 2) takes `{tenantId, invoiceIds, userId, groupingKind, groupLabel, customerId, referenceNumber, messageId, error}`. Called in Task 6 with the same arg names. Matches.
 - `attachments` prop on `EmailComposeSlideOver` (Task 10) is `Array<{name, invoice_id, size_bytes?}>`. Produced by Task 5 (`email-defaults-bulk` response). Matches.
 - `updateRow(groupKey, patch)` signature (Task 8 hook) — called in Task 9 component with `updateRow(editingRow.groupKey, {recipients, subject, body})`. Matches.
-- `handleBulkApproveAndInvoice` (Task 12) sets `groupingModalInvoices` with fields `{invoice_id, invoice_number, bill_to_id, customer_name, reference_number, charge_set_id, total_cents}`. `BulkGroupingModal` (Task 7) consumes these exact fields. Matches.
+- `handleBulkApproveAndInvoice` (Task 12) sets `groupingModalInvoices` with fields `{invoice_id, invoice_number, customer_id, customer_name, reference_number, charge_set_id, total_cents}`. `BulkGroupingModal` (Task 7) consumes these exact fields. Matches.
 
 No inconsistencies found. Plan is ready for execution.
