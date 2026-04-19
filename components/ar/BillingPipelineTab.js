@@ -187,14 +187,47 @@ export default function BillingPipelineTab() {
   async function handleBulkApproveAndInvoice() {
     setBulkAction('approve_invoice');
     const selected = chargeSets.filter((cs) => selectedIds.has(cs.id));
-    const eligible = selected.filter((cs) => cs.status === 'approved');
-    const ineligibleCount = selected.length - eligible.length;
+
+    // Phase 1 — transition any pre-approved statuses to 'approved' first.
+    // The button is "Approve & Invoice", so the caller expects it to handle
+    // both steps in one click. Mirror bulkStatusTransition's valid-from set.
+    const toApprove = selected.filter((cs) =>
+      ['draft', 'rate_con_sent', 'unapproved'].includes(cs.status)
+    );
+    const approvedIds = new Set(
+      selected.filter((cs) => cs.status === 'approved').map((cs) => cs.id)
+    );
+    let approveFailed = 0;
+
+    for (const cs of toApprove) {
+      try {
+        const res = await fetch(
+          `/api/tenant/loads/${cs.order_id}/charge-sets/${cs.id}`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'approved' }),
+          }
+        );
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || `HTTP ${res.status}`);
+        }
+        approvedIds.add(cs.id);
+      } catch (_e) {
+        approveFailed++;
+      }
+    }
+
+    // Phase 2 — invoice every approved row (pre-existing + newly approved).
+    const toInvoice = selected.filter((cs) => approvedIds.has(cs.id));
+    const ineligibleCount = selected.length - toInvoice.length - approveFailed;
 
     const created = [];
-    let failed = 0;
+    let invoiceFailed = 0;
     let firstError = null;
 
-    for (const cs of eligible) {
+    for (const cs of toInvoice) {
       try {
         const res = await fetch('/api/tenant/ar/invoices', {
           method: 'POST',
@@ -217,7 +250,7 @@ export default function BillingPipelineTab() {
           total_cents: inv.total_amount_cents ?? cs.total_cents ?? 0,
         });
       } catch (e) {
-        failed++;
+        invoiceFailed++;
         if (!firstError) firstError = e.message;
       }
     }
@@ -229,7 +262,10 @@ export default function BillingPipelineTab() {
     if (created.length === 0) {
       setToast({
         type: 'error',
-        message: failed > 0 ? `All ${failed} invoice creations failed` : 'No eligible charge sets',
+        message:
+          invoiceFailed > 0 ? `All ${invoiceFailed} invoice creations failed`
+          : approveFailed > 0 ? `All ${approveFailed} approvals failed`
+          : 'No eligible charge sets (all voided or already invoiced)',
       });
       return;
     }
@@ -239,9 +275,10 @@ export default function BillingPipelineTab() {
     await fetchAR({ silent: true });
 
     const parts = [`Invoiced ${created.length}`];
-    if (ineligibleCount > 0) parts.push(`skipped ${ineligibleCount} (not approved)`);
-    if (failed > 0) parts.push(`${failed} failed`);
-    const kind = failed === 0 ? 'success' : 'warning';
+    if (ineligibleCount > 0) parts.push(`skipped ${ineligibleCount} (voided/invoiced)`);
+    if (approveFailed > 0) parts.push(`${approveFailed} approve failed`);
+    if (invoiceFailed > 0) parts.push(`${invoiceFailed} invoice failed`);
+    const kind = (approveFailed === 0 && invoiceFailed === 0) ? 'success' : 'warning';
     const base = parts.join(' · ');
     setToast({ type: kind, message: firstError ? `${base} — ${firstError}` : base });
 

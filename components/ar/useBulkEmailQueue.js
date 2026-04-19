@@ -105,29 +105,30 @@ export function useBulkEmailQueue(groups, groupingKind) {
 
   // Internal: send rows matching a status via /bulk-send.
   const sendRowsByStatus = useCallback(async (targetStatus) => {
-    const targetKeys = [];
-    setRows((prev) => prev.map((r) => {
-      if (r.status !== targetStatus) return r;
-      targetKeys.push(r.groupKey);
-      return { ...r, status: 'sending', error: null };
-    }));
+    // Derive the dispatch list from the ref BEFORE any setRows. This keeps
+    // targetKeys, dispatch list, and results index-aligned without relying
+    // on side-effects inside a state setter (which strict-mode would double-
+    // invoke, previously risking double-send).
+    const targetRows = rowsRef.current.filter((r) => r.status === targetStatus);
+    if (targetRows.length === 0) return [];
+    const targetKeys = targetRows.map((r) => r.groupKey);
 
-    // Read current row state from the ref (avoids stale-closure issues).
-    // We rely on the setRows above to have already flipped status to 'sending',
-    // so we filter rowsRef by targetKeys to get the snapshot to send.
-    const rowsToSend = targetKeys
-      .map((k) => rowsRef.current.find((r) => r.groupKey === k))
-      .filter(Boolean);
+    // Pure setter — no side effects inside.
+    setRows((prev) => prev.map((r) =>
+      targetKeys.includes(r.groupKey)
+        ? { ...r, status: 'sending', error: null }
+        : r
+    ));
 
     const results = await Promise.allSettled(
-      rowsToSend.map((r) =>
+      targetRows.map((r) =>
         fetch('/api/tenant/ar/invoices/bulk-send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             group: {
               invoice_ids: r.attachments.map((a) => a.invoice_id),
-              recipients: { to: r.to, cc: r.cc, bcc: r.bcc },  // nested in send request
+              recipients: { to: r.to, cc: r.cc, bcc: r.bcc },
               subject: r.subject,
               body_text: r.body_text,
               body_html: r.body_html,
@@ -146,14 +147,17 @@ export function useBulkEmailQueue(groups, groupingKind) {
       )
     );
 
+    // Map groupKey → result. Stable regardless of row reordering or stale
+    // ref snapshots — no index-drift footgun.
+    const resultByKey = new Map();
+    targetRows.forEach((r, i) => { resultByKey.set(r.groupKey, results[i]); });
+
     setRows((prev) => prev.map((r) => {
-      const idx = targetKeys.indexOf(r.groupKey);
-      if (idx === -1) return r;
-      const result = results[idx];
-      if (result.status === 'fulfilled') {
-        return { ...r, status: 'sent', error: null };
-      }
-      return { ...r, status: 'failed', error: result.reason?.message ?? 'Send failed' };
+      const result = resultByKey.get(r.groupKey);
+      if (!result) return r;
+      return result.status === 'fulfilled'
+        ? { ...r, status: 'sent', error: null }
+        : { ...r, status: 'failed', error: result.reason?.message ?? 'Send failed' };
     }));
 
     return results;
