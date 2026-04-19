@@ -74,13 +74,37 @@ function RecipientInput({ value, onChange, placeholder }) {
 // EmailComposeSlideOver
 // ---------------------------------------------------------------------------
 export default function EmailComposeSlideOver({
+  // --- existing single-send props ---
   open,
   onClose,
   docType,
   contextId,
   onSent,
   onSkipped,
+  // --- bulk-mode props (Task 9 / BulkEmailQueue) ---
+  isOpen,             // alias for `open`; whichever is provided takes precedence
+  initialTo,
+  initialCc,
+  initialBcc,
+  initialSubject,
+  initialBodyText,
+  initialBodyHtml,
+  bodyFormat: initialBodyFormat,  // prop name from BulkEmailQueue
+  attachments,        // Array<{filename, preview_url, invoice_id}> — multi-attach list
+  hideSendButton,
+  onSave,
+  saveLabel = 'Save',
+  title: titleProp,   // overrides derived title when provided
 }) {
+  // ---- bulk-mode detection -------------------------------------------------
+  // Detected when any bulk-specific prop is present. When true:
+  //   • on-mount fetch is skipped (queue pre-populates initial* props)
+  //   • footer renders Save instead of Send / Skip
+  const isBulk = Boolean(initialTo || initialSubject || hideSendButton || onSave);
+
+  // ---- visible gate (supports both `open` and `isOpen`) -------------------
+  const visible = isOpen !== undefined ? isOpen : open;
+
   // ---- refs ----------------------------------------------------------------
   const drawerRef = useRef(null);
 
@@ -123,9 +147,28 @@ export default function EmailComposeSlideOver({
     };
   }
 
-  // ---- fetch defaults ------------------------------------------------------
+  // ---- seed state from initial* props in bulk mode ------------------------
+  // Runs whenever `visible` flips to true in bulk mode (each row in the queue).
   useEffect(() => {
-    if (!open || !contextId || !docType) return undefined;
+    if (!isBulk || !visible) return;
+    setTo(initialTo ?? []);
+    setCc(initialCc ?? []);
+    setBcc(initialBcc ?? []);
+    setSubject(initialSubject ?? '');
+    setBodyText(initialBodyText ?? '');
+    setBodyHtml(initialBodyHtml ?? '');
+    setBodyFormat(initialBodyFormat ?? 'plain');
+    setCcVisible((initialCc ?? []).length > 0);
+    setBccVisible((initialBcc ?? []).length > 0);
+    setDirty(false);
+    initialLoadDoneRef.current = true;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBulk, visible]);
+
+  // ---- fetch defaults (single-send only) -----------------------------------
+  useEffect(() => {
+    if (isBulk) return undefined;               // bulk mode: skip fetch
+    if (!visible || !contextId || !docType) return undefined;
 
     const url =
       docType === 'invoice'
@@ -165,18 +208,18 @@ export default function EmailComposeSlideOver({
       .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [open, contextId, docType]);
+  }, [isBulk, visible, contextId, docType]);
 
   // ---- ESC key listener ----------------------------------------------------
   useEffect(() => {
-    if (!open) return;
+    if (!visible) return;
     function onKeyDown(e) {
       if (e.key === 'Escape' && !busy) attemptClose();
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, busy, dirty]);
+  }, [visible, busy, dirty]);
 
   // ---- Focus trap ----------------------------------------------------------
   // Confines Tab / Shift+Tab cycling to elements inside the drawer while open,
@@ -184,7 +227,7 @@ export default function EmailComposeSlideOver({
   // mounts. Both are hard requirements for modal-dialog accessibility
   // (WCAG 2.4.3 focus order + WCAG 2.4.11 focus visible).
   useEffect(() => {
-    if (!open) return undefined;
+    if (!visible) return undefined;
     const drawer = drawerRef.current;
     if (!drawer) return undefined;
 
@@ -223,7 +266,7 @@ export default function EmailComposeSlideOver({
       cancelAnimationFrame(initialFocusId);
       drawer.removeEventListener('keydown', onKeyDown);
     };
-  }, [open]);
+  }, [visible]);
 
   // ---- close with dirty guard ---------------------------------------------
   const attemptClose = useCallback(() => {
@@ -292,10 +335,11 @@ export default function EmailComposeSlideOver({
   }
 
   // ---- do not render when closed ------------------------------------------
-  if (!open) return null;
+  if (!visible) return null;
 
   const isInvoice = docType === 'invoice';
-  const title = isInvoice ? 'Send Invoice' : 'Send Rate Confirmation';
+  // `titleProp` (bulk mode) overrides the derived title
+  const headerTitle = titleProp || (isInvoice ? 'Send Invoice' : 'Send Rate Confirmation');
 
   return (
     <div className="fixed inset-0 z-[200] flex">
@@ -315,7 +359,7 @@ export default function EmailComposeSlideOver({
       >
         {/* ---- Header ---- */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-slate-700 flex-shrink-0">
-          <h2 id="email-compose-title" className="text-base font-semibold text-gray-900 dark:text-slate-100">{title}</h2>
+          <h2 id="email-compose-title" className="text-base font-semibold text-gray-900 dark:text-slate-100">{headerTitle}</h2>
           <button
             type="button"
             onClick={attemptClose}
@@ -468,20 +512,46 @@ export default function EmailComposeSlideOver({
                 />
               </div>
 
-              {/* Attachment chip */}
-              {attachment && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700/50">
-                  <span className="text-gray-500 dark:text-slate-400 text-sm">📎</span>
-                  <span className="text-sm text-gray-800 dark:text-slate-200 flex-1 truncate">{attachment.filename}</span>
-                  <a
-                    href={attachment.preview_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex-shrink-0"
-                  >
-                    Preview ↗
-                  </a>
+              {/* Attachment(s) */}
+              {/* Bulk mode: multi-attachment read-only list (array with > 1 item) */}
+              {attachments && attachments.length > 1 ? (
+                <div className="rounded border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700/50 px-3 py-2 space-y-1">
+                  <p className="text-xs font-medium text-gray-700 dark:text-slate-300">
+                    Attachments ({attachments.length})
+                  </p>
+                  {attachments.map((att, i) => (
+                    <div key={att.invoice_id ?? i} className="flex items-center gap-2">
+                      <span className="text-gray-500 dark:text-slate-400 text-sm">📎</span>
+                      <span className="text-sm text-gray-800 dark:text-slate-200 flex-1 truncate">{att.filename}</span>
+                      {att.preview_url && (
+                        <a
+                          href={att.preview_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex-shrink-0"
+                        >
+                          Preview ↗
+                        </a>
+                      )}
+                    </div>
+                  ))}
                 </div>
+              ) : (
+                /* Single-send: existing single attachment chip (unchanged) */
+                attachment && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700/50">
+                    <span className="text-gray-500 dark:text-slate-400 text-sm">📎</span>
+                    <span className="text-sm text-gray-800 dark:text-slate-200 flex-1 truncate">{attachment.filename}</span>
+                    <a
+                      href={attachment.preview_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex-shrink-0"
+                    >
+                      Preview ↗
+                    </a>
+                  </div>
+                )
               )}
             </>
           )}
@@ -490,36 +560,61 @@ export default function EmailComposeSlideOver({
         {/* ---- Sticky footer ---- */}
         {!loading && !fetchError && (
           <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-gray-200 dark:border-slate-700 flex-shrink-0 bg-white dark:bg-slate-800">
-            {/* Left action: Skip (invoice) or Cancel (rate-con) */}
-            {isInvoice ? (
-              <button
-                type="button"
-                onClick={doSkip}
-                disabled={busy}
-                className="px-4 py-2 text-sm rounded border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 disabled:opacity-40 transition-colors"
-              >
-                {skipping ? 'Skipping…' : 'Skip'}
-              </button>
+            {hideSendButton ? (
+              /* ---- Bulk mode footer: Cancel + Save ---- */
+              <>
+                <button
+                  type="button"
+                  onClick={attemptClose}
+                  disabled={busy}
+                  className="px-4 py-2 text-sm rounded border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 disabled:opacity-40 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onSave?.({ to, cc, bcc, subject, body_text: bodyText, body_html: bodyHtml })}
+                  disabled={!canSend}
+                  className="px-5 py-2 text-sm font-medium rounded bg-blue-600 dark:bg-blue-700 text-white hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  {saveLabel}
+                </button>
+              </>
             ) : (
-              <button
-                type="button"
-                onClick={attemptClose}
-                disabled={busy}
-                className="px-4 py-2 text-sm rounded border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 disabled:opacity-40 transition-colors"
-              >
-                Cancel
-              </button>
-            )}
+              /* ---- Single-send footer: Skip/Cancel + Send (unchanged) ---- */
+              <>
+                {/* Left action: Skip (invoice) or Cancel (rate-con) */}
+                {isInvoice ? (
+                  <button
+                    type="button"
+                    onClick={doSkip}
+                    disabled={busy}
+                    className="px-4 py-2 text-sm rounded border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 disabled:opacity-40 transition-colors"
+                  >
+                    {skipping ? 'Skipping…' : 'Skip'}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={attemptClose}
+                    disabled={busy}
+                    className="px-4 py-2 text-sm rounded border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 disabled:opacity-40 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                )}
 
-            {/* Right: Send */}
-            <button
-              type="button"
-              onClick={doSend}
-              disabled={!canSend}
-              className="px-5 py-2 text-sm font-medium rounded bg-blue-600 dark:bg-blue-700 text-white hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              {sending ? 'Sending…' : 'Send'}
-            </button>
+                {/* Right: Send */}
+                <button
+                  type="button"
+                  onClick={doSend}
+                  disabled={!canSend}
+                  className="px-5 py-2 text-sm font-medium rounded bg-blue-600 dark:bg-blue-700 text-white hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  {sending ? 'Sending…' : 'Send'}
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
