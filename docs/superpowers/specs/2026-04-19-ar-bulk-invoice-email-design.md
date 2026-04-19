@@ -314,16 +314,21 @@ Extends the 2a.2 single-invoice defaults endpoint to accept an array.
 4. Build context: merge variables that would have resolved per-invoice into a plural shape — e.g. `{{invoice.numbers}}` = comma-joined list, `{{invoice.total_bulk}}` = sum, `{{invoice.count}}` = length.
 5. Render subject + body.
 6. Resolve recipients via `resolveBulkRecipients(customer_id, invoice_ids)` → `{to, cc, bcc}`. Defaults to customer billing email; if none set, returns empty `to` array.
-7. Return:
+7. Return (flat shape mirrors the per-`[invoiceId]` single-send endpoint shipped in 2a.2):
 ```typescript
 {
-  recipients: { to, cc, bcc };
+  to: string[];
+  cc: string[];
+  bcc: string[];
   subject: string;
-  body: string;
+  body_text: string;           // resolved plain-text body
+  body_html: string;           // resolved HTML body
   body_format: 'html' | 'text';
-  attachments: Array<{ name: string; invoice_id: string; size_bytes?: number }>;
+  recipients_source: string;   // 'customer_billing_emails' | 'customer.billing_email' | 'none'
+  attachments: Array<{ filename: string; preview_url: string; invoice_id: string }>;
 }
 ```
+The `EmailComposeSlideOver` consumer (Task 10) should read `attachments[].filename` (not `name`) and handle `body_text` + `body_html` separately.
 
 **Backward compatibility:** if body contains `invoice_id` (singular, legacy shape), wrap it in an array internally. Minimizes churn on any existing call sites.
 
