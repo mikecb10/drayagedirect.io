@@ -7,8 +7,8 @@ import {
   dispatchEmail,
   resolveFromAddress,
   resolveFromName,
+  logManualBulkSend,
 } from '../../../../../lib/email-dispatch';
-import { logManualBulkSend } from '../../../../../lib/email-dispatch/dispatcher';
 import { fetchFullConfiguration } from '../../../../../lib/email-configuration-helpers';
 import { renderInvoicePdf } from '../../../../../lib/pdf/render-invoice';
 import { archiveInvoicePdf } from '../../../../../lib/pdf/archive';
@@ -132,6 +132,20 @@ export default async function handler(req, res) {
       .in('id', claimedIds);
     if (invErr) throw new Error(`invoice load: ${invErr.message}`);
 
+    // Cross-customer isolation (defense-in-depth): the claim RPC enforces
+    // tenant boundary but NOT customer homogeneity. resolveBulkBillingRecipients
+    // checks this at defaults-fetch time, but /bulk-send must re-verify because
+    // a crafted request could bypass the UI and stuff invoices from multiple
+    // customers into one email — leaking one customer's data to another.
+    const distinctCustomers = new Set((invoices ?? []).map((i) => i.customer_id).filter(Boolean));
+    if (distinctCustomers.size > 1) {
+      const err = new Error(
+        `bulk-send group spans ${distinctCustomers.size} customers — all invoices must share the same customer_id`
+      );
+      err.code = 'CROSS_CUSTOMER';
+      throw err;
+    }
+
     const invoiceMap = Object.fromEntries((invoices ?? []).map((inv) => [inv.id, inv]));
     const primaryInvoice = invoices?.[0] ?? null;
 
@@ -190,9 +204,12 @@ export default async function handler(req, res) {
     const sentAt = new Date().toISOString();
     // Defense-in-depth: tenant filter on UPDATE. The claim RPC already enforces
     // tenant boundary, but service-role bypasses RLS so we re-enforce here.
+    // Match single-send release_invoice_claim(success=true) semantics: stamp
+    // sent_at AND flip status='sent' so the AR Pipeline's status-based
+    // bucketing moves these invoices into the Invoiced column.
     const { error: updErr } = await svc
       .from('invoices')
-      .update({ sent_at: sentAt, send_claimed_at: null })
+      .update({ sent_at: sentAt, send_claimed_at: null, status: 'sent' })
       .eq('tenant_id', ctx.tenantId)
       .in('id', claimedIds);
     if (updErr) throw new Error(`sent_at update: ${updErr.message}`);
@@ -249,6 +266,7 @@ export default async function handler(req, res) {
 
     const status =
       err.code === 'ALL_CLAIMED' ? 409
+      : err.code === 'CROSS_CUSTOMER' ? 400
       : stage === STAGE.claim ? 409
       : 502;
 

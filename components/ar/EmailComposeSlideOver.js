@@ -161,6 +161,10 @@ export default function EmailComposeSlideOver({
     setCcVisible((initialCc ?? []).length > 0);
     setBccVisible((initialBcc ?? []).length > 0);
     setDirty(false);
+    // Reset error banners so a prior row's send/fetch error doesn't persist
+    // when the same slide-over instance re-opens on a different row.
+    setFetchError(null);
+    setSendError(null);
     initialLoadDoneRef.current = true;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isBulk, visible]);
@@ -513,8 +517,11 @@ export default function EmailComposeSlideOver({
               </div>
 
               {/* Attachment(s) */}
-              {/* Bulk mode: multi-attachment read-only list (array with > 1 item) */}
-              {attachments && attachments.length > 1 ? (
+              {/* Bulk mode: multi-attachment read-only list. Matches any non-empty array
+                  (including length-1 groups — those would otherwise fall through to the
+                  single-send `attachment` state variable which is null in bulk mode,
+                  showing no attachment chip at all). */}
+              {attachments && attachments.length >= 1 ? (
                 <div className="rounded border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700/50 px-3 py-2 space-y-1">
                   <p className="text-xs font-medium text-gray-700 dark:text-slate-300">
                     Attachments ({attachments.length})
