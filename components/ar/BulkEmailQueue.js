@@ -64,6 +64,7 @@ export default function BulkEmailQueue({ groups, groupingKind, onClose, onAllSen
   }
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 dark:bg-slate-950/60 p-4" onClick={onClose}>
       <div
         className="w-full max-w-3xl max-h-[85vh] flex flex-col rounded-xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 shadow-xl"
@@ -144,40 +145,40 @@ export default function BulkEmailQueue({ groups, groupingKind, onClose, onAllSen
           </button>
         </div>
       </div>
-
-      {/* Edit slide-over — Task 10 adds the props below to EmailComposeSlideOver.
-          Current slide-over uses `open` prop; Task 10 will add `isOpen` alias +
-          initialTo/initialSubject/initialBodyText/initialBodyHtml/hideSendButton/onSave/saveLabel/title.
-          Passing them here is safe — React ignores unrecognized props on function components
-          (they land as undefined in the destructure, not a runtime error). */}
-      {editingRow && (
-        <EmailComposeSlideOver
-          isOpen={true}
-          onClose={() => setEditingKey(null)}
-          initialTo={editingRow.to}
-          initialCc={editingRow.cc}
-          initialBcc={editingRow.bcc}
-          initialSubject={editingRow.subject}
-          initialBodyText={editingRow.body_text}
-          initialBodyHtml={editingRow.body_html}
-          bodyFormat={editingRow.body_format}
-          attachments={editingRow.attachments}
-          hideSendButton={true}
-          saveLabel="Save"
-          title={`Edit email — ${editingRow.group.label}`}
-          onSave={({ to, cc, bcc, subject, body_text, body_html }) => {
-            updateRow(editingRow.groupKey, {
-              to: to ?? editingRow.to,
-              cc: cc ?? editingRow.cc,
-              bcc: bcc ?? editingRow.bcc,
-              subject: subject ?? editingRow.subject,
-              body_text: body_text ?? editingRow.body_text,
-              body_html: body_html ?? editingRow.body_html,
-            });
-            setEditingKey(null);
-          }}
-        />
-      )}
     </div>
+
+    {/* Edit slide-over — rendered OUTSIDE the queue's backdrop div so clicks
+        inside the slide-over (e.g. Save, typing in inputs) don't bubble up to
+        the backdrop's onClick={onClose} handler. Previously nesting it inside
+        caused Save to unmount the entire queue. */}
+    {editingRow && (
+      <EmailComposeSlideOver
+        isOpen={true}
+        onClose={() => setEditingKey(null)}
+        initialTo={editingRow.to}
+        initialCc={editingRow.cc}
+        initialBcc={editingRow.bcc}
+        initialSubject={editingRow.subject}
+        initialBodyText={editingRow.body_text}
+        initialBodyHtml={editingRow.body_html}
+        bodyFormat={editingRow.body_format}
+        attachments={editingRow.attachments}
+        hideSendButton={true}
+        saveLabel="Save"
+        title={`Edit email — ${editingRow.group.label}`}
+        onSave={({ to, cc, bcc, subject, body_text, body_html }) => {
+          updateRow(editingRow.groupKey, {
+            to: to ?? editingRow.to,
+            cc: cc ?? editingRow.cc,
+            bcc: bcc ?? editingRow.bcc,
+            subject: subject ?? editingRow.subject,
+            body_text: body_text ?? editingRow.body_text,
+            body_html: body_html ?? editingRow.body_html,
+          });
+          setEditingKey(null);
+        }}
+      />
+    )}
+    </>
   );
 }
