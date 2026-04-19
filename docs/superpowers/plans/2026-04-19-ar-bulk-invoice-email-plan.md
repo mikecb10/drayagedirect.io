@@ -56,7 +56,7 @@ Files to modify:
 |---|---|
 | `lib/email-dispatch/recipient-resolver.js` | Add `resolveBulkBillingRecipients(svc, customerId, tenantId, emailType, invoiceIds)` |
 | `lib/email-dispatch/dispatcher.js` | Extend manual-send audit to support `type: 'manual_bulk'` with `invoice_ids[]` |
-| `lib/email-variables.js` | Add `{{invoice.numbers}}`, `{{invoice.count}}`, `{{invoice.total_cents}}`, `{{invoice.earliest_due}}` |
+| `lib/email-variables.js` | Add `{{invoice.numbers}}`, `{{invoice.count}}`, `{{invoice.total_bulk}}`, `{{invoice.earliest_due}}` |
 | `pages/api/tenant/ar/invoices/[invoiceId]/email-defaults.js` OR a new sibling `pages/api/tenant/ar/invoices/email-defaults-bulk.js` | Accept `invoice_ids[]` (decision in Task 5 based on route shape) |
 | `components/ui/EmailComposeSlideOver.js` | Render read-only list when `attachments.length > 1` |
 | `components/ar/BillingPipelineTab.js` | Relocate selection bar to bottom; add Approve & Invoice handler; mount grouping modal + queue |
@@ -437,7 +437,7 @@ Currency kind expects DOLLARS not cents (context builders pre-divide).
 |---|---|---|---|
 | `{{invoice.numbers}}` | text | `ctx.invoices.map(i => i.invoice_number).join(', ')` | `"INV-0001, INV-0002, INV-0003"` |
 | `{{invoice.count}}` | text | `String(ctx.invoices?.length ?? 0)` | `"3"` |
-| `{{invoice.total_cents}}` | currency | `sum(i.total_cents) / 100` (dollars) | `"$4,200.00"` |
+| `{{invoice.total_bulk}}` | currency | `sum(i.total_cents) / 100` (dollars) | `"$4,200.00"` |
 | `{{invoice.earliest_due}}` | date | `min(i.due_at)` | `"2026-05-01"` |
 
 Existing `{{invoice.number}}` (singular) stays; in bulk contexts it resolves to `ctx.invoices?.[0]?.invoice_number` as fallback so single-send templates don't blow up if reused in bulk mode.
@@ -473,8 +473,8 @@ Locate the Map entries for `invoice.number` (singular, already registered in 2a.
     return ctx.invoice ? '1' : '0';
   },
 },
-'invoice.total_cents': {
-  key: 'invoice.total_cents',
+'invoice.total_bulk': {
+  key: 'invoice.total_bulk',
   kind: 'currency',
   label: 'Invoice total (bulk-aware)',
   description: 'Sum of totals for all invoices in the group',
@@ -517,7 +517,7 @@ const ctx = {
   ],
 };
 // Adjust call signature to match whatever your resolveTemplate exports:
-console.log(resolveTemplate('Bulk: {{invoice.numbers}} ({{invoice.count}} totaling {{invoice.total_cents}}), earliest {{invoice.earliest_due}}', ctx));
+console.log(resolveTemplate('Bulk: {{invoice.numbers}} ({{invoice.count}} totaling {{invoice.total_bulk}}), earliest {{invoice.earliest_due}}', ctx));
 ```
 Run: `node /tmp/verify_bulk_tokens.js`
 Expected stdout: `Bulk: INV-0001, INV-0002 (2 totaling $3,500.00), earliest 2026-05-01`
@@ -532,7 +532,7 @@ git add lib/email-variables.js
 git commit -m "$(cat <<'EOF'
 feat(ar-email): bulk-aware invoice variable tokens
 
-Adds {{invoice.numbers}}, {{invoice.count}}, {{invoice.total_cents}}
+Adds {{invoice.numbers}}, {{invoice.count}}, {{invoice.total_bulk}}
 (bulk-aware), and {{invoice.earliest_due}} to the email-variable
 catalog for 2a.4 bulk templates. Existing {{invoice.number}} now
 falls back to ctx.invoices[0] so single-send templates remain

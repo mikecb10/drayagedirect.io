@@ -311,7 +311,7 @@ Extends the 2a.2 single-invoice defaults endpoint to accept an array.
 1. Load all invoices (validate tenant ownership).
 2. Resolve `customer_id` from first invoice (all invoices in a group must share the same bill_to, guaranteed by grouping logic; server asserts).
 3. Load the AR invoice template row (unchanged).
-4. Build context: merge variables that would have resolved per-invoice into a plural shape — e.g. `{{invoice.numbers}}` = comma-joined list, `{{invoice.total_cents}}` = sum, `{{invoice.count}}` = length.
+4. Build context: merge variables that would have resolved per-invoice into a plural shape — e.g. `{{invoice.numbers}}` = comma-joined list, `{{invoice.total_bulk}}` = sum, `{{invoice.count}}` = length.
 5. Render subject + body.
 6. Resolve recipients via `resolveBulkRecipients(customer_id, invoice_ids)` → `{to, cc, bcc}`. Defaults to customer billing email; if none set, returns empty `to` array.
 7. Return:
@@ -330,8 +330,8 @@ Extends the 2a.2 single-invoice defaults endpoint to accept an array.
 **New variable tokens** (register in `lib/email-variables.js`):
 - `{{invoice.numbers}}` → `"INV-0001, INV-0002, INV-0003"` (comma-joined)
 - `{{invoice.count}}` → `"3"`
-- `{{invoice.total_cents}}` → formatted sum (currency kind)
-- `{{invoice.earliest_sent_at}}` → null until sent (matches single-send semantics)
+- `{{invoice.total_bulk}}` → formatted sum (currency kind)
+- `{{invoice.earliest_due}}` → earliest `due_at` across invoices in the group (date kind, ISO string)
 
 Existing `{{invoice.number}}` (singular) resolves to the first invoice number when called in a bulk context — a fallback so templates written for single-send don't blow up in bulk mode.
 
@@ -584,7 +584,7 @@ Test `computeGroups(invoices, kind)`:
 - `POST /email-templates/invoice/defaults { invoice_ids: [5 uuids], customer_id }` against seeded data.
 - Verify response shape: `{ recipients: {to, cc, bcc}, subject, body, body_format, attachments[5] }`.
 - Verify subject/body template resolution matches single-send output for the first invoice (canonical comparison).
-- Verify new tokens (`{{invoice.numbers}}`, `{{invoice.count}}`, `{{invoice.total_cents}}`) render correctly.
+- Verify new tokens (`{{invoice.numbers}}`, `{{invoice.count}}`, `{{invoice.total_bulk}}`) render correctly.
 - Verify no-recipient case: customer without `billing_email` returns `to: []`.
 
 **Gate 5 — Bulk-send happy path**
