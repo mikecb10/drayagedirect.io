@@ -140,6 +140,7 @@ export default async function handler(req, res) {
       subject,
       html: body_html || null,
       text: body_text || null,
+      bodyFormat: body_format || null,
       attachments: [{
         content: pdfBuffer,
         filename: `invoice-${invoice.invoice_number || invoiceId}.pdf`,
