@@ -43,6 +43,9 @@ import {
   summarizeTrigger,
   DEDUPE_PRESETS,
 } from '../../../../lib/email-trigger-events';
+import SenderPreview from '../../../../components/settings/communications/SenderPreview';
+import { PLATFORM_SENDER_DOMAIN } from '../../../../lib/email-dispatch/constants';
+import { resolveFromDisplayName, resolveReplyTo } from '../../../../lib/email-dispatch/dispatcher';
 
 /**
  * Settings → Communications → Email Templates → Editor
@@ -81,6 +84,7 @@ const BLANK_TEMPLATE = {
   attachment_document_types: [],
   suppress_default_signature: false,
   system_slug: null,
+  from_display_name: '',
 };
 
 export default function EmailTemplateEditor() {
@@ -130,6 +134,28 @@ export default function EmailTemplateEditor() {
 
   // Send Test Email state (Milestone 4a-3)
   const [testSendOpen, setTestSendOpen] = useState(false);
+
+  // Sender preview state — tenant-default config + tenant for live preview
+  const [defaultConfig, setDefaultConfig] = useState(null);
+  const [previewTenant, setPreviewTenant] = useState(null);
+
+  useEffect(() => {
+    // Fetch tenant (for slug + name)
+    fetch('/api/tenant/settings')
+      .then((r) => (r.ok ? r.json() : { tenant: null }))
+      .then((d) => setPreviewTenant(d.tenant || null));
+
+    // Fetch tenant-default configuration
+    fetch('/api/tenant/emails/configurations')
+      .then((r) => (r.ok ? r.json() : { configurations: [] }))
+      .then((d) => {
+        const list = d.configurations || d;
+        const def = Array.isArray(list)
+          ? list.find((c) => c.is_default) || list[0] || null
+          : null;
+        setDefaultConfig(def);
+      });
+  }, []);
 
   // Load the template (or stay blank for "new")
   useEffect(() => {
@@ -316,6 +342,7 @@ export default function EmailTemplateEditor() {
         format_overrides: template.format_overrides || {},
         attachment_document_types: template.attachment_document_types || [],
         suppress_default_signature: !!template.suppress_default_signature,
+        from_display_name: template.from_display_name || null,
       };
 
       const url = isNew
@@ -722,6 +749,64 @@ export default function EmailTemplateEditor() {
                   Type <code className="font-mono bg-gray-100 dark:bg-slate-800 px-1 py-0.5 rounded">@</code> inline to open the variable picker, or click the <Hash className="inline w-3 h-3" /> button.
                 </div>
               </Section>
+
+              {/* Sender Preview + Display Name Override */}
+              {defaultConfig && previewTenant && (
+                <Section title="Sender Identity">
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-slate-300">
+                        Sender Preview
+                      </h3>
+                      {(() => {
+                        const replyToResolved = resolveReplyTo(defaultConfig, previewTenant);
+                        return (
+                          <SenderPreview
+                            fromDisplayName={resolveFromDisplayName(template, defaultConfig, previewTenant)}
+                            fromAddress={`${previewTenant.slug}@${PLATFORM_SENDER_DOMAIN}`}
+                            replyToEmail={replyToResolved?.email || null}
+                            replyToName={replyToResolved?.name || null}
+                            showViaNote={true}
+                          />
+                        );
+                      })()}
+                      <div className="mt-2 text-xs">
+                        <Link
+                          href={`/settings/communications/configurations/${defaultConfig.id}`}
+                          className="text-blue-600 hover:underline dark:text-blue-400"
+                        >
+                          Change sender identity →
+                        </Link>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="template-from-display-name"
+                        className="block text-sm font-medium text-gray-700 dark:text-slate-300"
+                      >
+                        Display Name Override (optional)
+                      </label>
+                      <input
+                        id="template-from-display-name"
+                        type="text"
+                        value={template.from_display_name || ''}
+                        maxLength={100}
+                        onChange={(e) =>
+                          setTemplate((t) => ({ ...t, from_display_name: e.target.value }))
+                        }
+                        placeholder={defaultConfig.from_display_name || previewTenant.name || ''}
+                        className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                      />
+                      <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+                        Leave blank to use your account-wide Display Name. Use this if this
+                        specific template should appear as a different identity (e.g., &quot;Acme
+                        Billing Department&quot; for invoices).
+                      </p>
+                    </div>
+                  </div>
+                </Section>
+              )}
 
               {/* Body card */}
               <Section

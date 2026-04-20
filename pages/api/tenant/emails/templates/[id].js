@@ -48,6 +48,7 @@ const EDITABLE_FIELDS = new Set([
   'format_overrides',
   'attachment_document_types',
   'suppress_default_signature',
+  'from_display_name',
 ]);
 
 // Protected: these fields are frozen on all templates (system or custom)
@@ -146,6 +147,16 @@ function validateUpdate(existing, body) {
 
   if ('suppress_default_signature' in body) {
     updates.suppress_default_signature = !!body.suppress_default_signature;
+  }
+
+  if ('from_display_name' in body) {
+    const val = body.from_display_name;
+    if (val == null || val === '') {
+      updates.from_display_name = null;
+    } else {
+      const trimmed = String(val).trim().slice(0, 100);
+      updates.from_display_name = trimmed || null;
+    }
   }
 
   // Body handling — any of body_text, body_html, body_format triggers a
