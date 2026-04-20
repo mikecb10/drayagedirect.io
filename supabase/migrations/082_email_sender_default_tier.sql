@@ -181,6 +181,41 @@ WHERE ec.sender_address_id = tsa.id
     'ymail.com', 'mail.com'
   );
 
+-- Step 2b: Backfill from_display_name from the old sender-address's display_name,
+-- BUT only when it's a meaningfully-different value from the tenant's own name.
+-- Pure tenant.name duplicates don't need backfilling (tier 3 of the precedence
+-- chain already covers them). This preserves per-tenant display-name customizations
+-- like "Acme Billing" vs the tenant's legal name.
+UPDATE email_configurations ec
+SET from_display_name = tsa.display_name
+FROM tenant_sender_addresses tsa,
+     tenants                 t
+WHERE ec.sender_address_id = tsa.id
+  AND ec.tenant_id = t.id
+  AND ec.from_display_name IS NULL
+  AND tsa.display_name IS NOT NULL
+  AND tsa.display_name <> t.name;
+
+-- Step 2c: Backfill reply_to_email from group-level overrides where unambiguous.
+-- Pre-Task-7, fireTrigger() read email_umbrella_groups.reply_to as the reply-to.
+-- Spec §3.2 moves Reply-To resolution to config-level only (not group), so any
+-- tenant using group-level overrides needs those values surfaced up to the
+-- config row. Only backfills when the chain yields exactly one distinct value —
+-- ambiguous cases (multiple group overrides per config) are left null for the
+-- operator to resolve post-migration.
+UPDATE email_configurations ec
+SET reply_to_email = sub.single_reply_to
+FROM (
+  SELECT cu.configuration_id, MIN(eug.reply_to) AS single_reply_to
+  FROM email_configuration_umbrellas cu
+  JOIN email_umbrella_groups eug ON eug.umbrella_id = cu.umbrella_id
+  WHERE eug.reply_to IS NOT NULL
+  GROUP BY cu.configuration_id
+  HAVING COUNT(DISTINCT eug.reply_to) = 1
+) sub
+WHERE ec.id = sub.configuration_id
+  AND ec.reply_to_email IS NULL;
+
 -- Step 3: Point sender_address_id at the tenant's platform sender.
 -- Old consumer-domain rows in tenant_sender_addresses are left in place
 -- for audit integrity; the API validator (forthcoming) prevents new refs.
