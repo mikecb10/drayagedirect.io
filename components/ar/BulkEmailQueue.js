@@ -27,11 +27,11 @@ function StatusPill({ status }) {
   );
 }
 
-export default function BulkEmailQueue({ groups, groupingKind, onClose, onAllSent }) {
+export default function BulkEmailQueue({ groups, groupingKind, docType = 'invoice', onClose, onAllSent }) {
   const {
     rows, updateRow, sendReady, retryFailed,
     readyCount, failedCount, sentCount, needsEditCount, allSent,
-  } = useBulkEmailQueue(groups, groupingKind);
+  } = useBulkEmailQueue(groups, groupingKind, docType);
 
   const [editingKey, setEditingKey] = useState(null);
   const editingRow = editingKey ? rows.find((r) => r.groupKey === editingKey) : null;
@@ -115,7 +115,7 @@ export default function BulkEmailQueue({ groups, groupingKind, onClose, onAllSen
                 <div className="flex-1 min-w-0">
                   <div className="text-gray-900 dark:text-slate-100 font-medium truncate">{r.group.label}</div>
                   <div className="text-xs text-gray-500 dark:text-slate-400 truncate">
-                    {r.group.invoice_ids.length} invoice{r.group.invoice_ids.length !== 1 ? 's' : ''} · {formatCents(r.group.total_cents)}
+                    {r.group.invoice_ids.length} {docType === 'rate_con' ? 'rate con' : 'invoice'}{r.group.invoice_ids.length !== 1 ? 's' : ''} · {formatCents(r.group.total_cents)}
                     {Array.isArray(r.to) && r.to.length > 0 ? ` · To: ${r.to.join(', ')}` : ' · (no recipient)'}
                   </div>
                   {r.error && (
