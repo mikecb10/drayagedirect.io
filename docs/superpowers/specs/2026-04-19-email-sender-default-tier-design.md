@@ -205,10 +205,16 @@ ALTER TABLE tenants
 added because we want to surface validation errors with helpful messages at
 the API layer, not via a raw Postgres error.
 
-**`branch_id` verification:** the migration script checks whether the column
-already exists via `information_schema.columns` and skips the ADD if so. This
-handles future-proofing if `branch_id` gets added to `email_configurations`
-through other work between spec-write and implementation.
+**`branch_id` verification:** confirmed via `supabase/migrations/053_email_system_infrastructure.sql`
+and `055_email_shared_accounts.sql` — neither adds `branch_id` to
+`email_configurations`. Straight ADD, no conditional needed.
+
+**Clarification — "branch" semantics:** `branch_id` here refers to the tenant's
+own regional branches (per the `feature_branches.md` system already built —
+e.g., Acme Trucking LA vs Acme Trucking Houston). It is NOT about the tenant's
+customers' branches of business. The use case: a dispatcher at Acme Houston
+should be able to send as "Acme Houston" with Houston's reply-to address,
+without affecting what LA's dispatcher sends as.
 
 ### 4.2 `tenant_sender_domains` — nullable `tenant_id` + platform seed
 
@@ -489,12 +495,14 @@ Columns written:
 
 ### 5.5 Existing endpoints that change
 
-- `/api/tenant/ar/invoices/bulk-send` — add `load.branch_id` to the config-
-  selection query; pass `template` object into the dispatch call so the helper
-  can read `template.from_display_name`.
-- `/api/tenant/ar/invoices/[id]/send` — same changes.
-- `/api/tenant/ar/rate-cons/[id]/send` — same (assumes exists; verify during
-  implementation).
+Verified during spec-write (2026-04-20):
+
+- `pages/api/tenant/ar/invoices/bulk-send.js` — add `load.branch_id` to the
+  config-selection query; pass `template` object into the dispatch call so
+  the helper can read `template.from_display_name`.
+- `pages/api/tenant/ar/invoices/[invoiceId]/send-email.js` — same changes.
+- `pages/api/tenant/ar/charge-sets/[id]/send-rate-con-email.js` — same
+  changes (rate-con send endpoint).
 - `lib/email-dispatch/dispatcher.js` — add `resolveFromDisplayName()` and
   `resolveReplyTo()` helpers; wire into the point where the SendGrid payload
   is built.
@@ -535,8 +543,10 @@ branch-scoped config creation can come later.
 
 #### 6.1.1 Reply-To parser
 
-Uses the `address-rfc2822` npm package (already widely used, tiny, stable).
-Cases:
+Uses the `address-rfc2822` npm package (small, stable, no runtime deps) — or
+equivalent like `email-addresses`. **Neither is currently in `package.json`**
+(verified 2026-04-20); implementation adds whichever is chosen as a new
+dependency. Cases:
 
 | Input | Parsed | Result |
 |---|---|---|
@@ -690,11 +700,18 @@ to default tier.
 
 ### 7.5 New tenant provisioning
 
-Wherever tenants are created (tenant-creation API route / admin flow; located
-during implementation), add inline provisioning so the `tenants.insert` and
-`tenant_sender_addresses.insert` + `email_configurations.insert` all happen
-in the same transaction. New tenants are never in a "no sender configured"
-state.
+Tenant creation happens in `pages/admin/tenants/index.js` (`CreateTenantModal`
+component, line 88). Form fields include `name`, `slug`, `contact_email`,
+`subscription_tier_id`, `mc_number`, `dot_number`. Verified 2026-04-20.
+
+Provisioning must hook the API route this modal posts to (identified during
+implementation) so that tenant creation is a single transaction containing:
+
+1. `INSERT INTO tenants (..., slug, ...)`
+2. `INSERT INTO tenant_sender_addresses (tenant_id, local_part=slug, domain_id=<platform>, is_default=true)`
+3. `INSERT INTO email_configurations (tenant_id, name='Default (DrayageDirect Sender)', sender_address_id=<new_row>, is_active=true, is_default=true, priority=100)`
+
+New tenants are never in a "no sender configured" state.
 
 ---
 
@@ -915,17 +932,18 @@ Captured here so they're not forgotten but explicitly not in this spec:
 
 ## 12. Open Items for Implementation
 
-These are verified / located during the implementation plan, not now:
+All items from the initial spec were resolved during self-review on 2026-04-20:
 
-- Exact file path for the tenant-creation code path (Section 7.5).
-- Whether `email_configurations` already has a `branch_id` column via other
-  parallel work (Section 4.1 conditional ADD).
-- Existence and shape of `/api/tenant/ar/rate-cons/[id]/send` endpoint
-  (Section 5.5).
-- Whether the AR Configuration page UI (shipped in 2a.3) has a create-config
-  form or only lists existing ones. If the former, the new "Sender Identity"
-  section slots in directly; if the latter, a minimal form needs adding.
-- Whether `address-rfc2822` is already a dependency, or needs `npm install`.
+- ~~Exact file path for the tenant-creation code path~~ → `pages/admin/tenants/index.js:88` (`CreateTenantModal`). Section 7.5.
+- ~~Whether `email_configurations` already has a `branch_id` column~~ → No. Straight ADD. Section 4.1.
+- ~~Existence and shape of the rate-con send endpoint~~ → Lives at `pages/api/tenant/ar/charge-sets/[id]/send-rate-con-email.js`. Section 5.5.
+- ~~AR Configuration page UI — create form present?~~ → Full suite lives at `pages/settings/communications/configurations/` (list + `[id].js` edit). Sender Identity section slots into the existing edit view. Not "AR" — it's under Settings → Communications.
+- ~~Whether `address-rfc2822` is a dependency~~ → No. Neither it nor `email-addresses` is installed. Section 6.1.1.
+
+Remaining items to nail down during implementation (minor):
+
+- Exact API route the `CreateTenantModal` POSTs to (for the provisioning hook in 7.5).
+- Exact endpoint paths where sender-address / sender-domain writes happen — needed by the consumer-domain validator (Section 6.4). The UI suggests at least `pages/settings/communications/sender-addresses/` and `pages/settings/communications/sender-domains/` have corresponding API routes.
 
 ---
 
