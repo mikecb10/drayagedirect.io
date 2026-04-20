@@ -40,6 +40,10 @@ export default function BillingPipelineTab() {
   const [toast, setToast] = useState(null); // { type, message } | null
   const [groupingModalInvoices, setGroupingModalInvoices] = useState(null); // Array | null
   const [queueState, setQueueState] = useState(null); // { kind, groups } | null
+  // 2a.4b rate-con bulk state. Kept separate from groupingModalInvoices +
+  // queueState so the invoice and rate-con flows coexist cleanly.
+  const [groupingModalRateCons, setGroupingModalRateCons] = useState(null);
+  const [rateConQueueState, setRateConQueueState] = useState(null);
 
   async function fetchAR({ silent = false } = {}) {
     if (!silent) setLoading(true);
@@ -285,6 +289,34 @@ export default function BillingPipelineTab() {
     setGroupingModalInvoices(created);
   }
 
+  async function handleBulkSendRateCons() {
+    const selected = chargeSets.filter((cs) => selectedIds.has(cs.id));
+    if (selected.length === 0) return;
+
+    // Build items in the shape BulkGroupingModal.computeGroups expects.
+    // computeGroups keys on customer_id for the 'customer' grouping, on
+    // customer_id + reference_number for 'reference', and on
+    // (charge_set_id ?? invoice_id) for 'charge_set'. Fill invoice_id with
+    // the charge-set's own id so the charge_set grouping works uniformly
+    // with the shape existing invoice callers use.
+    //
+    // Field paths mirror handleBulkApproveAndInvoice: customer info comes
+    // from cs.order.customer (nested join), reference_number from cs.order.
+    const items = selected.map((cs) => ({
+      id: cs.id,
+      invoice_id: cs.id,
+      charge_set_id: cs.id,
+      customer_id: cs.order?.customer?.id ?? cs.order?.customer_id ?? null,
+      customer_name: cs.order?.customer?.name ?? '(unknown customer)',
+      reference_number: cs.order?.reference_number ?? null,
+      invoice_number: cs.charge_set_number ?? cs.id,
+      charge_set_number: cs.charge_set_number ?? cs.id,
+      total_cents: cs.total_cents ?? 0,
+    }));
+
+    setGroupingModalRateCons(items);
+  }
+
   function handleExportCsv() {
     const selected = chargeSets.filter((cs) => selectedIds.has(cs.id));
     if (selected.length === 0) return;
@@ -526,6 +558,7 @@ export default function BillingPipelineTab() {
         onApprove={handleBulkApprove}
         onUnapprove={handleBulkUnapprove}
         onApproveAndInvoice={handleBulkApproveAndInvoice}
+        onSendRateCons={handleBulkSendRateCons}
         onExport={handleExportCsv}
         onClear={() => {
           setSelectedIds(new Set());
@@ -554,6 +587,34 @@ export default function BillingPipelineTab() {
           }}
           onAllSent={() => {
             setQueueState(null);
+            fetchAR({ silent: true });
+          }}
+        />
+      )}
+
+      {groupingModalRateCons && (
+        <BulkGroupingModal
+          items={groupingModalRateCons}
+          docType="rate_con"
+          onCancel={() => setGroupingModalRateCons(null)}
+          onContinue={({ kind, groups }) => {
+            setGroupingModalRateCons(null);
+            setRateConQueueState({ kind, groups });
+          }}
+        />
+      )}
+
+      {rateConQueueState && (
+        <BulkEmailQueue
+          groups={rateConQueueState.groups}
+          groupingKind={rateConQueueState.kind}
+          docType="rate_con"
+          onClose={() => {
+            setRateConQueueState(null);
+            fetchAR({ silent: true });
+          }}
+          onAllSent={() => {
+            setRateConQueueState(null);
             fetchAR({ silent: true });
           }}
         />
