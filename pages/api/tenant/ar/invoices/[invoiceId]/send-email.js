@@ -81,25 +81,35 @@ export default async function handler(req, res) {
     }
   };
 
-  // Fetch load.branch_id for branch-aware config selection. The claim RPC
-  // only returns invoice fields, so we do a single-column lookup here.
+  // Fetch branch_id for branch-aware config selection. The claim RPC only
+  // returns core invoice fields, so we do a single-column lookup here.
+  // branch_id is a direct column on invoices (migration 064) — no load_id FK.
   const { data: invoiceLoadRow } = await svc
     .from('invoices')
-    .select('load:load_id(branch_id)')
+    .select('branch_id')
     .eq('id', invoiceId)
     .eq('tenant_id', ctx.tenantId)
     .maybeSingle();
-  const loadBranchId = invoiceLoadRow?.load?.branch_id || null;
+  const loadBranchId = invoiceLoadRow?.branch_id || null;
 
   // Pick the active sender config for this tenant + hydrate it via
   // fetchFullConfiguration so the sender-address struct (local_part +
   // domain join) is resolvable into a real email string. Prefers a config
   // scoped to the load's branch; falls back to tenant-default.
   const configRow = await selectActiveConfig(svc, ctx.tenantId, loadBranchId);
-  if (!configRow) return res.status(500).json({ error: 'No active email sender configuration' });
+  if (!configRow) {
+    await releaseClaim();
+    return res.status(400).json({
+      error: 'no_active_email_configuration',
+      message: 'No active email configuration for this tenant',
+    });
+  }
 
   const fullConfig = await fetchFullConfiguration(svc, ctx.tenantId, configRow.id);
-  if (!fullConfig) return res.status(500).json({ error: 'Sender configuration lookup failed' });
+  if (!fullConfig) {
+    await releaseClaim();
+    return res.status(500).json({ error: 'Sender configuration lookup failed' });
+  }
 
   const { data: tenantRow } = await svc
     .from('tenants')

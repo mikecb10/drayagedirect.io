@@ -37,24 +37,29 @@ export default async function handler(req, res) {
   const svc = getServiceClient();
 
   // Verify charge set + tenant scope (no "already sent" guard — re-sending allowed).
-  // Include load.branch_id so we can do branch-aware config selection without
-  // an extra round-trip.
+  // Include order.branch_id so we can do branch-aware config selection without
+  // an extra round-trip. order_charge_sets uses order_id (not load_id) as the FK.
   const { data: cs, error: fetchErr } = await svc
     .from('order_charge_sets')
-    .select('id, charge_set_number, status, load:load_id(branch_id)')
+    .select('id, charge_set_number, status, order:order_id(branch_id)')
     .eq('id', id)
     .eq('tenant_id', ctx.tenantId)
     .maybeSingle();
   if (fetchErr) return res.status(500).json({ error: fetchErr.message });
   if (!cs) return res.status(404).json({ error: 'Charge set not found' });
 
-  const loadBranchId = cs.load?.branch_id || null;
+  const loadBranchId = cs.order?.branch_id || null;
 
   // Pick the active sender config + hydrate via fetchFullConfiguration so
   // the sender-address struct is resolvable into a real email string. Prefers
   // a config scoped to the load's branch; falls back to tenant-default.
   const configRow = await selectActiveConfig(svc, ctx.tenantId, loadBranchId);
-  if (!configRow) return res.status(500).json({ error: 'No active email sender configuration' });
+  if (!configRow) {
+    return res.status(400).json({
+      error: 'no_active_email_configuration',
+      message: 'No active email configuration for this tenant',
+    });
+  }
 
   const fullConfig = await fetchFullConfiguration(svc, ctx.tenantId, configRow.id);
   if (!fullConfig) return res.status(500).json({ error: 'Sender configuration lookup failed' });

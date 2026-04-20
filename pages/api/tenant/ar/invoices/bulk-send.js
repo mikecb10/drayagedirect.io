@@ -96,19 +96,26 @@ export default async function handler(req, res) {
     // customer guard below; ambiguous multi-branch batches should be split).
     stage = STAGE.fetch_config;
 
-    // Fetch invoice data (including load.branch_id for config selection) before
+    // Fetch invoice data (including branch_id for config selection) before
     // selecting the config so we can pass the branch to selectActiveConfig.
+    // branch_id is a direct column on invoices (added in migration 064) —
+    // there is no load_id FK on this table.
     const { data: invoices, error: invErr } = await svc
       .from('invoices')
-      .select('id, invoice_number, customer_id, customers:customer_id(name), load:load_id(branch_id)')
+      .select('id, invoice_number, customer_id, branch_id, customers:customer_id(name)')
       .eq('tenant_id', ctx.tenantId)
       .is('deleted_at', null)
       .in('id', claimedIds);
     if (invErr) throw new Error(`invoice load: ${invErr.message}`);
 
-    const loadBranchId = invoices?.[0]?.load?.branch_id || null;
+    const loadBranchId = invoices?.[0]?.branch_id || null;
     const configRow = await selectActiveConfig(svc, ctx.tenantId, loadBranchId);
-    if (!configRow) throw new Error('No active email sender configuration');
+    if (!configRow) {
+      return res.status(400).json({
+        error: 'no_active_email_configuration',
+        message: 'No active email configuration for this tenant',
+      });
+    }
 
     const fullConfig = await fetchFullConfiguration(svc, ctx.tenantId, configRow.id);
     if (!fullConfig) throw new Error('Sender configuration lookup failed');
