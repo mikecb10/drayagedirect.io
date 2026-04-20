@@ -5,7 +5,7 @@
 --
 -- Parameterized:
 --   :sendgrid_domain_id  — numeric SendGrid Domain Authentication ID for
---                          mail.drayagedirect.io. Supply via:
+--                          drayagedirect.io. Supply via:
 --                            psql -v sendgrid_domain_id=12345678 ...
 --                          or via Supabase SQL editor by replacing the
 --                          :sendgrid_domain_id placeholder with the value
@@ -105,11 +105,11 @@ CREATE POLICY tenant_sender_domains_write ON tenant_sender_domains
 INSERT INTO tenant_sender_domains
   (id, tenant_id, domain, sendgrid_domain_id, status, dns_records, created_at)
 SELECT
-  gen_random_uuid(), NULL, 'mail.drayagedirect.io',
+  gen_random_uuid(), NULL, 'drayagedirect.io',
   :sendgrid_domain_id, 'verified', '[]'::jsonb, now()
 WHERE NOT EXISTS (
   SELECT 1 FROM tenant_sender_domains
-  WHERE tenant_id IS NULL AND domain = 'mail.drayagedirect.io'
+  WHERE tenant_id IS NULL AND domain = 'drayagedirect.io'
 );
 
 -- ─────────────────────────────────────────────────────────────────────

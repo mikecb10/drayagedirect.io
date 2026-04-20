@@ -33,7 +33,7 @@ check('returns false on empty string', isConsumerDomain('') === false);
 
 // Custom domains pass through
 check('allows acmetrucking.com', isConsumerDomain('acmetrucking.com') === false);
-check('allows mail.drayagedirect.io', isConsumerDomain('mail.drayagedirect.io') === false);
+check('allows drayagedirect.io', isConsumerDomain('drayagedirect.io') === false);
 
 // Constant exposed
 check('CONSUMER_EMAIL_DOMAINS is an array of 10 entries', CONSUMER_EMAIL_DOMAINS.length === 10);

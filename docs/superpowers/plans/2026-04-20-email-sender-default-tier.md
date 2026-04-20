@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a platform-owned email sending subdomain (`mail.drayagedirect.io`)
+**Goal:** Add a platform-owned email sending subdomain (`drayagedirect.io`)
 so every tenant can deliver mail via SendGrid without configuring their own DNS.
 Adds per-tenant display name, branch-scoped sender identity, Reply-To configuration,
 and auto-migration of existing consumer-domain tenants.
@@ -124,7 +124,7 @@ check('returns false on empty string', isConsumerDomain('') === false);
 
 // Custom domains pass through
 check('allows acmetrucking.com', isConsumerDomain('acmetrucking.com') === false);
-check('allows mail.drayagedirect.io', isConsumerDomain('mail.drayagedirect.io') === false);
+check('allows drayagedirect.io', isConsumerDomain('drayagedirect.io') === false);
 
 // Constant exposed
 check('CONSUMER_EMAIL_DOMAINS is an array of 10 entries', CONSUMER_EMAIL_DOMAINS.length === 10);
@@ -573,7 +573,7 @@ Expected: `Cannot find module '.../resolve-reply-to.js'`
  *   2. tenant.email (name = null)
  *   3. null (= do not set Reply-To header)
  *
- * We deliberately do NOT fall through to noreply@mail.drayagedirect.io,
+ * We deliberately do NOT fall through to noreply@drayagedirect.io,
  * because that would route customer replies into a black hole. Better to
  * let replies bounce back to the From: address with a clear SendGrid error.
  *
@@ -639,7 +639,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
  * use a separate subdomain.
  */
 export const PLATFORM_SENDER_DOMAIN =
-  process.env.SENDGRID_PLATFORM_SENDER_DOMAIN || 'mail.drayagedirect.io';
+  process.env.SENDGRID_PLATFORM_SENDER_DOMAIN || 'drayagedirect.io';
 
 /**
  * Platform fallback From: used only when a tenant has zero
@@ -656,9 +656,9 @@ Append to `.env.example` (create the section if absent; keep alphabetical/groupe
 
 ```
 # Default-tier email sender (platform-owned SendGrid subdomain).
-# Set to mail.drayagedirect.io in prod. In dev, either use this value
+# Set to drayagedirect.io in prod. In dev, either use this value
 # with the prod SendGrid domain or override to a staging subdomain.
-SENDGRID_PLATFORM_SENDER_DOMAIN=mail.drayagedirect.io
+SENDGRID_PLATFORM_SENDER_DOMAIN=drayagedirect.io
 
 # SendGrid Domain Authentication numeric ID for the platform subdomain.
 # Captured manually during Task 19 (DNS setup). Required by migration 082.
@@ -695,7 +695,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 --
 -- Parameterized:
 --   :sendgrid_domain_id  — numeric SendGrid Domain Authentication ID for
---                          mail.drayagedirect.io. Supply via:
+--                          drayagedirect.io. Supply via:
 --                            psql -v sendgrid_domain_id=12345678 ...
 --                          or via Supabase SQL editor by replacing the
 --                          :sendgrid_domain_id placeholder with the value
@@ -785,7 +785,7 @@ CREATE POLICY tenant_sender_domains_write ON tenant_sender_domains
 INSERT INTO tenant_sender_domains
   (id, tenant_id, domain, sendgrid_domain_id, status, dns_records, created_at)
 VALUES
-  (gen_random_uuid(), NULL, 'mail.drayagedirect.io',
+  (gen_random_uuid(), NULL, 'drayagedirect.io',
    :sendgrid_domain_id, 'verified', '[]'::jsonb, now())
 ON CONFLICT DO NOTHING;
 
@@ -1400,7 +1400,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
  *   fromAddress      string   — resolved From: email address
  *   replyToEmail     string?  — resolved Reply-To email (null = hide row)
  *   replyToName      string?  — resolved Reply-To name
- *   showViaNote      boolean  — when true, shows the "via mail.drayagedirect.io" caveat
+ *   showViaNote      boolean  — when true, shows the "via drayagedirect.io" caveat
  */
 export default function SenderPreview({
   fromDisplayName,
@@ -1431,7 +1431,7 @@ export default function SenderPreview({
       )}
       {showViaNote && (
         <div className="mt-2 text-xs font-sans italic text-gray-500 dark:text-gray-400">
-          Appears as &quot;via mail.drayagedirect.io&quot; in Gmail &mdash; upgrade to a custom
+          Appears as &quot;via drayagedirect.io&quot; in Gmail &mdash; upgrade to a custom
           domain to remove this.
         </div>
       )}
@@ -1454,7 +1454,7 @@ import SenderPreview from './SenderPreview';
  *   value     { from_display_name, reply_to_email, reply_to_name }
  *   onChange  (patch) => void — merge-patch into parent state
  *   tenant    { name, slug, email }
- *   platformDomain  string — e.g. "mail.drayagedirect.io"
+ *   platformDomain  string — e.g. "drayagedirect.io"
  *   errors    { from_display_name?, reply_to?: string }  // validation errors
  */
 export default function SenderIdentityFields({
@@ -2054,17 +2054,17 @@ Per spec §8.1:
 Per spec §8.2. All 3 CNAMEs, proxy/CDN OFF.
 
 Recommended: SPF TXT record for subdomain:
-- Host: `mail.drayagedirect.io`
+- Host: `drayagedirect.io`
 - Value: `v=spf1 include:sendgrid.net ~all`
 
 - [ ] **Step 3: Verify all 3 CNAMEs via `dig`**
 
 ```bash
-dig CNAME em####.mail.drayagedirect.io +short
+dig CNAME em####.drayagedirect.io +short
 # Expected: u####.wl.sendgrid.net.
 
-dig CNAME s1._domainkey.mail.drayagedirect.io +short
-dig CNAME s2._domainkey.mail.drayagedirect.io +short
+dig CNAME s1._domainkey.drayagedirect.io +short
+dig CNAME s2._domainkey.drayagedirect.io +short
 # Expected: s1.domainkey.u####.wl.sendgrid.net. and s2.domainkey.u####.wl.sendgrid.net.
 ```
 
@@ -2080,7 +2080,7 @@ curl -sS -X POST https://api.sendgrid.com/v3/mail/send \
   -H 'Content-Type: application/json' \
   -d '{
     "personalizations": [{"to": [{"email": "<your-gmail-address>"}]}],
-    "from": {"email": "test@mail.drayagedirect.io", "name": "DrayageDirect Test"},
+    "from": {"email": "test@drayagedirect.io", "name": "DrayageDirect Test"},
     "subject": "Sender verification test",
     "content": [{"type": "text/plain", "value": "Default-tier verification."}]
   }'
@@ -2089,8 +2089,8 @@ curl -sS -X POST https://api.sendgrid.com/v3/mail/send \
 - [ ] **Step 6: Inspect headers in Gmail "Show original"**
 
 Must see:
-- `Authentication-Results: ... dkim=pass header.d=mail.drayagedirect.io` ✓
-- `Authentication-Results: ... spf=pass smtp.mailfrom=mail.drayagedirect.io` ✓
+- `Authentication-Results: ... dkim=pass header.d=drayagedirect.io` ✓
+- `Authentication-Results: ... spf=pass smtp.mailfrom=drayagedirect.io` ✓
 - `Authentication-Results: ... dmarc=pass` ✓
 - Inbox placement (not spam) ✓
 
@@ -2162,7 +2162,7 @@ WHERE table_name = 'tenants' AND column_name = 'sender_migration_at';
 SELECT id, domain, status, sendgrid_domain_id
 FROM tenant_sender_domains
 WHERE tenant_id IS NULL;
--- Expected: 1 row, domain = 'mail.drayagedirect.io', status = 'verified'.
+-- Expected: 1 row, domain = 'drayagedirect.io', status = 'verified'.
 ```
 
 - [ ] **Step 5: Verify per-tenant sender_addresses**
@@ -2208,14 +2208,14 @@ ORDER BY created_at DESC LIMIT 1;
 ```
 
 Expected:
-- `from_address` = `<tenant-slug>@mail.drayagedirect.io`
+- `from_address` = `<tenant-slug>@drayagedirect.io`
 - `from_name` = tenant's display name (or `tenants.name` fallback)
 - `reply_to` = the old consumer-domain address (preserved from migration)
 - `status` = 'sent'
 - `provider_message_id` = non-null
 
 Open the email in Gmail "Show original" and confirm `dkim=pass`, `spf=pass`,
-`dmarc=pass` on `mail.drayagedirect.io`.
+`dmarc=pass` on `drayagedirect.io`.
 
 **Gate 2 complete if:** all schema checks pass, seed data present, test
 send delivers with authentication passing headers.
@@ -2276,10 +2276,10 @@ Recipient: a real Gmail inbox you own.
 - [ ] **Step 3: Open "Show original" in Gmail and inspect headers**
 
 Required:
-- `Authentication-Results: ... dkim=pass header.d=mail.drayagedirect.io` ✓
-- `Authentication-Results: ... spf=pass smtp.mailfrom=mail.drayagedirect.io` ✓
+- `Authentication-Results: ... dkim=pass header.d=drayagedirect.io` ✓
+- `Authentication-Results: ... spf=pass smtp.mailfrom=drayagedirect.io` ✓
 - `Authentication-Results: ... dmarc=pass` ✓
-- `From:` displays as `"<Display Name>" <<slug>@mail.drayagedirect.io>`
+- `From:` displays as `"<Display Name>" <<slug>@drayagedirect.io>`
 - `Reply-To:` displays as the tenant's pre-migration consumer address
 - Inbox placement, not spam
 

@@ -93,7 +93,7 @@ foundation that actually delivers.
   means "SendGrid returned 202," just now with a sending domain that actually
   delivers.
 - **Multi-domain platform sending** — one platform subdomain
-  (`mail.drayagedirect.io`), one verified SendGrid Domain Authentication.
+  (`drayagedirect.io`), one verified SendGrid Domain Authentication.
 - **Auto-retry on SendGrid 5xx** — no change from today.
 - **Dedicated-IP reputation management** — SendGrid handles shared IP pooling.
 - **Homograph-attack protection** on the consumer-domain blocklist. ASCII only
@@ -108,11 +108,11 @@ foundation that actually delivers.
 Every outbound email sends as:
 
 ```
-From:     "{Display Name}" <{tenants.slug}@mail.drayagedirect.io>
+From:     "{Display Name}" <{tenants.slug}@drayagedirect.io>
 Reply-To: "{Reply-To Name}" <{reply_to_email}>
 ```
 
-`mail.drayagedirect.io` is a SendGrid-verified subdomain the platform owns.
+`drayagedirect.io` is a SendGrid-verified subdomain the platform owns.
 DKIM signs with it, SPF aligns with it, DMARC passes. `Reply-To` routes customer
 replies to the tenant's real mailbox — including consumer-domain mailboxes,
 because `Reply-To` has no DMARC constraints.
@@ -139,11 +139,11 @@ First non-null, non-empty wins.
 2. `{ email: tenants.email, name: null }` — tenant admin email.
 3. `null` — no `Reply-To` header set. Customer replies route to `From:` and
    bounce with a clear SendGrid error, which is preferable to silently routing
-   to `noreply@mail.drayagedirect.io`.
+   to `noreply@drayagedirect.io`.
 
 **From: email address:**
 
-1. `{tenants.slug}@mail.drayagedirect.io` — resolved via the existing
+1. `{tenants.slug}@drayagedirect.io` — resolved via the existing
    `resolveFromAddress()` code path. Zero code change; the shared
    `tenant_sender_domains` row just happens to be the platform row.
 
@@ -225,7 +225,7 @@ ALTER TABLE tenant_sender_domains
 INSERT INTO tenant_sender_domains
   (id, tenant_id, domain, sendgrid_domain_id, status, dns_records, created_at)
 VALUES
-  (gen_random_uuid(), NULL, 'mail.drayagedirect.io',
+  (gen_random_uuid(), NULL, 'drayagedirect.io',
    :sendgrid_domain_id, 'verified', '[]'::jsonb, now())
 ON CONFLICT DO NOTHING;
 ```
@@ -401,7 +401,7 @@ User clicks Send in EmailComposeSlideOver (or BulkActionBar)
   → build context: { tenantId, template_id, load_id, load.branch_id }
   → pick email_configuration (branch-aware query from 3.3)
   → resolve From:  → resolveFromAddress(fullConfig, ctx, tenant)
-                    → `{tenants.slug}@mail.drayagedirect.io`
+                    → `{tenants.slug}@drayagedirect.io`
   → resolve Display Name → resolveFromDisplayName(template, config, tenant)
                            → precedence chain
   → resolve Reply-To    → resolveReplyTo(config, tenant)
@@ -486,7 +486,7 @@ const sgMsg = {
 
 Columns written:
 
-- `from_address` — resolved email (always `{slug}@mail.drayagedirect.io`).
+- `from_address` — resolved email (always `{slug}@drayagedirect.io`).
 - `from_name` — resolved display name.
 - `reply_to` — resolved reply-to email (or null if none).
 - `reply_to_name` — resolved reply-to display name (new column).
@@ -530,9 +530,9 @@ Added to the create + edit forms. Fields:
   - On save: light parse (see 6.1.1) into `{reply_to_email, reply_to_name}`.
 - **Live Preview pane** — read-only, updates as the tenant types:
   ```
-  From:     {Display Name} <{slug}@mail.drayagedirect.io>
+  From:     {Display Name} <{slug}@drayagedirect.io>
   Reply-To: "{name}" <{email}>      ← or hidden if none
-  (Will appear as "via mail.drayagedirect.io" in Gmail —
+  (Will appear as "via drayagedirect.io" in Gmail —
    upgrade to a custom domain to remove this.)
   ```
 
@@ -589,7 +589,7 @@ Added above the template body editor.
 ```
 ┌─ Sender Preview ──────────────────────────────────────┐
 │ From:      Acme Trucking                              │
-│            <acmetrucking@mail.drayagedirect.io>      │
+│            <acmetrucking@drayagedirect.io>      │
 │ Reply-To:  "Acme" <acme@acmetrucking.com>             │
 │                               [Change sender identity →]│
 └───────────────────────────────────────────────────────┘
@@ -616,7 +616,7 @@ Shown at the top of the Email Configuration page for any tenant where
 ```
 ┌─ ℹ  We've upgraded your email sender ─────────────────────┐
 │ Your emails now send from                                 │
-│   acmetrucking@mail.drayagedirect.io                     │
+│   acmetrucking@drayagedirect.io                     │
 │ for better deliverability. Customer replies still come    │
 │ to you at dispatch@acmeowner.gmail.com.                   │
 │                                   [Learn more →]  [Dismiss]│
@@ -750,9 +750,9 @@ This section is operator-facing; it's a runbook, not code.
 4. **Link Branding: OFF** — transactional emails shouldn't have click-tracking
    redirects.
 5. SendGrid generates 3 CNAMEs:
-   - `em####.mail.drayagedirect.io` → `u####.wl.sendgrid.net`
-   - `s1._domainkey.mail.drayagedirect.io` → `s1.domainkey.u####.wl.sendgrid.net`
-   - `s2._domainkey.mail.drayagedirect.io` → `s2.domainkey.u####.wl.sendgrid.net`
+   - `em####.drayagedirect.io` → `u####.wl.sendgrid.net`
+   - `s1._domainkey.drayagedirect.io` → `s1.domainkey.u####.wl.sendgrid.net`
+   - `s2._domainkey.drayagedirect.io` → `s2.domainkey.u####.wl.sendgrid.net`
 6. Record the **SendGrid Domain ID** (numeric, shown at the top of the domain
    record). Store as `SENDGRID_PLATFORM_DOMAIN_ID`.
 
@@ -764,22 +764,22 @@ Proxy / CDN must be **OFF** (Cloudflare "grey cloud," not "orange cloud").
 Recommended: add SPF on the subdomain.
 
 - Type: `TXT`
-- Host: `mail.drayagedirect.io`
+- Host: `drayagedirect.io`
 - Value: `v=spf1 include:sendgrid.net ~all`
 
 ### 8.3 DMARC check (inspect, don't modify)
 
 Read the current `_dmarc.drayagedirect.io` record. Regardless of `p=` value,
-DKIM passing on `mail.drayagedirect.io` satisfies DMARC because the DKIM `d=`
+DKIM passing on `drayagedirect.io` satisfies DMARC because the DKIM `d=`
 aligns with the From: domain's organisational domain. No DMARC action needed.
 
 ### 8.4 Verification
 
 1. Run SendGrid's **Verify** button. All 3 CNAMEs must turn green.
-2. Send a test email via SendGrid's API with `from: test@mail.drayagedirect.io`
+2. Send a test email via SendGrid's API with `from: test@drayagedirect.io`
    to a Gmail address you control. Open "Show original":
-   - `dkim=pass header.d=mail.drayagedirect.io` ✓
-   - `spf=pass smtp.mailfrom=mail.drayagedirect.io` ✓
+   - `dkim=pass header.d=drayagedirect.io` ✓
+   - `spf=pass smtp.mailfrom=drayagedirect.io` ✓
    - `dmarc=pass` ✓
 3. All three = safe to run the migration.
 
@@ -788,7 +788,7 @@ aligns with the From: domain's organisational domain. No DMARC action needed.
 Added to `.env.example`:
 
 ```
-SENDGRID_PLATFORM_SENDER_DOMAIN=mail.drayagedirect.io
+SENDGRID_PLATFORM_SENDER_DOMAIN=drayagedirect.io
 SENDGRID_PLATFORM_DOMAIN_ID=<numeric id from SendGrid>
 ```
 
@@ -797,7 +797,7 @@ Consumed by the migration SQL (via `psql -v`) and a runtime constant in
 
 ```js
 export const PLATFORM_SENDER_DOMAIN = process.env.SENDGRID_PLATFORM_SENDER_DOMAIN
-  ?? 'mail.drayagedirect.io';
+  ?? 'drayagedirect.io';
 ```
 
 ---
@@ -875,7 +875,7 @@ Four pure helpers, one test file each. Pattern matches 2a.4's `computeGroups`
 
 ### 10.2 Verification gates (walked through live, in order)
 
-**Gate 1 — DNS + SendGrid.** `mail.drayagedirect.io` fully verified. All 3
+**Gate 1 — DNS + SendGrid.** `drayagedirect.io` fully verified. All 3
 CNAMEs resolve via `dig`.
 
 **Gate 2 — Migration applied in dev.** Run migration SQL against local
@@ -891,8 +891,8 @@ Supabase. Confirm:
 
 **Gate 4 — Deliverability gate.** Send a real invoice via UI to a real Gmail
 address. In "Show original":
-- `dkim=pass header.d=mail.drayagedirect.io` ✓
-- `spf=pass smtp.mailfrom=mail.drayagedirect.io` ✓
+- `dkim=pass header.d=drayagedirect.io` ✓
+- `spf=pass smtp.mailfrom=drayagedirect.io` ✓
 - `dmarc=pass` ✓
 - Inbox placement, not spam ✓
 

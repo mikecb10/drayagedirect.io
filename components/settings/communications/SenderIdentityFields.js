@@ -12,7 +12,7 @@ import SenderPreview from './SenderPreview';
  *                               unparsed Reply-To input for the parent
  *                               to parse via parseReplyTo() on blur.
  *   tenant    { name, slug, email }
- *   platformDomain  string — e.g. "mail.drayagedirect.io"
+ *   platformDomain  string — e.g. "drayagedirect.io"
  *   errors    { from_display_name?, reply_to?: string }  // validation errors
  */
 export default function SenderIdentityFields({
@@ -92,7 +92,6 @@ export default function SenderIdentityFields({
         fromAddress={fromAddress}
         replyToEmail={value.reply_to_email}
         replyToName={value.reply_to_name}
-        showViaNote={true}
       />
     </section>
   );

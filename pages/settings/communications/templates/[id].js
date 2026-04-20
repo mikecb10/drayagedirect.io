@@ -768,7 +768,6 @@ export default function EmailTemplateEditor() {
                             fromAddress={`${previewTenant.slug}@${PLATFORM_SENDER_DOMAIN}`}
                             replyToEmail={replyToResolved?.email || null}
                             replyToName={replyToResolved?.name || null}
-                            showViaNote={true}
                           />
                         );
                       })()}
