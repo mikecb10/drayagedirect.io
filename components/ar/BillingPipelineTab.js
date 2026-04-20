@@ -249,7 +249,7 @@ export default function BillingPipelineTab() {
           invoice_number: inv.invoice_number,
           customer_id: inv.customer_id,
           customer_name: cs.order?.customer?.name ?? 'Unknown',
-          reference_number: cs.order?.reference_number ?? null,
+          reference_number: cs.order?.customer_reference ?? null,
           charge_set_id: cs.id,
           total_cents: inv.total_amount_cents ?? cs.total_cents ?? 0,
         });
@@ -301,14 +301,16 @@ export default function BillingPipelineTab() {
     // with the shape existing invoice callers use.
     //
     // Field paths mirror handleBulkApproveAndInvoice: customer info comes
-    // from cs.order.customer (nested join), reference_number from cs.order.
+    // from cs.order.customer (nested join), reference_number from
+    // cs.order.customer_reference (the customer's own PO/correlation; the
+    // `reference_number` field name on orders doesn't exist in schema).
     const items = selected.map((cs) => ({
       id: cs.id,
       invoice_id: cs.id,
       charge_set_id: cs.id,
       customer_id: cs.order?.customer?.id ?? cs.order?.customer_id ?? null,
       customer_name: cs.order?.customer?.name ?? '(unknown customer)',
-      reference_number: cs.order?.reference_number ?? null,
+      reference_number: cs.order?.customer_reference ?? null,
       invoice_number: cs.charge_set_number ?? cs.id,
       charge_set_number: cs.charge_set_number ?? cs.id,
       total_cents: cs.total_cents ?? 0,

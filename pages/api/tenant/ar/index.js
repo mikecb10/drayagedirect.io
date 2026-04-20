@@ -22,7 +22,7 @@ export default async function handler(req, res) {
     .from('order_charge_sets')
     .select(`
       *,
-      order:orders(id, order_number, status, load_type, customer_id, created_at, deleted_at,
+      order:orders(id, order_number, status, load_type, customer_id, customer_reference, created_at, deleted_at,
         customer:customers!orders_customer_id_fkey(id, name)
       ),
       bill_to:customers!order_charge_sets_bill_to_customer_id_fkey(id, name),
