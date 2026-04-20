@@ -111,10 +111,9 @@ export default async function handler(req, res) {
     const loadBranchId = invoices?.[0]?.branch_id || null;
     const configRow = await selectActiveConfig(svc, ctx.tenantId, loadBranchId);
     if (!configRow) {
-      return res.status(400).json({
-        error: 'no_active_email_configuration',
-        message: 'No active email configuration for this tenant',
-      });
+      const err = new Error('No active email configuration for this tenant');
+      err.code = 'NO_ACTIVE_CONFIG';
+      throw err;
     }
 
     const fullConfig = await fetchFullConfiguration(svc, ctx.tenantId, configRow.id);
@@ -272,6 +271,13 @@ export default async function handler(req, res) {
     } catch (_) { /* audit-log failure is not fatal */ }
 
     console.error(`[bulk-send] ${stage} failure:`, err);
+
+    if (err.code === 'NO_ACTIVE_CONFIG') {
+      return res.status(400).json({
+        error: 'no_active_email_configuration',
+        message: err.message,
+      });
+    }
 
     const status =
       err.code === 'ALL_CLAIMED' ? 409
