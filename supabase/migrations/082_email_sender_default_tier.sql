@@ -77,6 +77,9 @@ ALTER TABLE tenant_sender_domains
 -- Writes remain scoped to own tenant.
 -- ─────────────────────────────────────────────────────────────────────
 
+-- Drop the legacy catch-all policy from migration 053 before replacing.
+DROP POLICY IF EXISTS tsd_all ON tenant_sender_domains;
+
 DROP POLICY IF EXISTS tenant_sender_domains_read ON tenant_sender_domains;
 CREATE POLICY tenant_sender_domains_read ON tenant_sender_domains
   FOR SELECT
@@ -94,20 +97,24 @@ CREATE POLICY tenant_sender_domains_write ON tenant_sender_domains
 
 INSERT INTO tenant_sender_domains
   (id, tenant_id, domain, sendgrid_domain_id, status, dns_records, created_at)
-VALUES
-  (gen_random_uuid(), NULL, 'mail.drayagedirect.com',
-   :sendgrid_domain_id, 'verified', '[]'::jsonb, now())
-ON CONFLICT DO NOTHING;
+SELECT
+  gen_random_uuid(), NULL, 'mail.drayagedirect.com',
+  :sendgrid_domain_id, 'verified', '[]'::jsonb, now()
+WHERE NOT EXISTS (
+  SELECT 1 FROM tenant_sender_domains
+  WHERE tenant_id IS NULL AND domain = 'mail.drayagedirect.com'
+);
 
 -- ─────────────────────────────────────────────────────────────────────
 -- PROVISION per-tenant sender_address rows (idempotent).
 -- ─────────────────────────────────────────────────────────────────────
 
 INSERT INTO tenant_sender_addresses
-  (tenant_id, local_part, domain_id, is_default)
+  (tenant_id, local_part, display_name, domain_id, is_default)
 SELECT
   t.id,
   t.slug,
+  t.name,
   (SELECT id FROM tenant_sender_domains WHERE tenant_id IS NULL LIMIT 1),
   true
 FROM tenants t
