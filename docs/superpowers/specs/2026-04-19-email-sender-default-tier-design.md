@@ -536,10 +536,33 @@ Added to the create + edit forms. Fields:
    upgrade to a custom domain to remove this.)
   ```
 
-Branch picker: the existing UI's branch dropdown (if present) stays where it
-is. If no branch picker exists yet, it's not added here — branch scoping is a
-schema-level addition that surfaces in the config selection query; UI for
-branch-scoped config creation can come later.
+**Branch scope selector** (new — in scope for this spec):
+
+Added to the configuration edit form at
+`pages/settings/communications/configurations/[id].js`. A single dropdown:
+
+```
+Branch Scope
+[ All branches (tenant-wide default)        ▼ ]
+    ├─ All branches (tenant-wide default)
+    ├─ Acme LA
+    ├─ Acme Houston
+    └─ Acme Chicago
+```
+
+Null = tenant-default (applies to any load regardless of branch). Setting a
+branch scopes the config to loads tagged with that branch — and the
+branch-aware selection query in §3.3 promotes this config above the
+tenant-default when a send matches.
+
+Help text under the dropdown:
+*"Tenant-wide configurations apply to all sends. Branch-scoped configurations
+take priority over tenant-wide ones when the load belongs to the selected
+branch."*
+
+Reuses the existing branches list (from the `branches` table via whatever
+branch-picker helper already exists in the codebase — patterns from
+`feature_branches` apply).
 
 #### 6.1.1 Reply-To parser
 
