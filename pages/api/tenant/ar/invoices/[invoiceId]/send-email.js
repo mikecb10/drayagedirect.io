@@ -113,7 +113,7 @@ export default async function handler(req, res) {
 
   const { data: tenantRow } = await svc
     .from('tenants')
-    .select('id, name, email')
+    .select('id, name, contact_email')
     .eq('id', ctx.tenantId)
     .maybeSingle();
 
