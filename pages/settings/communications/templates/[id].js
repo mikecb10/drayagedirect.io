@@ -143,7 +143,8 @@ export default function EmailTemplateEditor() {
     // Fetch tenant (for slug + name)
     fetch('/api/tenant/settings')
       .then((r) => (r.ok ? r.json() : { tenant: null }))
-      .then((d) => setPreviewTenant(d.tenant || null));
+      .then((d) => setPreviewTenant(d.tenant || null))
+      .catch(() => setPreviewTenant(null));
 
     // Fetch tenant-default configuration
     fetch('/api/tenant/emails/configurations')
@@ -154,7 +155,8 @@ export default function EmailTemplateEditor() {
           ? list.find((c) => c.is_default) || list[0] || null
           : null;
         setDefaultConfig(def);
-      });
+      })
+      .catch(() => setDefaultConfig(null));
   }, []);
 
   // Load the template (or stay blank for "new")
