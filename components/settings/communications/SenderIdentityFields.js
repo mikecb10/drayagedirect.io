@@ -12,7 +12,7 @@ import SenderPreview from './SenderPreview';
  *                               unparsed Reply-To input for the parent
  *                               to parse via parseReplyTo() on blur.
  *   tenant    { name, slug, email }
- *   platformDomain  string — e.g. "mail.drayagedirect.com"
+ *   platformDomain  string — e.g. "mail.drayagedirect.io"
  *   errors    { from_display_name?, reply_to?: string }  // validation errors
  */
 export default function SenderIdentityFields({

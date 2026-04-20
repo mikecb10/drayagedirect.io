@@ -8,7 +8,7 @@ import { Info, X } from 'lucide-react';
  * Props:
  *   tenantId       UUID  — for the localStorage key
  *   migratedAt     string|null — tenants.sender_migration_at; null = hide
- *   fromAddress    string — platform-domain from-address (e.g. "acme@mail.drayagedirect.com")
+ *   fromAddress    string — platform-domain from-address (e.g. "acme@mail.drayagedirect.io")
  *   replyToEmail   string — resolved reply-to email
  */
 export default function MigrationBanner({ tenantId, migratedAt, fromAddress, replyToEmail }) {

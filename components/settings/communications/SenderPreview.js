@@ -8,7 +8,7 @@
  *   fromAddress      string   — resolved From: email address
  *   replyToEmail     string?  — resolved Reply-To email (null = hide row)
  *   replyToName      string?  — resolved Reply-To name
- *   showViaNote      boolean  — when true, shows the "via mail.drayagedirect.com" caveat
+ *   showViaNote      boolean  — when true, shows the "via mail.drayagedirect.io" caveat
  */
 export default function SenderPreview({
   fromDisplayName,
@@ -39,7 +39,7 @@ export default function SenderPreview({
       )}
       {showViaNote && (
         <div className="mt-2 text-xs font-sans italic text-gray-500 dark:text-slate-400">
-          Appears as &quot;via mail.drayagedirect.com&quot; in Gmail &mdash; upgrade to a custom
+          Appears as &quot;via mail.drayagedirect.io&quot; in Gmail &mdash; upgrade to a custom
           domain to remove this.
         </div>
       )}
