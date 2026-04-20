@@ -85,23 +85,46 @@ export function computeGroups(invoices, kind) {
   return groups;
 }
 
-const KINDS = [
-  { key: 'customer',   label: '1 email per customer',      hint: 'All invoices for the same customer consolidated into one email with multiple PDFs attached.' },
-  { key: 'reference',  label: '1 email per reference #',   hint: 'Bundle by PO / booking #. Invoices without a ref fall back into the customer grouping.' },
-  { key: 'charge_set', label: 'Separate email per charge set', hint: 'One invoice per email. Like single-send, looped.' },
-];
+function getKinds(docType) {
+  const noun = docType === 'rate_con' ? 'rate con' : 'invoice';
+  const nounPlural = docType === 'rate_con' ? 'rate cons' : 'invoices';
+  const nounPluralCap = nounPlural.charAt(0).toUpperCase() + nounPlural.slice(1);
+  return [
+    {
+      key: 'customer',
+      label: '1 email per customer',
+      hint: `All ${nounPlural} for the same customer consolidated into one email with multiple PDFs attached.`,
+    },
+    {
+      key: 'reference',
+      label: '1 email per reference #',
+      hint: `Bundle by PO / booking #. ${nounPluralCap} without a ref fall back into the customer grouping.`,
+    },
+    {
+      key: 'charge_set',
+      label: `Separate email per ${noun}`,
+      hint: `One ${noun} per email. Like single-send, looped.`,
+    },
+  ];
+}
 
-export default function BulkGroupingModal({ invoices, onCancel, onContinue }) {
+export default function BulkGroupingModal({ items, invoices, docType = 'invoice', onCancel, onContinue }) {
+  // Back-compat: accept `invoices` as an alias for `items`. 2a.4 callers
+  // haven't been updated yet; this lets the rename roll out task-by-task
+  // without breaking the shipped invoice flow.
+  const itemList = items ?? invoices ?? [];
   const [kind, setKind] = useState('customer');
 
+  const kinds = useMemo(() => getKinds(docType), [docType]);
+
   const groupsByKind = useMemo(() => ({
-    customer: computeGroups(invoices, 'customer'),
-    reference: computeGroups(invoices, 'reference'),
-    charge_set: computeGroups(invoices, 'charge_set'),
-  }), [invoices]);
+    customer: computeGroups(itemList, 'customer'),
+    reference: computeGroups(itemList, 'reference'),
+    charge_set: computeGroups(itemList, 'charge_set'),
+  }), [itemList]);
 
   const selectedGroups = groupsByKind[kind];
-  const totalCents = invoices.reduce((a, i) => a + (i.total_cents || 0), 0);
+  const totalCents = itemList.reduce((a, i) => a + (i.total_cents || 0), 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 dark:bg-slate-950/60" onClick={onCancel}>
@@ -113,7 +136,7 @@ export default function BulkGroupingModal({ invoices, onCancel, onContinue }) {
           <div>
             <div className="text-base font-semibold text-gray-900 dark:text-slate-100">How should these be sent?</div>
             <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-              {invoices.length} invoice{invoices.length !== 1 ? 's' : ''} ready · {formatCents(totalCents)} total
+              {itemList.length} {docType === 'rate_con' ? 'rate con' : 'invoice'}{itemList.length !== 1 ? 's' : ''} ready · {formatCents(totalCents)} total
             </div>
           </div>
           <button onClick={onCancel} aria-label="Close" className="text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300">
@@ -122,7 +145,7 @@ export default function BulkGroupingModal({ invoices, onCancel, onContinue }) {
         </div>
 
         <div className="p-5 space-y-2">
-          {KINDS.map((k) => {
+          {kinds.map((k) => {
             const groups = groupsByKind[k.key];
             const sample = groups.slice(0, 5).map((g) => `${g.label} (${g.invoice_ids.length})`).join(' · ');
             const more = groups.length > 5 ? ` · …+${groups.length - 5}` : '';
