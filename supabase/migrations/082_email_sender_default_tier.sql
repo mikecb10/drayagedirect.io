@@ -1,15 +1,14 @@
 -- supabase/migrations/082_email_sender_default_tier.sql
 --
--- Email sender default tier: platform-owned subdomain + per-tenant senders.
+-- Email sender default tier: platform-owned domain + per-tenant senders.
 -- See docs/superpowers/specs/2026-04-19-email-sender-default-tier-design.md
 --
--- Parameterized:
---   :sendgrid_domain_id  — numeric SendGrid Domain Authentication ID for
---                          drayagedirect.io. Supply via:
---                            psql -v sendgrid_domain_id=12345678 ...
---                          or via Supabase SQL editor by replacing the
---                          :sendgrid_domain_id placeholder with the value
---                          before running.
+-- SendGrid Domain Authentication ID for drayagedirect.io is hardcoded to
+-- '30462045' in the platform-domain seed INSERT below. This was the
+-- verified Domain ID captured from the SendGrid dashboard on 2026-04-20.
+-- If this migration is replayed against a different SendGrid account or
+-- against a staging environment with its own verified domain, update the
+-- sendgrid_domain_id value before running.
 
 BEGIN;
 
@@ -106,7 +105,7 @@ INSERT INTO tenant_sender_domains
   (id, tenant_id, domain, sendgrid_domain_id, status, dns_records, created_at)
 SELECT
   gen_random_uuid(), NULL, 'drayagedirect.io',
-  :sendgrid_domain_id, 'verified', '[]'::jsonb, now()
+  '30462045', 'verified', '[]'::jsonb, now()
 WHERE NOT EXISTS (
   SELECT 1 FROM tenant_sender_domains
   WHERE tenant_id IS NULL AND domain = 'drayagedirect.io'
