@@ -72,6 +72,13 @@ ALTER TABLE tenants
 ALTER TABLE tenant_sender_domains
   ALTER COLUMN tenant_id DROP NOT NULL;
 
+-- Belt-and-suspenders: enforce at-most-one platform row at the DB level.
+-- Composite UNIQUE (tenant_id, domain) in migration 053 treats NULLs as
+-- distinct per SQL standard, so it doesn't block duplicates where
+-- tenant_id IS NULL. This partial index closes that gap.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tenant_sender_domains_platform_unique
+  ON tenant_sender_domains(domain) WHERE tenant_id IS NULL;
+
 -- ─────────────────────────────────────────────────────────────────────
 -- RLS — allow READ of platform row (tenant_id IS NULL) for all tenants.
 -- Writes remain scoped to own tenant.
@@ -108,6 +115,17 @@ WHERE NOT EXISTS (
 -- ─────────────────────────────────────────────────────────────────────
 -- PROVISION per-tenant sender_address rows (idempotent).
 -- ─────────────────────────────────────────────────────────────────────
+
+-- Before inserting the new platform-default sender, demote any tenant's
+-- existing default sender-address. The partial unique index
+-- (idx_sender_addresses_default_per_tenant, migration 053) otherwise
+-- rejects the INSERT. Only non-platform-domain rows are demoted — we
+-- don't touch rows that already point at the platform domain (idempotent
+-- re-runs stay correct).
+UPDATE tenant_sender_addresses
+SET is_default = false
+WHERE is_default = true
+  AND domain_id <> (SELECT id FROM tenant_sender_domains WHERE tenant_id IS NULL LIMIT 1);
 
 INSERT INTO tenant_sender_addresses
   (tenant_id, local_part, display_name, domain_id, is_default)
