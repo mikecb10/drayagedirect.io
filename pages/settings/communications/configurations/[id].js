@@ -100,7 +100,7 @@ export default function ConfigurationEditor() {
         fetch('/api/tenant/settings').then((r) =>
           r.ok ? r.json() : { tenant: null }
         ),
-        fetch('/api/tenant/branches').then((r) =>
+        fetch('/api/tenant/branches?status=active').then((r) =>
           r.ok ? r.json() : { branches: [] }
         ),
       ]);

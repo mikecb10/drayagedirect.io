@@ -1,5 +1,5 @@
 // components/settings/communications/SenderIdentityFields.js
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import SenderPreview from './SenderPreview';
 
 /**
@@ -22,13 +22,20 @@ export default function SenderIdentityFields({
   platformDomain,
   errors = {},
 }) {
-  // Build the combined Reply-To display from the structured state.
+  // Build the combined Reply-To display from the structured parent state.
   const combinedReplyTo = useMemo(() => {
     if (!value.reply_to_email) return '';
     return value.reply_to_name
       ? `"${value.reply_to_name}" <${value.reply_to_email}>`
       : value.reply_to_email;
   }, [value.reply_to_email, value.reply_to_name]);
+
+  // Local buffered state for the raw input. Seeded from combinedReplyTo;
+  // re-seeded when parent changes externally (Reset / post-save refresh).
+  const [replyToRaw, setReplyToRaw] = useState(combinedReplyTo);
+  useEffect(() => {
+    setReplyToRaw(combinedReplyTo);
+  }, [combinedReplyTo]);
 
   const fromAddress = `${tenant.slug}@${platformDomain}`;
   const previewName = (value.from_display_name || tenant.name || 'DrayageDirect Notifications').trim();
@@ -65,7 +72,8 @@ export default function SenderIdentityFields({
         <input
           id="sender-identity-reply-to"
           type="text"
-          defaultValue={combinedReplyTo}
+          value={replyToRaw}
+          onChange={(e) => setReplyToRaw(e.target.value)}
           onBlur={(e) => onChange({ _reply_to_raw: e.target.value })}
           placeholder='"Acme Trucking" <acme@acmetrucking.com>'
           className="mt-1 block w-full rounded border-gray-300 font-mono shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
