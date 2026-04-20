@@ -24,21 +24,21 @@ export default function SenderPreview({
     : null;
 
   return (
-    <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm font-mono dark:border-gray-700 dark:bg-gray-900">
+    <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm font-mono dark:border-slate-700 dark:bg-slate-900">
       <div className="flex gap-2">
-        <span className="w-16 text-gray-500 dark:text-gray-400">From:</span>
-        <span className="text-gray-900 dark:text-gray-100">
+        <span className="w-16 text-gray-500 dark:text-slate-400">From:</span>
+        <span className="text-gray-900 dark:text-slate-100">
           {fromDisplayName} &lt;{fromAddress}&gt;
         </span>
       </div>
       {replyToCombined && (
         <div className="mt-1 flex gap-2">
-          <span className="w-16 text-gray-500 dark:text-gray-400">Reply-To:</span>
-          <span className="text-gray-900 dark:text-gray-100">{replyToCombined}</span>
+          <span className="w-16 text-gray-500 dark:text-slate-400">Reply-To:</span>
+          <span className="text-gray-900 dark:text-slate-100">{replyToCombined}</span>
         </div>
       )}
       {showViaNote && (
-        <div className="mt-2 text-xs font-sans italic text-gray-500 dark:text-gray-400">
+        <div className="mt-2 text-xs font-sans italic text-gray-500 dark:text-slate-400">
           Appears as &quot;via mail.drayagedirect.com&quot; in Gmail &mdash; upgrade to a custom
           domain to remove this.
         </div>

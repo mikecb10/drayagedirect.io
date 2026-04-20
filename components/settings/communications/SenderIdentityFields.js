@@ -35,21 +35,22 @@ export default function SenderIdentityFields({
 
   return (
     <section className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Sender Identity</h3>
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Sender Identity</h3>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+        <label htmlFor="sender-identity-display-name" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
           Display Name
         </label>
         <input
+          id="sender-identity-display-name"
           type="text"
           value={value.from_display_name || ''}
           maxLength={100}
           onChange={(e) => onChange({ from_display_name: e.target.value })}
           placeholder={tenant.name || ''}
-          className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+          className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
         />
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
           How your company appears in the recipient&apos;s inbox.
         </p>
         {errors.from_display_name && (
@@ -58,17 +59,18 @@ export default function SenderIdentityFields({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+        <label htmlFor="sender-identity-reply-to" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
           Reply-To Address
         </label>
         <input
+          id="sender-identity-reply-to"
           type="text"
           defaultValue={combinedReplyTo}
           onBlur={(e) => onChange({ _reply_to_raw: e.target.value })}
           placeholder='"Acme Trucking" <acme@acmetrucking.com>'
-          className="mt-1 block w-full rounded border-gray-300 font-mono shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+          className="mt-1 block w-full rounded border-gray-300 font-mono shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
         />
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
           Where replies go. Format: &quot;Display Name&quot; &lt;email&gt;. Leave blank to use your
           account email.
         </p>
