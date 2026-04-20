@@ -10,6 +10,7 @@ import {
   logManualBulkSend,
 } from '../../../../../lib/email-dispatch';
 import { fetchFullConfiguration } from '../../../../../lib/email-configuration-helpers';
+import { selectActiveConfig } from '../../../../../lib/email-dispatch/select-config.js';
 import { renderInvoicePdf } from '../../../../../lib/pdf/render-invoice';
 import { archiveInvoicePdf } from '../../../../../lib/pdf/archive';
 
@@ -89,18 +90,24 @@ export default async function handler(req, res) {
     const skippedIds = invoiceIds.filter((id) => !claimedSet.has(String(id).toLowerCase()));
 
     // ── STAGE: fetch_config ───────────────────────────────────────────────────
-    // Mirror single-invoice send-email.js exactly: pick active config by
-    // is_active + priority ordering (no kind discriminator).
+    // Branch-aware config selection: prefer a config scoped to the load's
+    // branch; fall back to tenant-default. For bulk sends the first invoice's
+    // branch is used (all invoices share the same customer per the cross-
+    // customer guard below; ambiguous multi-branch batches should be split).
     stage = STAGE.fetch_config;
-    const { data: configRow, error: configErr } = await svc
-      .from('email_configurations')
-      .select('id')
+
+    // Fetch invoice data (including load.branch_id for config selection) before
+    // selecting the config so we can pass the branch to selectActiveConfig.
+    const { data: invoices, error: invErr } = await svc
+      .from('invoices')
+      .select('id, invoice_number, customer_id, customers:customer_id(name), load:load_id(branch_id)')
       .eq('tenant_id', ctx.tenantId)
-      .eq('is_active', true)
-      .order('priority', { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    if (configErr) throw new Error(`config lookup: ${configErr.message}`);
+      .is('deleted_at', null)
+      .in('id', claimedIds);
+    if (invErr) throw new Error(`invoice load: ${invErr.message}`);
+
+    const loadBranchId = invoices?.[0]?.load?.branch_id || null;
+    const configRow = await selectActiveConfig(svc, ctx.tenantId, loadBranchId);
     if (!configRow) throw new Error('No active email sender configuration');
 
     const fullConfig = await fetchFullConfiguration(svc, ctx.tenantId, configRow.id);
@@ -122,15 +129,6 @@ export default async function handler(req, res) {
     // as `preRendered` to archiveInvoicePdf so the same bytes land in Storage
     // and in the attachment — no double-render.
     stage = STAGE.render;
-
-    // Fetch minimal invoice data needed for the filename.
-    const { data: invoices, error: invErr } = await svc
-      .from('invoices')
-      .select('id, invoice_number, customer_id, customers:customer_id(name)')
-      .eq('tenant_id', ctx.tenantId)
-      .is('deleted_at', null)
-      .in('id', claimedIds);
-    if (invErr) throw new Error(`invoice load: ${invErr.message}`);
 
     // Cross-customer isolation (defense-in-depth): the claim RPC enforces
     // tenant boundary but NOT customer homogeneity. resolveBulkBillingRecipients
@@ -194,6 +192,10 @@ export default async function handler(req, res) {
       sentByUserId: ctx.userId,
       relatedEntity: { type: 'invoice_bulk', id: claimedIds.join(',') },
       eventName: 'manual:invoice_bulk_send',
+      // Task 7 precedence helpers: supply objects so dispatcher resolves
+      // display name + reply-to via the unified helper path.
+      config: fullConfig,
+      tenant: tenantRow,
     });
 
     // ── STAGE: postdispatch ───────────────────────────────────────────────────

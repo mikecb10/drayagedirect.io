@@ -7,6 +7,7 @@ import {
   resolveFromName,
 } from '../../../../../../lib/email-dispatch';
 import { fetchFullConfiguration } from '../../../../../../lib/email-configuration-helpers';
+import { selectActiveConfig } from '../../../../../../lib/email-dispatch/select-config.js';
 import { archiveRateConPdf } from '../../../../../../lib/pdf/archive';
 import { renderRateConPdf } from '../../../../../../lib/pdf/render-rate-con';
 
@@ -35,27 +36,24 @@ export default async function handler(req, res) {
 
   const svc = getServiceClient();
 
-  // Verify charge set + tenant scope (no "already sent" guard — re-sending allowed)
+  // Verify charge set + tenant scope (no "already sent" guard — re-sending allowed).
+  // Include load.branch_id so we can do branch-aware config selection without
+  // an extra round-trip.
   const { data: cs, error: fetchErr } = await svc
     .from('order_charge_sets')
-    .select('id, charge_set_number, status')
+    .select('id, charge_set_number, status, load:load_id(branch_id)')
     .eq('id', id)
     .eq('tenant_id', ctx.tenantId)
     .maybeSingle();
   if (fetchErr) return res.status(500).json({ error: fetchErr.message });
   if (!cs) return res.status(404).json({ error: 'Charge set not found' });
 
+  const loadBranchId = cs.load?.branch_id || null;
+
   // Pick the active sender config + hydrate via fetchFullConfiguration so
-  // the sender-address struct is resolvable into a real email string.
-  const { data: configRow, error: configErr } = await svc
-    .from('email_configurations')
-    .select('id')
-    .eq('tenant_id', ctx.tenantId)
-    .eq('is_active', true)
-    .order('priority', { ascending: true })
-    .limit(1)
-    .maybeSingle();
-  if (configErr) return res.status(500).json({ error: configErr.message });
+  // the sender-address struct is resolvable into a real email string. Prefers
+  // a config scoped to the load's branch; falls back to tenant-default.
+  const configRow = await selectActiveConfig(svc, ctx.tenantId, loadBranchId);
   if (!configRow) return res.status(500).json({ error: 'No active email sender configuration' });
 
   const fullConfig = await fetchFullConfiguration(svc, ctx.tenantId, configRow.id);
@@ -113,6 +111,10 @@ export default async function handler(req, res) {
       sentByUserId: ctx.userId,
       relatedEntity: { type: 'charge_set', id },
       eventName: 'manual:rate_con_send',
+      // Task 7 precedence helpers: supply objects so dispatcher resolves
+      // display name + reply-to via the unified helper path.
+      config: fullConfig,
+      tenant: tenantRow,
     });
   } catch (e) {
     return res.status(500).json({

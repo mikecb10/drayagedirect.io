@@ -7,6 +7,7 @@ import {
   resolveFromName,
 } from '../../../../../../lib/email-dispatch';
 import { fetchFullConfiguration } from '../../../../../../lib/email-configuration-helpers';
+import { selectActiveConfig } from '../../../../../../lib/email-dispatch/select-config.js';
 import { archiveInvoicePdf } from '../../../../../../lib/pdf/archive';
 import { renderInvoicePdf } from '../../../../../../lib/pdf/render-invoice';
 
@@ -80,18 +81,21 @@ export default async function handler(req, res) {
     }
   };
 
+  // Fetch load.branch_id for branch-aware config selection. The claim RPC
+  // only returns invoice fields, so we do a single-column lookup here.
+  const { data: invoiceLoadRow } = await svc
+    .from('invoices')
+    .select('load:load_id(branch_id)')
+    .eq('id', invoiceId)
+    .eq('tenant_id', ctx.tenantId)
+    .maybeSingle();
+  const loadBranchId = invoiceLoadRow?.load?.branch_id || null;
+
   // Pick the active sender config for this tenant + hydrate it via
   // fetchFullConfiguration so the sender-address struct (local_part +
-  // domain join) is resolvable into a real email string.
-  const { data: configRow, error: configErr } = await svc
-    .from('email_configurations')
-    .select('id')
-    .eq('tenant_id', ctx.tenantId)
-    .eq('is_active', true)
-    .order('priority', { ascending: true })
-    .limit(1)
-    .maybeSingle();
-  if (configErr) return res.status(500).json({ error: configErr.message });
+  // domain join) is resolvable into a real email string. Prefers a config
+  // scoped to the load's branch; falls back to tenant-default.
+  const configRow = await selectActiveConfig(svc, ctx.tenantId, loadBranchId);
   if (!configRow) return res.status(500).json({ error: 'No active email sender configuration' });
 
   const fullConfig = await fetchFullConfiguration(svc, ctx.tenantId, configRow.id);
@@ -151,6 +155,10 @@ export default async function handler(req, res) {
       sentByUserId: ctx.userId,
       relatedEntity: { type: 'invoice', id: invoiceId },
       eventName: 'manual:invoice_send',
+      // Task 7 precedence helpers: supply objects so dispatcher resolves
+      // display name + reply-to via the unified helper path.
+      config: fullConfig,
+      tenant: tenantRow,
     });
   } catch (e) {
     await releaseClaim();
