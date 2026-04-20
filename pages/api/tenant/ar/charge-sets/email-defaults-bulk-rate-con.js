@@ -66,16 +66,35 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'customer_id could not be resolved from charge-sets' });
     }
 
-    // 3. Fetch AR rate-con template (seeded in migration 079 as
-    //    system_slug='rate_con_send', category='ar').
-    const { data: template, error: tplErr } = await svc
-      .from('email_templates')
-      .select('subject, body_html, body_text, body_format')
-      .eq('tenant_id', ctx.tenantId)
-      .eq('category', 'ar')
-      .eq('system_slug', 'rate_con_send')
-      .maybeSingle();
-    if (tplErr) throw new Error(`Template lookup: ${tplErr.message}`);
+    // 3. Fetch AR rate-con template. Try the bulk-specific slug first
+    //    (migration 084 seeds rate_con_bulk_send with plural tokens like
+    //    {{charge_set.numbers}} + {{charge_set.count}}). Fall back to the
+    //    single-send slug for tenants pre-migration-084 or tenants who
+    //    cleared the bulk row — they get the old singular-token behavior
+    //    rather than an error.
+    let template = null;
+    {
+      const { data, error } = await svc
+        .from('email_templates')
+        .select('subject, body_html, body_text, body_format')
+        .eq('tenant_id', ctx.tenantId)
+        .eq('category', 'ar')
+        .eq('system_slug', 'rate_con_bulk_send')
+        .maybeSingle();
+      if (error) throw new Error(`Bulk template lookup: ${error.message}`);
+      template = data;
+    }
+    if (!template) {
+      const { data, error } = await svc
+        .from('email_templates')
+        .select('subject, body_html, body_text, body_format')
+        .eq('tenant_id', ctx.tenantId)
+        .eq('category', 'ar')
+        .eq('system_slug', 'rate_con_send')
+        .maybeSingle();
+      if (error) throw new Error(`Fallback template lookup: ${error.message}`);
+      template = data;
+    }
     if (!template) {
       const err = new Error('AR rate-con template missing — configure in Settings > AR Configuration');
       err.code = 'TEMPLATE_NOT_FOUND';

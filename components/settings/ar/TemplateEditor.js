@@ -4,8 +4,15 @@ const INVOICE_TOKENS = [
   '{{invoice.number}}', '{{invoice.total}}', '{{invoice.subtotal}}',
   '{{invoice.due_date}}', '{{invoice.issue_date}}', '{{invoice.reference_number}}',
 ];
+const INVOICE_BULK_TOKENS = [
+  '{{invoice.numbers}}', '{{invoice.count}}', '{{invoice.total_bulk}}',
+  '{{invoice.earliest_due}}',
+];
 const RATE_CON_TOKENS = [
   '{{charge_set.number}}', '{{charge_set.total}}', '{{charge_set.reference_number}}',
+];
+const RATE_CON_BULK_TOKENS = [
+  '{{charge_set.numbers}}', '{{charge_set.count}}', '{{charge_set.total_bulk}}',
 ];
 const SHARED_TOKENS = [
   '{{customer.name}}', '{{customer.primary_contact_name}}',
@@ -13,6 +20,13 @@ const SHARED_TOKENS = [
   '{{container.number}}', '{{pickup.name}}', '{{delivery.name}}',
   '{{tenant.name}}',
 ];
+
+const TOKENS_BY_SLUG = {
+  invoice_send: INVOICE_TOKENS,
+  invoice_bulk_send: INVOICE_BULK_TOKENS,
+  rate_con_send: RATE_CON_TOKENS,
+  rate_con_bulk_send: RATE_CON_BULK_TOKENS,
+};
 
 export default function TemplateEditor({ systemSlug }) {
   const [row, setRow] = useState(null);
@@ -111,9 +125,9 @@ export default function TemplateEditor({ systemSlug }) {
 
   if (loading) return <div className="text-sm text-gray-500 dark:text-slate-400">Loading template…</div>;
   if (error && !row) return <div className="text-sm text-red-600 dark:text-red-400">Error: {error}</div>;
-  if (!row) return <div className="text-sm text-gray-500 dark:text-slate-400">Template not found. Did migration 079 run?</div>;
+  if (!row) return <div className="text-sm text-gray-500 dark:text-slate-400">Template not found. Did migrations 079 + 084 run?</div>;
 
-  const tokens = systemSlug === 'invoice_send' ? INVOICE_TOKENS : RATE_CON_TOKENS;
+  const tokens = TOKENS_BY_SLUG[systemSlug] || [];
 
   return (
     <div className="space-y-4">
