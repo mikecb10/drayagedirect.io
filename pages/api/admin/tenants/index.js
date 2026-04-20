@@ -87,6 +87,47 @@ async function handlePost(req, res) {
   // Seed tenant defaults
   await supabase.rpc('seed_new_tenant', { p_tenant_id: tenant.id });
 
+  // Auto-provision platform sender address + default email config
+  const { data: platformDomain } = await supabase
+    .from('tenant_sender_domains')
+    .select('id')
+    .is('tenant_id', null)
+    .maybeSingle();
+
+  if (!platformDomain) {
+    // Platform domain not yet seeded (migration 082 pending) — skip silently.
+    console.error('[tenant-create] Platform tenant_sender_domains row missing — skipping auto-provision');
+  } else {
+    const { data: newAddress, error: addrErr } = await supabase
+      .from('tenant_sender_addresses')
+      .insert({
+        tenant_id:    tenant.id,
+        local_part:   tenant.slug,
+        display_name: tenant.name,
+        domain_id:    platformDomain.id,
+        is_default:   true,
+      })
+      .select('id')
+      .single();
+
+    if (addrErr) {
+      console.error('[tenant-create] Sender address provisioning failed:', addrErr.message);
+    } else {
+      const { error: configErr } = await supabase.from('email_configurations').insert({
+        tenant_id:         tenant.id,
+        name:              'Default (DrayageDirect Sender)',
+        sender_address_id: newAddress.id,
+        is_active:         true,
+        is_default:        true,
+        priority:          100,
+      });
+
+      if (configErr) {
+        console.error('[tenant-create] Default config provisioning failed:', configErr.message);
+      }
+    }
+  }
+
   // Audit log
   await logAdminAction(supabase, {
     employeeId: admin.id,
