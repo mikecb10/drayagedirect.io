@@ -5,6 +5,7 @@ import {
 } from '../../../../../lib/tenant-api';
 import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
 import { PERMISSIONS } from '../../../../../lib/permissions';
+import { isConsumerDomain } from '../../../../../lib/email-dispatch/consumer-domains.js';
 
 /**
  * /api/tenant/emails/sender-domains
@@ -106,6 +107,17 @@ export default async function handler(req, res) {
     }
     if (!DOMAIN_RE.test(domain)) {
       return res.status(400).json({ error: 'domain must be a valid hostname (e.g. carrier.com)' });
+    }
+    if (isConsumerDomain(domain)) {
+      return res.status(400).json({
+        error: 'consumer_domain_not_allowed',
+        message:
+          "Consumer email providers (gmail.com, yahoo.com, outlook.com, hotmail.com, " +
+          "live.com, icloud.com, aol.com, protonmail.com, ymail.com, mail.com) can't be " +
+          "used as a From address — their DMARC policies cause silent delivery failures. " +
+          "Use the DrayageDirect default sender and put your personal address in the " +
+          "Reply-To field instead.",
+      });
     }
 
     // Phase 1: accept caller-provided status / dns_records as-is. Default

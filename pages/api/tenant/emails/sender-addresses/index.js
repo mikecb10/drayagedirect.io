@@ -5,6 +5,7 @@ import {
 } from '../../../../../lib/tenant-api';
 import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
 import { PERMISSIONS } from '../../../../../lib/permissions';
+import { isConsumerDomain } from '../../../../../lib/email-dispatch/consumer-domains.js';
 
 /**
  * /api/tenant/emails/sender-addresses
@@ -146,6 +147,17 @@ export default async function handler(req, res) {
       .maybeSingle();
     if (!domain) {
       return res.status(404).json({ error: 'Sender domain not found' });
+    }
+    if (isConsumerDomain(domain.domain)) {
+      return res.status(400).json({
+        error: 'consumer_domain_not_allowed',
+        message:
+          "Consumer email providers (gmail.com, yahoo.com, outlook.com, hotmail.com, " +
+          "live.com, icloud.com, aol.com, protonmail.com, ymail.com, mail.com) can't be " +
+          "used as a From address — their DMARC policies cause silent delivery failures. " +
+          "Use the DrayageDirect default sender and put your personal address in the " +
+          "Reply-To field instead.",
+      });
     }
 
     // If user wants this to be default, clear any existing default first
