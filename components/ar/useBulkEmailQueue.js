@@ -14,7 +14,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * @param {Array} groups  - from BulkGroupingModal.onContinue
  * @param {'customer'|'reference'|'charge_set'} groupingKind
  */
-export function useBulkEmailQueue(groups, groupingKind) {
+export function useBulkEmailQueue(groups, groupingKind, docType = 'invoice') {
   const [rows, setRows] = useState(() => groups.map((g) => ({
     groupKey: g.key,
     group: g,
@@ -29,6 +29,32 @@ export function useBulkEmailQueue(groups, groupingKind) {
     attachments: [],
     error: null,
   })));
+
+  // docType routing table: which endpoints + request-body field names
+  // apply for this bulk flow. All doc-type differences live here — nowhere
+  // else. 'invoice' is the default so 2a.4 callers behave identically.
+  const cfg = docType === 'rate_con' ? {
+    defaultsUrl: '/api/tenant/ar/charge-sets/email-defaults-bulk-rate-con',
+    sendUrl:     '/api/tenant/ar/charge-sets/bulk-send-rate-con',
+    idField:     'charge_set_ids',
+    defaultsBody: (g) => ({
+      // computeGroups writes row-level ids to `invoice_ids` regardless of
+      // docType (it's the generic "items in this group" field). Rate-con
+      // callers populate that field with charge_set ids, so passing it
+      // through as charge_set_ids here is correct.
+      charge_set_ids: g.invoice_ids,
+      customer_id:    g.customer_id,
+    }),
+  } : {
+    defaultsUrl: '/api/tenant/ar/invoices/email-defaults-bulk',
+    sendUrl:     '/api/tenant/ar/invoices/bulk-send',
+    idField:     'invoice_ids',
+    defaultsBody: (g) => ({
+      invoice_ids: g.invoice_ids,
+      customer_id: g.customer_id,
+    }),
+  };
+
   const initialized = useRef(false);
   // Mirror rows in a ref so async flows can read current state without stale closures.
   const rowsRef = useRef(rows);
@@ -42,13 +68,10 @@ export function useBulkEmailQueue(groups, groupingKind) {
     (async () => {
       const results = await Promise.allSettled(
         groups.map((g) =>
-          fetch('/api/tenant/ar/invoices/email-defaults-bulk', {
+          fetch(cfg.defaultsUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              invoice_ids: g.invoice_ids,
-              customer_id: g.customer_id,
-            }),
+            body: JSON.stringify(cfg.defaultsBody(g)),
           }).then(async (res) => {
             if (!res.ok) {
               const body = await res.json().catch(() => ({}));
@@ -122,12 +145,18 @@ export function useBulkEmailQueue(groups, groupingKind) {
 
     const results = await Promise.allSettled(
       targetRows.map((r) =>
-        fetch('/api/tenant/ar/invoices/bulk-send', {
+        fetch(cfg.sendUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             group: {
-              invoice_ids: r.attachments.map((a) => a.invoice_id),
+              // Attachments carry the row-level id. For invoices,
+              // email-defaults-bulk writes `invoice_id` per attachment;
+              // for rate-cons, email-defaults-bulk-rate-con writes
+              // `item_id` (aliased as `charge_set_id`). Accept either
+              // via the fallback chain so both flows work without touching
+              // existing invoice-side attachment shapes.
+              [cfg.idField]: r.attachments.map((a) => a.item_id ?? a.invoice_id ?? a.charge_set_id),
               recipients: { to: r.to, cc: r.cc, bcc: r.bcc },
               subject: r.subject,
               body_text: r.body_text,
@@ -161,7 +190,7 @@ export function useBulkEmailQueue(groups, groupingKind) {
     }));
 
     return results;
-  }, [groupingKind]);
+  }, [groupingKind, cfg.sendUrl, cfg.idField]);
 
   const sendReady   = useCallback(() => sendRowsByStatus('ready'),  [sendRowsByStatus]);
   const retryFailed = useCallback(() => sendRowsByStatus('failed'), [sendRowsByStatus]);
