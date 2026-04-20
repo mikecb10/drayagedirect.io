@@ -55,6 +55,10 @@ async function handlePost(req, res) {
     return res.status(400).json({ error: 'Name, slug, contact email, and subscription tier are required.' });
   }
 
+  if (!/^[a-zA-Z0-9._-]+$/.test(slug)) {
+    return res.status(400).json({ error: 'Slug must contain only letters, digits, periods, underscores, or hyphens.' });
+  }
+
   const supabase = getServiceClient();
 
   // Check slug uniqueness
