@@ -57,22 +57,30 @@ export default function BulkEmailQueue({ groups, groupingKind, docType = 'invoic
   const [editingKey, setEditingKey] = useState(null);
   const editingRow = editingKey ? rows.find((r) => r.groupKey === editingKey) : null;
 
-  // Hybrid close: auto-close on all-sent-and-none-bad after a 1s beat.
-  // A row with status='sent' but delivery_status in {bounced, dropped,
-  // spam_reported} is a delivery failure surfaced post-send — the operator
-  // needs visibility on it, so we do NOT auto-dismiss in that case.
+  // Hybrid close: wait for every row to reach a terminal delivery state
+  // before dismissing. A row with status='sent' but delivery_status in
+  // {bounced, dropped, spam_reported} is a delivery failure surfaced
+  // post-send — the operator needs visibility on it, so we do NOT
+  // auto-dismiss in that case. Rows with delivery_status=null/deferred
+  // keep the modal open so polling has time to land a 'delivered' event
+  // and the operator sees the pill flip from amber → emerald.
   const hasBadDelivery = rows.some(
     (r) => r.status === 'sent'
       && ['bounced', 'dropped', 'spam_reported'].includes(r.delivery_status)
   );
+  const allTerminalDelivery = rows.length > 0 && rows.every(
+    (r) => r.status === 'sent'
+      && ['delivered', 'bounced', 'dropped', 'spam_reported'].includes(r.delivery_status)
+  );
   useEffect(() => {
     if (!allSent) return;
     if (hasBadDelivery) return;
+    if (!allTerminalDelivery) return;
     const t = setTimeout(() => {
       onAllSent?.();
     }, 1000);
     return () => clearTimeout(t);
-  }, [allSent, hasBadDelivery, onAllSent]);
+  }, [allSent, hasBadDelivery, allTerminalDelivery, onAllSent]);
 
   const totalCents = rows.reduce((a, r) => a + (r.group.total_cents || 0), 0);
 
