@@ -82,10 +82,17 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
   };
 
   const activeCount =
-    (draft.customer_ids?.length || 0) +
-    (draft.branch_ids?.length || 0) +
+    (draft.customer_ids?.length    || 0) +
+    (draft.branch_ids?.length      || 0) +
+    (draft.load_types?.length      || 0) +
+    (draft.container_types?.length || 0) +
+    (draft.container_sizes?.length || 0) +
+    (draft.flags?.length           || 0) +
+    (draft.ssl_codes?.length       || 0) +
+    (draft.driver_ids?.length      || 0) +
     (draft.from ? 1 : 0) +
-    (draft.to ? 1 : 0);
+    (draft.to ? 1 : 0) +
+    (draft.reference_number && draft.reference_number.trim() ? 1 : 0);
 
   const filteredBranches = branchQuery
     ? branches.filter((b) => b.name?.toLowerCase().includes(branchQuery.toLowerCase()))
@@ -112,6 +119,12 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+          {visibleKeys.length === 0 && (
+            <div className="text-xs text-gray-500 dark:text-slate-400 italic px-1">
+              No filters available for this section yet.
+            </div>
+          )}
+
           {/* Reference number — text search on orders.customer_reference */}
           {showKey('reference_number') && (
             <section>
