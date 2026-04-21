@@ -69,9 +69,9 @@ export default function AccountsReceivable() {
         {activeTab === 'billing'        && <BillingPipelineTab filters={filters} />}
         {activeTab === 'invoices'       && <InvoicesTab filters={filters} />}
         {activeTab === 'apply_payments' && <ApplyPaymentsTab />}
-        {activeTab === 'payments'       && <PaymentsTab />}
-        {activeTab === 'credit_memos'   && <CreditMemosTab />}
-        {activeTab === 'aging'          && <AgingTab />}
+        {activeTab === 'payments'       && <PaymentsTab filters={filters} />}
+        {activeTab === 'credit_memos'   && <CreditMemosTab filters={filters} />}
+        {activeTab === 'aging'          && <AgingTab filters={filters} />}
 
         <FilterSidebar
           isOpen={filterSidebarOpen}
