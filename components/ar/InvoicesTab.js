@@ -8,6 +8,9 @@ import Select from '../ui/Select';
 import { formatCents } from '../../lib/ar-utils';
 import EmailComposeSlideOver from './EmailComposeSlideOver';
 import { useEmailCompose } from '../../hooks/useEmailCompose';
+import FilterSidebar from './FilterSidebar';
+import CustomTabsRow from './CustomTabsRow';
+import { useArUserPreferences } from './useArUserPreferences';
 
 const STATUS_BADGES = {
   draft: { variant: 'gray', label: 'Draft' },
@@ -27,6 +30,11 @@ export default function InvoicesTab() {
   const [statusFilter, setStatusFilter] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
 
+  const [filters, setFilters]                     = useState({});
+  const [activeTabId, setActiveTabId]             = useState(null);
+  const [filterSidebarOpen, setFilterSidebarOpen] = useState(false);
+  const { customTabs, saveCustomTab, deleteCustomTab } = useArUserPreferences();
+
   // Create invoice state
   const [approvedSets, setApprovedSets] = useState([]);
   const [selectedSets, setSelectedSets] = useState([]);
@@ -38,6 +46,10 @@ export default function InvoicesTab() {
       const params = new URLSearchParams();
       if (statusFilter) params.set('status', statusFilter);
       if (search) params.set('search', search);
+      if (filters.customer_ids?.length) params.set('customer_ids', filters.customer_ids.join(','));
+      if (filters.branch_ids?.length)   params.set('branch_ids',   filters.branch_ids.join(','));
+      if (filters.from)                 params.set('from',         filters.from);
+      if (filters.to)                   params.set('to',           filters.to);
       const res = await fetch(`/api/tenant/ar/invoices?${params}`);
       if (!res.ok) throw new Error('Failed to load invoices');
       const data = await res.json();
@@ -47,7 +59,7 @@ export default function InvoicesTab() {
     finally { setLoading(false); }
   }
 
-  useEffect(() => { load(); }, [statusFilter]);
+  useEffect(() => { load(); }, [statusFilter, filters]);
 
   async function openCreate() {
     setCreateOpen(true);
@@ -108,6 +120,28 @@ export default function InvoicesTab() {
   return (
     <div className="space-y-5">
       {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
+
+      <CustomTabsRow
+        section="invoices"
+        customTabs={customTabs}
+        activeTabId={activeTabId}
+        currentFilters={filters}
+        onSelectTab={(id) => {
+          setActiveTabId(id);
+          if (id == null) {
+            setFilters({});
+          } else {
+            const tab = customTabs.find((t) => t.id === id);
+            if (tab) setFilters(tab.filters || {});
+          }
+        }}
+        onSaveTab={(tab) => saveCustomTab(tab)}
+        onDeleteTab={(id) => {
+          if (activeTabId === id) { setActiveTabId(null); setFilters({}); }
+          deleteCustomTab(id);
+        }}
+        onOpenFilters={() => setFilterSidebarOpen(true)}
+      />
 
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -295,6 +329,15 @@ export default function InvoicesTab() {
           </div>
         </Modal>
       )}
+      <FilterSidebar
+        isOpen={filterSidebarOpen}
+        onClose={() => setFilterSidebarOpen(false)}
+        filters={filters}
+        onApply={(next) => {
+          setFilters(next);
+          setActiveTabId(null);
+        }}
+      />
     </div>
   );
 }
