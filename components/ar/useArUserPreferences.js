@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 /**
  * Fetches + persists the current user's AR custom tabs. Exposes:
- *   customTabs         - Array<{id, section, name, filters, created_at}>
+ *   customTabs         - Array<{id, name, filters, created_at}>
  *   saveCustomTab(tab) - Upsert a tab (matched by id if present, else appended)
  *   deleteCustomTab(id) - Remove a tab by id
  *   loading            - true until the initial GET resolves
