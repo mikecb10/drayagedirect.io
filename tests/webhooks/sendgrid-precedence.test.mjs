@@ -35,5 +35,10 @@ check('unknown event type keeps current', computeNewDeliveryStatus('delivered', 
 check('deferred → deferred stays deferred', computeNewDeliveryStatus('deferred', 'deferred') === 'deferred');
 check('null → spam_reported becomes spam_reported', computeNewDeliveryStatus(null, 'spam_reported') === 'spam_reported');
 
+// Defensive: null newEvent passes through SEVERITY[null] = undefined and
+// returns current (null). Not reached in production because isTrackedEvent
+// filters first; documents the boundary for cold readers.
+check('null current + null newEvent stays null', computeNewDeliveryStatus(null, null) === null);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
