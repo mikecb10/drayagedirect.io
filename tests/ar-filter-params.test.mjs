@@ -75,5 +75,19 @@ check('keeps return_location_ids',
 check('drops empty exclude arrays',
   JSON.stringify(sanitizeFilterSet({ customer_ids_exclude: [], flags_exclude: [] })) === '{}');
 
+console.log('\nsanitizeFilterSet (Phase B4 keys)');
+check('keeps bill_to_primary_customer_ids',
+  JSON.stringify(sanitizeFilterSet({ bill_to_primary_customer_ids: ['c1'] })) === '{"bill_to_primary_customer_ids":["c1"]}');
+check('keeps bill_to_primary_customer_ids_exclude',
+  JSON.stringify(sanitizeFilterSet({ bill_to_primary_customer_ids_exclude: ['c1'] })) === '{"bill_to_primary_customer_ids_exclude":["c1"]}');
+check('keeps bill_to_additional_customer_ids',
+  JSON.stringify(sanitizeFilterSet({ bill_to_additional_customer_ids: ['c2'] })) === '{"bill_to_additional_customer_ids":["c2"]}');
+check('keeps bill_to_additional_customer_ids_exclude',
+  JSON.stringify(sanitizeFilterSet({ bill_to_additional_customer_ids_exclude: ['c2'] })) === '{"bill_to_additional_customer_ids_exclude":["c2"]}');
+check('keeps factor_company string',
+  JSON.stringify(sanitizeFilterSet({ factor_company: 'yes' })) === '{"factor_company":"yes"}');
+check('drops empty factor_company',
+  JSON.stringify(sanitizeFilterSet({ factor_company: '' })) === '{}');
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
