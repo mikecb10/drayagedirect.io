@@ -28,6 +28,8 @@ export function useBulkEmailQueue(groups, groupingKind, docType = 'invoice') {
     body_format: 'html',
     attachments: [],
     error: null,
+    message_id: null,
+    delivery_status: null,
   })));
 
   // docType routing table: which endpoints + request-body field names
@@ -59,6 +61,63 @@ export function useBulkEmailQueue(groups, groupingKind, docType = 'invoice') {
   // Mirror rows in a ref so async flows can read current state without stale closures.
   const rowsRef = useRef(rows);
   useEffect(() => { rowsRef.current = rows; }, [rows]);
+
+  // Poll /api/tenant/emails/deliveries every 5s while any row has been sent
+  // but hasn't heard back from SendGrid's webhook yet. Stops automatically
+  // when all rows are terminal (delivered / bounced / dropped / spam_reported)
+  // or 60s have elapsed with no progress.
+  //
+  // Terminal states (NOT deferred — deferred is transient, SendGrid may retry
+  // and emit delivered/bounced later):
+  const TERMINAL = ['delivered', 'bounced', 'dropped', 'spam_reported'];
+  const POLL_INTERVAL_MS = 5000;
+  const MAX_POLL_DURATION_MS = 60000;
+
+  useEffect(() => {
+    // Collect message_ids of rows that are awaiting delivery confirmation.
+    const pendingIds = rows
+      .filter((r) => r.message_id && !TERMINAL.includes(r.delivery_status))
+      .map((r) => r.message_id);
+
+    if (pendingIds.length === 0) return;
+
+    let cancelled = false;
+    const startedAt = Date.now();
+
+    const tick = async () => {
+      if (cancelled) return;
+      if (Date.now() - startedAt > MAX_POLL_DURATION_MS) return;
+
+      try {
+        const qs = encodeURIComponent(pendingIds.join(','));
+        const res = await fetch(`/api/tenant/emails/deliveries?message_ids=${qs}`);
+        if (!res.ok) return; // Soft-fail; next tick tries again.
+        const map = await res.json();
+        if (cancelled) return;
+
+        setRows((prev) => prev.map((r) => {
+          if (!r.message_id) return r;
+          const entry = map[r.message_id];
+          if (!entry) return r;
+          if (entry.delivery_status === r.delivery_status) return r;
+          return { ...r, delivery_status: entry.delivery_status };
+        }));
+      } catch (_) {
+        // Swallow — the next tick will retry.
+      }
+    };
+
+    // Kick off first poll immediately, then every 5s.
+    tick();
+    const interval = setInterval(tick, POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+    // Re-run when the set of pending message_ids changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows.map((r) => `${r.message_id}:${r.delivery_status}`).join('|')]);
 
   // On mount: fetch email-defaults for each group in parallel.
   useEffect(() => {
@@ -184,9 +243,18 @@ export function useBulkEmailQueue(groups, groupingKind, docType = 'invoice') {
     setRows((prev) => prev.map((r) => {
       const result = resultByKey.get(r.groupKey);
       if (!result) return r;
-      return result.status === 'fulfilled'
-        ? { ...r, status: 'sent', error: null }
-        : { ...r, status: 'failed', error: result.reason?.message ?? 'Send failed' };
+      if (result.status === 'fulfilled') {
+        return {
+          ...r,
+          status: 'sent',
+          // message_id comes from /bulk-send's response (email_messages.id UUID).
+          // Used by the polling effect below to query delivery status.
+          message_id: result.value?.message_id ?? null,
+          delivery_status: null,
+          error: null,
+        };
+      }
+      return { ...r, status: 'failed', error: result.reason?.message ?? 'Send failed' };
     }));
 
     return results;
