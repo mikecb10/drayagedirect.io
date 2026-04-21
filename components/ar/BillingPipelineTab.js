@@ -9,6 +9,9 @@ import { formatInvoiceNumber } from '../../lib/invoice-utils';
 import BulkActionBar from './BulkActionBar';
 import BulkGroupingModal from './BulkGroupingModal';
 import BulkEmailQueue from './BulkEmailQueue';
+import FilterSidebar from './FilterSidebar';
+import CustomTabsRow from './CustomTabsRow';
+import { useArUserPreferences } from './useArUserPreferences';
 
 const STATUS_BADGES = {
   draft: { label: 'Draft', cls: 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300' },
@@ -45,6 +48,11 @@ export default function BillingPipelineTab() {
   const [groupingModalRateCons, setGroupingModalRateCons] = useState(null);
   const [rateConQueueState, setRateConQueueState] = useState(null);
 
+  const [filters, setFilters]                     = useState({});   // live applied filters
+  const [activeTabId, setActiveTabId]             = useState(null); // null = "All"
+  const [filterSidebarOpen, setFilterSidebarOpen] = useState(false);
+  const { customTabs, saveCustomTab, deleteCustomTab } = useArUserPreferences();
+
   async function fetchAR({ silent = false } = {}) {
     if (!silent) setLoading(true);
     try {
@@ -56,6 +64,10 @@ export default function BillingPipelineTab() {
         params.set('load_status', activeFilter === 'uncompleted_loads' ? 'uncompleted' : 'completed');
       }
       if (search) params.set('search', search);
+      if (filters.customer_ids?.length) params.set('customer_ids', filters.customer_ids.join(','));
+      if (filters.branch_ids?.length)   params.set('branch_ids',   filters.branch_ids.join(','));
+      if (filters.from)                 params.set('from',         filters.from);
+      if (filters.to)                   params.set('to',           filters.to);
       const res = await fetch(`/api/tenant/ar?${params}`);
       if (!res.ok) throw new Error('Failed to load');
       const data = await res.json();
@@ -73,7 +85,7 @@ export default function BillingPipelineTab() {
     finally { setLoading(false); }
   }
 
-  useEffect(() => { fetchAR(); }, [activeFilter]);
+  useEffect(() => { fetchAR(); }, [activeFilter, filters]);
 
   // Selection is meaningful only within the currently displayed list.
   // When the filter or search changes, the list changes, so clear selection.
@@ -399,6 +411,28 @@ export default function BillingPipelineTab() {
         />
       )}
 
+      <CustomTabsRow
+        section="billing"
+        customTabs={customTabs}
+        activeTabId={activeTabId}
+        currentFilters={filters}
+        onSelectTab={(id) => {
+          setActiveTabId(id);
+          if (id == null) {
+            setFilters({});
+          } else {
+            const tab = customTabs.find((t) => t.id === id);
+            if (tab) setFilters(tab.filters || {});
+          }
+        }}
+        onSaveTab={(tab) => saveCustomTab(tab)}
+        onDeleteTab={(id) => {
+          if (activeTabId === id) { setActiveTabId(null); setFilters({}); }
+          deleteCustomTab(id);
+        }}
+        onOpenFilters={() => setFilterSidebarOpen(true)}
+      />
+
       {/* Pre-Invoice Pipeline */}
       <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
         <div className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-3">Pre-Invoice Pipeline</div>
@@ -621,6 +655,15 @@ export default function BillingPipelineTab() {
           }}
         />
       )}
+      <FilterSidebar
+        isOpen={filterSidebarOpen}
+        onClose={() => setFilterSidebarOpen(false)}
+        filters={filters}
+        onApply={(next) => {
+          setFilters(next);
+          setActiveTabId(null); // applying raw filters drops out of any saved tab
+        }}
+      />
     </div>
   );
 }
