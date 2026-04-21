@@ -333,77 +333,83 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
           )}
 
           {/* Customers — typeahead combobox with chips */}
-          <section>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Customers</label>
-              {(draft.customer_ids?.length ?? 0) > 0 && (
-                <span className="text-[10px] text-gray-500 dark:text-slate-400">{draft.customer_ids.length} selected</span>
-              )}
-            </div>
-            <CustomerCombobox
-              options={customers}
-              selectedIds={draft.customer_ids ?? []}
-              onChange={(ids) => setDraft((d) => ({ ...d, customer_ids: ids }))}
-              query={customerQuery}
-              onQueryChange={setCustomerQuery}
-            />
-          </section>
+          {showKey('customer_ids') && (
+            <section>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Customers</label>
+                {(draft.customer_ids?.length ?? 0) > 0 && (
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400">{draft.customer_ids.length} selected</span>
+                )}
+              </div>
+              <CustomerCombobox
+                options={customers}
+                selectedIds={draft.customer_ids ?? []}
+                onChange={(ids) => setDraft((d) => ({ ...d, customer_ids: ids }))}
+                query={customerQuery}
+                onQueryChange={setCustomerQuery}
+              />
+            </section>
+          )}
 
           {/* Branches */}
-          <section>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Branches</label>
-              {(draft.branch_ids?.length ?? 0) > 0 && (
-                <span className="text-[10px] text-gray-500 dark:text-slate-400">{draft.branch_ids.length} selected</span>
-              )}
-            </div>
-            <div className="relative mb-2">
-              <Search className="absolute left-2 top-2 w-3.5 h-3.5 text-gray-400 dark:text-slate-500" />
-              <input
-                type="text"
-                value={branchQuery}
-                onChange={(e) => setBranchQuery(e.target.value)}
-                placeholder="Search branches"
-                className="w-full pl-7 pr-2 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-            <div className="max-h-40 overflow-y-auto border border-gray-100 dark:border-slate-800 rounded-md">
-              {filteredBranches.length === 0 ? (
-                <div className="px-3 py-2 text-xs text-gray-400 dark:text-slate-500">No matches</div>
-              ) : (
-                filteredBranches.map((b) => (
-                  <label key={b.id} className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={draft.branch_ids?.includes(b.id) ?? false}
-                      onChange={() => toggleArray('branch_ids', b.id)}
-                      className="rounded"
-                    />
-                    <span className="text-gray-700 dark:text-slate-300 truncate">{b.name}</span>
-                  </label>
-                ))
-              )}
-            </div>
-          </section>
+          {showKey('branch_ids') && (
+            <section>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Branches</label>
+                {(draft.branch_ids?.length ?? 0) > 0 && (
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400">{draft.branch_ids.length} selected</span>
+                )}
+              </div>
+              <div className="relative mb-2">
+                <Search className="absolute left-2 top-2 w-3.5 h-3.5 text-gray-400 dark:text-slate-500" />
+                <input
+                  type="text"
+                  value={branchQuery}
+                  onChange={(e) => setBranchQuery(e.target.value)}
+                  placeholder="Search branches"
+                  className="w-full pl-7 pr-2 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div className="max-h-40 overflow-y-auto border border-gray-100 dark:border-slate-800 rounded-md">
+                {filteredBranches.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-gray-400 dark:text-slate-500">No matches</div>
+                ) : (
+                  filteredBranches.map((b) => (
+                    <label key={b.id} className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={draft.branch_ids?.includes(b.id) ?? false}
+                        onChange={() => toggleArray('branch_ids', b.id)}
+                        className="rounded"
+                      />
+                      <span className="text-gray-700 dark:text-slate-300 truncate">{b.name}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+            </section>
+          )}
 
           {/* Date range */}
-          <section>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400 mb-2">Created between</label>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                type="date"
-                value={draft.from ?? ''}
-                onChange={(e) => setDraft((d) => ({ ...d, from: e.target.value }))}
-                className="px-2 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100"
-              />
-              <input
-                type="date"
-                value={draft.to ?? ''}
-                onChange={(e) => setDraft((d) => ({ ...d, to: e.target.value }))}
-                className="px-2 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100"
-              />
-            </div>
-          </section>
+          {(showKey('from') || showKey('to')) && (
+            <section>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400 mb-2">Created between</label>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="date"
+                  value={draft.from ?? ''}
+                  onChange={(e) => setDraft((d) => ({ ...d, from: e.target.value }))}
+                  className="px-2 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100"
+                />
+                <input
+                  type="date"
+                  value={draft.to ?? ''}
+                  onChange={(e) => setDraft((d) => ({ ...d, to: e.target.value }))}
+                  className="px-2 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100"
+                />
+              </div>
+            </section>
+          )}
         </div>
 
         {/* Footer */}
