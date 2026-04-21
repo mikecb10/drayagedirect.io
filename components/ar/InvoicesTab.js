@@ -43,6 +43,7 @@ export default function InvoicesTab({ filters = {} }) {
       if (filters.from)                 params.set('from',         filters.from);
       if (filters.to)                   params.set('to',           filters.to);
       if (filters.reference_number)     params.set('reference_number', filters.reference_number);
+      if (filters.load_types?.length)   params.set('load_types',       filters.load_types.join(','));
       const res = await fetch(`/api/tenant/ar/invoices?${params}`);
       if (!res.ok) throw new Error('Failed to load invoices');
       const data = await res.json();

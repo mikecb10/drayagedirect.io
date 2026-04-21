@@ -2,7 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { X, Search, RotateCcw } from 'lucide-react';
 import { filterKeysForSection } from '../../lib/ar-filter-schema';
 
-const EMPTY = { customer_ids: [], branch_ids: [], from: '', to: '', reference_number: '' };
+const LOAD_TYPE_OPTIONS = [
+  { value: 'import',    label: 'Import' },
+  { value: 'inbound',   label: 'Inbound' },
+  { value: 'export',    label: 'Export' },
+  { value: 'outbound',  label: 'Outbound' },
+  { value: 'road',      label: 'Road' },
+  { value: 'bill_only', label: 'Bill Only' },
+];
+
+const EMPTY = { customer_ids: [], branch_ids: [], from: '', to: '', reference_number: '', load_types: [] };
 
 export default function FilterSidebar({ isOpen, onClose, filters, onApply, section = 'billing' }) {
   const visibleKeys = filterKeysForSection(section);
@@ -87,6 +96,38 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
                 placeholder="e.g. PO-12345"
                 className="w-full px-2 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
+            </section>
+          )}
+
+          {/* Load type — multi-select on orders.load_type */}
+          {showKey('load_types') && (
+            <section>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Load type</label>
+                {(draft.load_types?.length ?? 0) > 0 && (
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400">{draft.load_types.length} selected</span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-1 border border-gray-100 dark:border-slate-800 rounded-md p-1">
+                {LOAD_TYPE_OPTIONS.map((opt) => {
+                  const selected = draft.load_types?.includes(opt.value) ?? false;
+                  return (
+                    <label key={opt.value} className="flex items-center gap-2 px-2 py-1 text-xs hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer rounded">
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => setDraft((d) => {
+                          const set = new Set(d.load_types ?? []);
+                          if (set.has(opt.value)) set.delete(opt.value); else set.add(opt.value);
+                          return { ...d, load_types: Array.from(set) };
+                        })}
+                        className="rounded"
+                      />
+                      <span className="text-gray-700 dark:text-slate-300">{opt.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
             </section>
           )}
 
@@ -190,6 +231,7 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
                 if (draft.reference_number && draft.reference_number.trim().length > 0) {
                   cleaned.reference_number = draft.reference_number.trim();
                 }
+                if (draft.load_types?.length) cleaned.load_types = draft.load_types;
                 onApply(cleaned);
                 onClose();
               }}
