@@ -20,10 +20,10 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply }) {
     (async () => {
       try {
         const [custRes, brRes] = await Promise.all([
-          fetch('/api/tenant/customers').then((r) => (r.ok ? r.json() : { customers: [] })),
+          fetch('/api/tenant/organizations?type=customer').then((r) => (r.ok ? r.json() : { organizations: [] })),
           fetch('/api/tenant/branches').then((r) => (r.ok ? r.json() : { branches: [] })),
         ]);
-        setCustomers(custRes.customers ?? custRes ?? []);
+        setCustomers(custRes.organizations ?? custRes.customers ?? custRes ?? []);
         setBranches(brRes.branches ?? brRes ?? []);
       } catch (_) { /* swallow — user sees empty list, can still type dates */ }
     })();
