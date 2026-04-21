@@ -7,6 +7,7 @@ import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
 import { PERMISSIONS } from '../../../../../lib/permissions';
 import { assignInvoiceNumberBase } from '../../../../../lib/invoice-utils';
 import { computeInvoiceDueDate } from '../../../../../lib/ar-utils';
+import { parseCsvParam } from '../../../../../lib/ar-filter-params';
 
 /**
  * /api/tenant/ar/invoices
@@ -24,6 +25,12 @@ export default async function handler(req, res) {
   // ── LIST ──
   if (req.method === 'GET') {
     const { status, customer_id, from, to, search } = req.query;
+    const customerIdsRaw = parseCsvParam(req.query.customer_ids);
+    const branchIds      = parseCsvParam(req.query.branch_ids);
+    // Backward-compat: single `customer_id` folds into the array.
+    const customerIds = customer_id
+      ? Array.from(new Set([...customerIdsRaw, customer_id]))
+      : customerIdsRaw;
 
     let query = svc
       .from('invoices')
@@ -41,25 +48,25 @@ export default async function handler(req, res) {
       .order('created_at', { ascending: false });
 
     if (status) query = query.eq('status', status);
-    if (customer_id) query = query.eq('customer_id', customer_id);
+    if (customerIds.length === 1) query = query.eq('customer_id', customerIds[0]);
+    else if (customerIds.length > 1) query = query.in('customer_id', customerIds);
+    if (branchIds.length === 1) query = query.eq('branch_id', branchIds[0]);
+    else if (branchIds.length > 1) query = query.in('branch_id', branchIds);
     if (from) query = query.gte('created_at', from);
-    if (to) query = query.lte('created_at', to);
-    if (search) {
-      query = query.or(`invoice_number.ilike.%${search}%`);
-    }
+    if (to)   query = query.lte('created_at', to);
+    if (search) query = query.or(`invoice_number.ilike.%${search}%`);
 
     const { data, error } = await query;
     if (error) return res.status(500).json({ error: error.message });
 
-    // Compute stats
     const invoices = data || [];
     const stats = {
-      total: invoices.length,
-      draft: invoices.filter((i) => i.status === 'draft').length,
-      sent: invoices.filter((i) => i.status === 'sent').length,
-      paid: invoices.filter((i) => i.status === 'paid').length,
-      overdue: invoices.filter((i) => i.status === 'overdue').length,
-      void: invoices.filter((i) => i.status === 'void').length,
+      total:    invoices.length,
+      draft:    invoices.filter((i) => i.status === 'draft').length,
+      sent:     invoices.filter((i) => i.status === 'sent').length,
+      paid:     invoices.filter((i) => i.status === 'paid').length,
+      overdue:  invoices.filter((i) => i.status === 'overdue').length,
+      void:     invoices.filter((i) => i.status === 'void').length,
       total_outstanding_cents: invoices
         .filter((i) => ['sent', 'overdue'].includes(i.status))
         .reduce((sum, i) => sum + (i.balance_due_cents || 0), 0),
