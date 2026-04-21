@@ -27,7 +27,7 @@ const FLAG_OPTIONS = [
   { key: 'liquor',      label: 'Liquor' },
 ];
 
-const EMPTY = { customer_ids: [], branch_ids: [], from: '', to: '', reference_number: '', load_types: [], container_types: [], container_sizes: [], flags: [], ssl_codes: [] };
+const EMPTY = { customer_ids: [], branch_ids: [], from: '', to: '', reference_number: '', load_types: [], container_types: [], container_sizes: [], flags: [], ssl_codes: [], driver_ids: [] };
 
 export default function FilterSidebar({ isOpen, onClose, filters, onApply, section = 'billing' }) {
   const visibleKeys = filterKeysForSection(section);
@@ -38,7 +38,9 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
   const [containerTypes, setContainerTypes] = useState([]);
   const [containerSizes, setContainerSizes] = useState([]);
   const [sslCodes, setSslCodes] = useState([]);
+  const [drivers, setDrivers] = useState([]);
   const [customerQuery, setCustomerQuery] = useState('');
+  const [driverQuery, setDriverQuery] = useState('');
   const [branchQuery, setBranchQuery] = useState('');
 
   useEffect(() => {
@@ -50,18 +52,20 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
     if (!isOpen) return;
     (async () => {
       try {
-        const [custRes, brRes, ctRes, csRes, sslRes] = await Promise.all([
+        const [custRes, brRes, ctRes, csRes, sslRes, drvRes] = await Promise.all([
           fetch('/api/tenant/organizations?type=customer').then((r) => (r.ok ? r.json() : { organizations: [] })),
           fetch('/api/tenant/branches').then((r) => (r.ok ? r.json() : { branches: [] })),
           fetch('/api/tenant/container-types?enabled=true').then((r) => (r.ok ? r.json() : { items: [] })),
           fetch('/api/tenant/container-sizes?enabled=true').then((r) => (r.ok ? r.json() : { items: [] })),
           fetch('/api/tenant/ar/ssl-codes').then((r) => (r.ok ? r.json() : { codes: [] })),
+          fetch('/api/tenant/drivers').then((r) => (r.ok ? r.json() : { drivers: [] })),
         ]);
         setCustomers(custRes.organizations ?? custRes.customers ?? custRes ?? []);
         setBranches(brRes.branches ?? brRes ?? []);
         setContainerTypes(ctRes.items ?? []);
         setContainerSizes(csRes.items ?? []);
         setSslCodes(sslRes.codes ?? []);
+        setDrivers(drvRes.drivers ?? []);
       } catch (_) { /* swallow — user sees empty list, can still type dates */ }
     })();
   }, [isOpen]);
@@ -296,6 +300,25 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
             </section>
           )}
 
+          {/* Driver — typeahead combobox with chips (mirrors Customers) */}
+          {showKey('driver_ids') && (
+            <section>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Driver</label>
+                {(draft.driver_ids?.length ?? 0) > 0 && (
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400">{draft.driver_ids.length} selected</span>
+                )}
+              </div>
+              <CustomerCombobox
+                options={drivers.map((d) => ({ id: d.id, name: d.name || `${d.first_name || ''} ${d.last_name || ''}`.trim() || 'Unnamed Driver' }))}
+                selectedIds={draft.driver_ids ?? []}
+                onChange={(ids) => setDraft((d) => ({ ...d, driver_ids: ids }))}
+                query={driverQuery}
+                onQueryChange={setDriverQuery}
+              />
+            </section>
+          )}
+
           {/* Customers — typeahead combobox with chips */}
           <section>
             <div className="flex items-center justify-between mb-2">
@@ -401,6 +424,7 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
                 if (draft.container_sizes?.length) cleaned.container_sizes = draft.container_sizes;
                 if (draft.flags?.length) cleaned.flags = draft.flags;
                 if (draft.ssl_codes?.length) cleaned.ssl_codes = draft.ssl_codes;
+                if (draft.driver_ids?.length) cleaned.driver_ids = draft.driver_ids;
                 onApply(cleaned);
                 onClose();
               }}

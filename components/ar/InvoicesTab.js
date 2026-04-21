@@ -48,6 +48,7 @@ export default function InvoicesTab({ filters = {} }) {
       if (filters.container_sizes?.length) params.set('container_sizes', filters.container_sizes.join(','));
       if (filters.flags?.length) params.set('flags', filters.flags.join(','));
       if (filters.ssl_codes?.length) params.set('ssl_codes', filters.ssl_codes.join(','));
+      if (filters.driver_ids?.length) params.set('driver_ids', filters.driver_ids.join(','));
       const res = await fetch(`/api/tenant/ar/invoices?${params}`);
       if (!res.ok) throw new Error('Failed to load invoices');
       const data = await res.json();
