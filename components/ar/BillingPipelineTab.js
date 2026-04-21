@@ -65,6 +65,7 @@ export default function BillingPipelineTab({ filters = {} }) {
       if (filters.container_types?.length) params.set('container_types', filters.container_types.join(','));
       if (filters.container_sizes?.length) params.set('container_sizes', filters.container_sizes.join(','));
       if (filters.flags?.length) params.set('flags', filters.flags.join(','));
+      if (filters.ssl_codes?.length) params.set('ssl_codes', filters.ssl_codes.join(','));
       const res = await fetch(`/api/tenant/ar?${params}`);
       if (!res.ok) throw new Error('Failed to load');
       const data = await res.json();

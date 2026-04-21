@@ -27,7 +27,7 @@ const FLAG_OPTIONS = [
   { key: 'liquor',      label: 'Liquor' },
 ];
 
-const EMPTY = { customer_ids: [], branch_ids: [], from: '', to: '', reference_number: '', load_types: [], container_types: [], container_sizes: [], flags: [] };
+const EMPTY = { customer_ids: [], branch_ids: [], from: '', to: '', reference_number: '', load_types: [], container_types: [], container_sizes: [], flags: [], ssl_codes: [] };
 
 export default function FilterSidebar({ isOpen, onClose, filters, onApply, section = 'billing' }) {
   const visibleKeys = filterKeysForSection(section);
@@ -37,6 +37,7 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
   const [branches, setBranches] = useState([]);
   const [containerTypes, setContainerTypes] = useState([]);
   const [containerSizes, setContainerSizes] = useState([]);
+  const [sslCodes, setSslCodes] = useState([]);
   const [customerQuery, setCustomerQuery] = useState('');
   const [branchQuery, setBranchQuery] = useState('');
 
@@ -49,16 +50,18 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
     if (!isOpen) return;
     (async () => {
       try {
-        const [custRes, brRes, ctRes, csRes] = await Promise.all([
+        const [custRes, brRes, ctRes, csRes, sslRes] = await Promise.all([
           fetch('/api/tenant/organizations?type=customer').then((r) => (r.ok ? r.json() : { organizations: [] })),
           fetch('/api/tenant/branches').then((r) => (r.ok ? r.json() : { branches: [] })),
           fetch('/api/tenant/container-types?enabled=true').then((r) => (r.ok ? r.json() : { items: [] })),
           fetch('/api/tenant/container-sizes?enabled=true').then((r) => (r.ok ? r.json() : { items: [] })),
+          fetch('/api/tenant/ar/ssl-codes').then((r) => (r.ok ? r.json() : { codes: [] })),
         ]);
         setCustomers(custRes.organizations ?? custRes.customers ?? custRes ?? []);
         setBranches(brRes.branches ?? brRes ?? []);
         setContainerTypes(ctRes.items ?? []);
         setContainerSizes(csRes.items ?? []);
+        setSslCodes(sslRes.codes ?? []);
       } catch (_) { /* swallow — user sees empty list, can still type dates */ }
     })();
   }, [isOpen]);
@@ -257,6 +260,42 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
             </section>
           )}
 
+          {/* SSL — steamship line SCAC multi-select */}
+          {showKey('ssl_codes') && (
+            <section>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">SSL</label>
+                {(draft.ssl_codes?.length ?? 0) > 0 && (
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400">{draft.ssl_codes.length} selected</span>
+                )}
+              </div>
+              <div className="max-h-40 overflow-y-auto border border-gray-100 dark:border-slate-800 rounded-md">
+                {sslCodes.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-gray-400 dark:text-slate-500">No SSL codes in orders</div>
+                ) : (
+                  sslCodes.map((code) => {
+                    const selected = draft.ssl_codes?.includes(code) ?? false;
+                    return (
+                      <label key={code} className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => setDraft((d) => {
+                            const set = new Set(d.ssl_codes ?? []);
+                            if (set.has(code)) set.delete(code); else set.add(code);
+                            return { ...d, ssl_codes: Array.from(set) };
+                          })}
+                          className="rounded"
+                        />
+                        <span className="text-gray-700 dark:text-slate-300 font-mono">{code}</span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+            </section>
+          )}
+
           {/* Customers — typeahead combobox with chips */}
           <section>
             <div className="flex items-center justify-between mb-2">
@@ -361,6 +400,7 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
                 if (draft.container_types?.length) cleaned.container_types = draft.container_types;
                 if (draft.container_sizes?.length) cleaned.container_sizes = draft.container_sizes;
                 if (draft.flags?.length) cleaned.flags = draft.flags;
+                if (draft.ssl_codes?.length) cleaned.ssl_codes = draft.ssl_codes;
                 onApply(cleaned);
                 onClose();
               }}
