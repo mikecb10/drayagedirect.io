@@ -39,8 +39,21 @@ export default function ArFiltersBar({
       (currentFilters.flags?.length           ?? 0) === 0 &&
       (currentFilters.ssl_codes?.length       ?? 0) === 0 &&
       (currentFilters.driver_ids?.length      ?? 0) === 0 &&
+      (currentFilters.customer_ids_exclude?.length    ?? 0) === 0 &&
+      (currentFilters.branch_ids_exclude?.length      ?? 0) === 0 &&
+      (currentFilters.load_types_exclude?.length      ?? 0) === 0 &&
+      (currentFilters.container_types_exclude?.length ?? 0) === 0 &&
+      (currentFilters.container_sizes_exclude?.length ?? 0) === 0 &&
+      (currentFilters.flags_exclude?.length           ?? 0) === 0 &&
+      (currentFilters.ssl_codes_exclude?.length       ?? 0) === 0 &&
+      (currentFilters.driver_ids_exclude?.length      ?? 0) === 0 &&
+      (currentFilters.pickup_location_ids?.length   ?? 0) === 0 &&
+      (currentFilters.delivery_location_ids?.length ?? 0) === 0 &&
+      (currentFilters.return_location_ids?.length   ?? 0) === 0 &&
       !currentFilters.from &&
       !currentFilters.to &&
+      !currentFilters.invoiced_from &&
+      !currentFilters.invoiced_to &&
       !(currentFilters.reference_number && currentFilters.reference_number.trim().length > 0)
     );
 
@@ -161,6 +174,7 @@ function filtersMatch(a, b) {
   const strEq = (x, y) => (x ?? '').trim().toLowerCase() === (y ?? '').trim().toLowerCase();
 
   return (
+    // Include arrays (Phase A + B1)
     arrEq(a.customer_ids,    b.customer_ids) &&
     arrEq(a.branch_ids,      b.branch_ids) &&
     arrEq(a.load_types,      b.load_types) &&
@@ -169,8 +183,25 @@ function filtersMatch(a, b) {
     arrEq(a.flags,           b.flags) &&
     arrEq(a.ssl_codes,       b.ssl_codes) &&
     arrEq(a.driver_ids,      b.driver_ids) &&
+    // Exclude arrays (Phase B2)
+    arrEq(a.customer_ids_exclude,    b.customer_ids_exclude) &&
+    arrEq(a.branch_ids_exclude,      b.branch_ids_exclude) &&
+    arrEq(a.load_types_exclude,      b.load_types_exclude) &&
+    arrEq(a.container_types_exclude, b.container_types_exclude) &&
+    arrEq(a.container_sizes_exclude, b.container_sizes_exclude) &&
+    arrEq(a.flags_exclude,           b.flags_exclude) &&
+    arrEq(a.ssl_codes_exclude,       b.ssl_codes_exclude) &&
+    arrEq(a.driver_ids_exclude,      b.driver_ids_exclude) &&
+    // Location arrays (Phase B2)
+    arrEq(a.pickup_location_ids,   b.pickup_location_ids) &&
+    arrEq(a.delivery_location_ids, b.delivery_location_ids) &&
+    arrEq(a.return_location_ids,   b.return_location_ids) &&
+    // Dates
     (a.from ?? '') === (b.from ?? '') &&
     (a.to   ?? '') === (b.to   ?? '') &&
+    (a.invoiced_from ?? '') === (b.invoiced_from ?? '') &&
+    (a.invoiced_to   ?? '') === (b.invoiced_to   ?? '') &&
+    // Strings
     strEq(a.reference_number, b.reference_number)
   );
 }
