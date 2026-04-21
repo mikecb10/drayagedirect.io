@@ -46,9 +46,6 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply }) {
     (draft.from ? 1 : 0) +
     (draft.to ? 1 : 0);
 
-  const filteredCustomers = customerQuery
-    ? customers.filter((c) => c.name?.toLowerCase().includes(customerQuery.toLowerCase()))
-    : customers;
   const filteredBranches = branchQuery
     ? branches.filter((b) => b.name?.toLowerCase().includes(branchQuery.toLowerCase()))
     : branches;
@@ -74,7 +71,7 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply }) {
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
-          {/* Customers */}
+          {/* Customers — typeahead combobox with chips */}
           <section>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Customers</label>
@@ -82,33 +79,13 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply }) {
                 <span className="text-[10px] text-gray-500 dark:text-slate-400">{draft.customer_ids.length} selected</span>
               )}
             </div>
-            <div className="relative mb-2">
-              <Search className="absolute left-2 top-2 w-3.5 h-3.5 text-gray-400 dark:text-slate-500" />
-              <input
-                type="text"
-                value={customerQuery}
-                onChange={(e) => setCustomerQuery(e.target.value)}
-                placeholder="Search customers"
-                className="w-full pl-7 pr-2 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-            <div className="max-h-48 overflow-y-auto border border-gray-100 dark:border-slate-800 rounded-md">
-              {filteredCustomers.length === 0 ? (
-                <div className="px-3 py-2 text-xs text-gray-400 dark:text-slate-500">No matches</div>
-              ) : (
-                filteredCustomers.map((c) => (
-                  <label key={c.id} className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={draft.customer_ids?.includes(c.id) ?? false}
-                      onChange={() => toggleArray('customer_ids', c.id)}
-                      className="rounded"
-                    />
-                    <span className="text-gray-700 dark:text-slate-300 truncate">{c.name}</span>
-                  </label>
-                ))
-              )}
-            </div>
+            <CustomerCombobox
+              options={customers}
+              selectedIds={draft.customer_ids ?? []}
+              onChange={(ids) => setDraft((d) => ({ ...d, customer_ids: ids }))}
+              query={customerQuery}
+              onQueryChange={setCustomerQuery}
+            />
           </section>
 
           {/* Branches */}
@@ -201,6 +178,127 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+// Customer typeahead combobox with chips.
+// Kept inline because (a) it's only used here and (b) it closes
+// over the parent's customers list / query state. If a second
+// consumer appears (Phase B pickup/delivery location filters may),
+// lift this to components/ui/.
+// ──────────────────────────────────────────────────────────────
+function CustomerCombobox({ options, selectedIds, onChange, query, onQueryChange }) {
+  const [highlight, setHighlight] = React.useState(0);
+  const inputRef = React.useRef(null);
+
+  const selectedSet = React.useMemo(() => new Set(selectedIds), [selectedIds]);
+  const selectedItems = React.useMemo(
+    () => options.filter((o) => selectedSet.has(o.id)),
+    [options, selectedSet]
+  );
+
+  const filtered = React.useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const unselected = options.filter((o) => !selectedSet.has(o.id));
+    if (!q) return unselected.slice(0, 50);
+    return unselected
+      .filter((o) => o.name?.toLowerCase().includes(q))
+      .slice(0, 50);
+  }, [options, query, selectedSet]);
+
+  // Clamp highlight when filtered list changes.
+  React.useEffect(() => {
+    if (highlight >= filtered.length) setHighlight(Math.max(0, filtered.length - 1));
+  }, [filtered.length, highlight]);
+
+  const addId = (id) => {
+    if (!id || selectedSet.has(id)) return;
+    onChange([...selectedIds, id]);
+    onQueryChange('');
+    setHighlight(0);
+    inputRef.current?.focus();
+  };
+
+  const removeId = (id) => {
+    onChange(selectedIds.filter((x) => x !== id));
+    inputRef.current?.focus();
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlight((h) => Math.min(filtered.length - 1, h + 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlight((h) => Math.max(0, h - 1));
+    } else if (e.key === 'Enter') {
+      if (filtered[highlight]) {
+        e.preventDefault();
+        addId(filtered[highlight].id);
+      }
+    } else if (e.key === 'Backspace' && !query && selectedIds.length > 0) {
+      // Backspace on empty input removes the last chip.
+      removeId(selectedIds[selectedIds.length - 1]);
+    }
+  };
+
+  return (
+    <div className="relative">
+      <div
+        onClick={() => inputRef.current?.focus()}
+        className="flex flex-wrap items-center gap-1 min-h-[34px] px-1.5 py-1 border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 focus-within:ring-1 focus-within:ring-blue-500 cursor-text"
+      >
+        {selectedItems.map((c) => (
+          <span
+            key={c.id}
+            className="inline-flex items-center gap-0.5 pl-2 pr-1 py-0.5 rounded-md bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 text-xs"
+          >
+            <span className="truncate max-w-[120px]">{c.name}</span>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); removeId(c.id); }}
+              aria-label={`Remove ${c.name}`}
+              className="p-0.5 rounded hover:bg-blue-200 dark:hover:bg-blue-900/60"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </span>
+        ))}
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={(e) => { onQueryChange(e.target.value); setHighlight(0); }}
+          onKeyDown={handleKeyDown}
+          placeholder={selectedItems.length === 0 ? 'Search customers…' : ''}
+          className="flex-1 min-w-[80px] text-xs bg-transparent outline-none text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500"
+        />
+      </div>
+      {query.length > 0 && (
+        <div className="absolute z-10 left-0 right-0 mt-1 max-h-48 overflow-y-auto border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 shadow-lg">
+          {filtered.length === 0 ? (
+            <div className="px-3 py-2 text-xs text-gray-400 dark:text-slate-500">No matches</div>
+          ) : (
+            filtered.map((c, i) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => addId(c.id)}
+                onMouseEnter={() => setHighlight(i)}
+                className={`w-full text-left px-3 py-1.5 text-xs truncate ${
+                  i === highlight
+                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
+                    : 'text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700'
+                }`}
+              >
+                {c.name}
+              </button>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
