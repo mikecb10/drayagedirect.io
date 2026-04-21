@@ -27,12 +27,19 @@ export default async function handler(req, res) {
   const { status, load_status, search, from, to } = req.query;
   const customerIds = parseCsvParam(req.query.customer_ids);
   const branchIds   = parseCsvParam(req.query.branch_ids);
+  const { reference_number } = req.query;
+  const loadTypes       = parseCsvParam(req.query.load_types);
+  const containerTypes  = parseCsvParam(req.query.container_types);
+  const containerSizes  = parseCsvParam(req.query.container_sizes);
+  const flagKeys        = parseCsvParam(req.query.flags);
+  const sslCodes        = parseCsvParam(req.query.ssl_codes);
+  const driverIds       = parseCsvParam(req.query.driver_ids);
 
   let query = svc
     .from('order_charge_sets')
     .select(`
       *,
-      order:orders(id, order_number, status, load_type, customer_id, customer_reference, branch_id, created_at, deleted_at,
+      order:orders(id, order_number, status, load_type, customer_id, customer_reference, branch_id, driver_id, container_type, container_size, steamship_line_scac, is_hazmat, is_overweight, is_overheight, is_liquor, is_hot, is_genset, is_scale, is_ev, is_street_turn, is_oog, is_bonded, is_double, is_tanker, created_at, deleted_at,
         customer:customers!orders_customer_id_fkey(id, name)
       ),
       bill_to:customers!order_charge_sets_bill_to_customer_id_fkey(id, name),
@@ -63,6 +70,52 @@ export default async function handler(req, res) {
   if (branchIds.length > 0) {
     const ids = new Set(branchIds);
     scopedSets = scopedSets.filter((cs) => cs.order?.branch_id && ids.has(cs.order.branch_id));
+  }
+
+  // Reference number — substring match on orders.customer_reference (case-insensitive).
+  if (reference_number && typeof reference_number === 'string' && reference_number.trim().length > 0) {
+    const q = reference_number.trim().toLowerCase();
+    scopedSets = scopedSets.filter((cs) =>
+      cs.order?.customer_reference?.toLowerCase().includes(q)
+    );
+  }
+
+  // Load type — multi-select on orders.load_type.
+  if (loadTypes.length > 0) {
+    const types = new Set(loadTypes);
+    scopedSets = scopedSets.filter((cs) => cs.order?.load_type && types.has(cs.order.load_type));
+  }
+
+  // Container type + size — multi-select on orders.container_type / .container_size.
+  if (containerTypes.length > 0) {
+    const types = new Set(containerTypes);
+    scopedSets = scopedSets.filter((cs) => cs.order?.container_type && types.has(cs.order.container_type));
+  }
+  if (containerSizes.length > 0) {
+    const sizes = new Set(containerSizes);
+    scopedSets = scopedSets.filter((cs) => cs.order?.container_size && sizes.has(cs.order.container_size));
+  }
+
+  // Load flags — AND semantics (row must have EVERY selected flag set true).
+  // flag keys are bare labels (e.g. "hazmat"); the DB columns are is_<key>.
+  if (flagKeys.length > 0) {
+    scopedSets = scopedSets.filter((cs) =>
+      flagKeys.every((key) => cs.order?.[`is_${key}`] === true)
+    );
+  }
+
+  // SSL multi-select on orders.steamship_line_scac (uppercased SCAC code).
+  if (sslCodes.length > 0) {
+    const codes = new Set(sslCodes.map((c) => c.toUpperCase()));
+    scopedSets = scopedSets.filter((cs) =>
+      cs.order?.steamship_line_scac && codes.has(cs.order.steamship_line_scac.toUpperCase())
+    );
+  }
+
+  // Driver multi-select on orders.driver_id.
+  if (driverIds.length > 0) {
+    const ids = new Set(driverIds);
+    scopedSets = scopedSets.filter((cs) => cs.order?.driver_id && ids.has(cs.order.driver_id));
   }
 
   // Compute counts over the SCOPED set — filter cards reflect the current
