@@ -1,10 +1,21 @@
 import { requireTenantUser, getServiceClient } from '../../../../lib/tenant-api';
+import { parseCsvParam } from '../../../../lib/ar-filter-params';
 
 /**
  * GET /api/tenant/ar
  *
  * Returns charge sets aggregated for the AR pipeline.
  * Includes load data, customer info, and status counts for the filter cards.
+ *
+ * Query params:
+ *   status         - single charge-set status
+ *   load_status    - 'uncompleted' | 'completed' (draft split)
+ *   search         - substring match (client-side) on charge_set_number /
+ *                    order_number / customer.name
+ *   customer_ids   - CSV of customer UUIDs (matches order.customer_id OR
+ *                    order_charge_sets.bill_to_customer_id)
+ *   branch_ids     - CSV of branch UUIDs (matches order.branch_id)
+ *   from, to       - ISO dates; filters order_charge_sets.created_at
  */
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
@@ -13,16 +24,15 @@ export default async function handler(req, res) {
   if (!ctx) return;
 
   const svc = getServiceClient();
-  const { status, load_status, search } = req.query;
+  const { status, load_status, search, from, to } = req.query;
+  const customerIds = parseCsvParam(req.query.customer_ids);
+  const branchIds   = parseCsvParam(req.query.branch_ids);
 
-  // Fetch all charge sets with load + customer data.
-  // We include `deleted_at` on the joined order so we can filter out
-  // charge sets whose parent load has been soft-deleted.
   let query = svc
     .from('order_charge_sets')
     .select(`
       *,
-      order:orders(id, order_number, status, load_type, customer_id, customer_reference, created_at, deleted_at,
+      order:orders(id, order_number, status, load_type, customer_id, customer_reference, branch_id, created_at, deleted_at,
         customer:customers!orders_customer_id_fkey(id, name)
       ),
       bill_to:customers!order_charge_sets_bill_to_customer_id_fkey(id, name),
@@ -32,40 +42,49 @@ export default async function handler(req, res) {
     .order('created_at', { ascending: false });
 
   if (status) query = query.eq('status', status);
+  if (from)   query = query.gte('created_at', from);
+  if (to)     query = query.lte('created_at', to);
 
   const { data: chargeSets, error } = await query;
   if (error) return res.status(500).json({ error: error.message });
 
-  // Exclude charge sets belonging to deleted loads.
-  // (Supabase can't filter joined foreign tables in the main query, so we
-  // filter client-side here.)
   const sets = (chargeSets || []).filter((cs) => !cs.order || cs.order.deleted_at == null);
 
-  // Compute pipeline counts + sums per bucket.
-  // Shape: { <bucket>: { count, total_cents } } with `total`/`total_cents`
-  // at the top level preserving grand totals for backwards-compat display.
+  // Customer filter — match on order.customer_id OR bill_to_customer_id.
+  // Bill-to override is common in 3PL flows, so either column counts.
+  let scopedSets = sets;
+  if (customerIds.length > 0) {
+    const ids = new Set(customerIds);
+    scopedSets = scopedSets.filter((cs) =>
+      (cs.order?.customer_id && ids.has(cs.order.customer_id)) ||
+      (cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id))
+    );
+  }
+  if (branchIds.length > 0) {
+    const ids = new Set(branchIds);
+    scopedSets = scopedSets.filter((cs) => cs.order?.branch_id && ids.has(cs.order.branch_id));
+  }
+
+  // Compute counts over the SCOPED set — filter cards reflect the current
+  // customer/branch/date scope, not the unfiltered universe.
   const emptyBucket = () => ({ count: 0, total_cents: 0 });
   const counts = {
-    // Pre-Invoice Pipeline
     uncompleted_loads: emptyBucket(),
-    completed_loads: emptyBucket(),
-    rate_con_sent: emptyBucket(),
-    unapproved: emptyBucket(),
-    approved: emptyBucket(),
-    // Invoice Pipeline
-    invoiced: emptyBucket(),
-    rebilling: emptyBucket(),
-    // Other
-    void: emptyBucket(),
-    total: sets.length,
-    total_cents: 0,
+    completed_loads:   emptyBucket(),
+    rate_con_sent:     emptyBucket(),
+    unapproved:        emptyBucket(),
+    approved:          emptyBucket(),
+    invoiced:          emptyBucket(),
+    rebilling:         emptyBucket(),
+    void:              emptyBucket(),
+    total:             scopedSets.length,
+    total_cents:       0,
   };
 
-  for (const cs of sets) {
+  for (const cs of scopedSets) {
     const loadStatus = cs.order?.status;
-    const csStatus = cs.status;
-    const cents = cs.total_cents || 0;
-
+    const csStatus   = cs.status;
+    const cents      = cs.total_cents || 0;
     counts.total_cents += cents;
 
     const addTo = (bucket) => {
@@ -73,14 +92,13 @@ export default async function handler(req, res) {
       counts[bucket].total_cents += cents;
     };
 
-    if (csStatus === 'void') { addTo('void'); continue; }
+    if (csStatus === 'void')         { addTo('void'); continue; }
     if (csStatus === 'invoiced' || csStatus === 'billed') { addTo('invoiced'); continue; }
-    if (csStatus === 'rebilling') { addTo('rebilling'); continue; }
-    if (csStatus === 'rate_con_sent') { addTo('rate_con_sent'); continue; }
-    if (csStatus === 'unapproved') { addTo('unapproved'); continue; }
-    if (csStatus === 'approved') { addTo('approved'); continue; }
+    if (csStatus === 'rebilling')    { addTo('rebilling'); continue; }
+    if (csStatus === 'rate_con_sent'){ addTo('rate_con_sent'); continue; }
+    if (csStatus === 'unapproved')   { addTo('unapproved'); continue; }
+    if (csStatus === 'approved')     { addTo('approved'); continue; }
 
-    // Draft — split by load completion status
     if (loadStatus === 'completed' || loadStatus === 'delivered') {
       addTo('completed_loads');
     } else {
@@ -88,8 +106,10 @@ export default async function handler(req, res) {
     }
   }
 
-  // Apply client-side filters for search
-  let filtered = sets;
+  // Stage card (status + load_status) and search filters apply AFTER counts —
+  // counts show "pipeline totals for the current scope", list shows "rows in
+  // this bucket within the current scope".
+  let filtered = scopedSets;
   if (search) {
     const q = search.toLowerCase();
     filtered = filtered.filter((cs) =>
@@ -99,7 +119,6 @@ export default async function handler(req, res) {
     );
   }
 
-  // Apply load_status filter
   if (load_status === 'uncompleted') {
     filtered = filtered.filter((cs) =>
       (cs.status === 'draft') &&
