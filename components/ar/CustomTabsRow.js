@@ -144,7 +144,7 @@ function TabButton({ label, active, onClick, onDelete }) {
         <button
           onClick={onDelete}
           aria-label={`Delete tab ${label}`}
-          className="ml-0.5 p-0.5 rounded opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+          className="ml-0.5 p-0.5 rounded opacity-0 group-hover:opacity-100 text-gray-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400"
         >
           <X className="w-3 h-3" />
         </button>
