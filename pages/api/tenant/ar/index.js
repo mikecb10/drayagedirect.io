@@ -205,31 +205,35 @@ export default async function handler(req, res) {
   // ── Phase B4: bill-to primary / additional ─────────────────────────
   // Primary = charge_set_number does NOT match /_\d+$/ (no _N suffix).
   // Secondary/additional = matches /_\d+$/.
+  // Each filter passes through rows it doesn't apply to — primary filter
+  // skips additional rows, and vice versa. This way a user combining both
+  // filters gets the union: primary matches of list A + additional matches
+  // of list B, not the impossible intersection.
   const SECONDARY_PATTERN = /_\d+$/;
   const isPrimaryCs = (cs) => !SECONDARY_PATTERN.test(cs.charge_set_number || '');
 
   if (billToPrimaryCustomerIds.length > 0) {
     const ids = new Set(billToPrimaryCustomerIds);
     scopedSets = scopedSets.filter((cs) =>
-      isPrimaryCs(cs) && cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id)
+      !isPrimaryCs(cs) || (cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id))
     );
   }
   if (billToPrimaryCustomerIdsExclude.length > 0) {
     const ids = new Set(billToPrimaryCustomerIdsExclude);
     scopedSets = scopedSets.filter((cs) =>
-      !(isPrimaryCs(cs) && cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id))
+      !isPrimaryCs(cs) || !(cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id))
     );
   }
   if (billToAdditionalCustomerIds.length > 0) {
     const ids = new Set(billToAdditionalCustomerIds);
     scopedSets = scopedSets.filter((cs) =>
-      !isPrimaryCs(cs) && cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id)
+      isPrimaryCs(cs) || (cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id))
     );
   }
   if (billToAdditionalCustomerIdsExclude.length > 0) {
     const ids = new Set(billToAdditionalCustomerIdsExclude);
     scopedSets = scopedSets.filter((cs) =>
-      !(!isPrimaryCs(cs) && cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id))
+      isPrimaryCs(cs) || !(cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id))
     );
   }
 
@@ -237,7 +241,8 @@ export default async function handler(req, res) {
   if (factor_company === 'yes') {
     scopedSets = scopedSets.filter((cs) => cs.bill_to?.pay_type === 'factoring');
   } else if (factor_company === 'no') {
-    scopedSets = scopedSets.filter((cs) => cs.bill_to?.pay_type && cs.bill_to.pay_type !== 'factoring');
+    // NULL pay_type defaults to direct-pay (most customers), so include them.
+    scopedSets = scopedSets.filter((cs) => cs.bill_to?.pay_type !== 'factoring');
   }
 
   // Compute counts over the SCOPED set — filter cards reflect the current

@@ -138,27 +138,28 @@ export default async function handler(req, res) {
     const chargeSetBillToMatches = (cs) => {
       if (!cs) return false;
       const isPrimary = isPrimaryCs(cs);
-      // Primary include
-      if (billToPrimaryCustomerIds.length > 0) {
-        if (!(isPrimary && cs.bill_to_customer_id && billToPrimaryCustomerIds.includes(cs.bill_to_customer_id))) return false;
+      // Primary include — passes through additional rows, requires primary rows to match
+      if (billToPrimaryCustomerIds.length > 0 && isPrimary) {
+        if (!(cs.bill_to_customer_id && billToPrimaryCustomerIds.includes(cs.bill_to_customer_id))) return false;
       }
-      // Primary exclude
-      if (billToPrimaryCustomerIdsExclude.length > 0) {
-        if (isPrimary && cs.bill_to_customer_id && billToPrimaryCustomerIdsExclude.includes(cs.bill_to_customer_id)) return false;
+      // Primary exclude — rejects primary rows matching the list, passes additional through
+      if (billToPrimaryCustomerIdsExclude.length > 0 && isPrimary) {
+        if (cs.bill_to_customer_id && billToPrimaryCustomerIdsExclude.includes(cs.bill_to_customer_id)) return false;
       }
-      // Additional include
-      if (billToAdditionalCustomerIds.length > 0) {
-        if (!(!isPrimary && cs.bill_to_customer_id && billToAdditionalCustomerIds.includes(cs.bill_to_customer_id))) return false;
+      // Additional include — passes primary through, requires additional rows to match
+      if (billToAdditionalCustomerIds.length > 0 && !isPrimary) {
+        if (!(cs.bill_to_customer_id && billToAdditionalCustomerIds.includes(cs.bill_to_customer_id))) return false;
       }
-      // Additional exclude
-      if (billToAdditionalCustomerIdsExclude.length > 0) {
-        if (!isPrimary && cs.bill_to_customer_id && billToAdditionalCustomerIdsExclude.includes(cs.bill_to_customer_id)) return false;
+      // Additional exclude — rejects additional rows matching the list, passes primary through
+      if (billToAdditionalCustomerIdsExclude.length > 0 && !isPrimary) {
+        if (cs.bill_to_customer_id && billToAdditionalCustomerIdsExclude.includes(cs.bill_to_customer_id)) return false;
       }
       // Factor company
       if (factor_company === 'yes') {
         if (cs.bill_to?.pay_type !== 'factoring') return false;
       } else if (factor_company === 'no') {
-        if (!cs.bill_to?.pay_type || cs.bill_to.pay_type === 'factoring') return false;
+        // NULL pay_type defaults to direct-pay; reject only if explicitly factoring.
+        if (cs.bill_to?.pay_type === 'factoring') return false;
       }
       return true;
     };
