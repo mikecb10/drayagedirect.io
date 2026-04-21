@@ -591,7 +591,19 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
         {/* Footer */}
         <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900/60">
           <button
-            onClick={() => setDraft(EMPTY)}
+            onClick={() => {
+              setDraft(EMPTY);
+              setModes({
+                customer:       'include',
+                branch:         'include',
+                load_type:      'include',
+                container_type: 'include',
+                container_size: 'include',
+                flag:           'include',
+                ssl:            'include',
+                driver:         'include',
+              });
+            }}
             className="inline-flex items-center gap-1 text-xs font-semibold text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200"
           >
             <RotateCcw className="w-3 h-3" /> Reset

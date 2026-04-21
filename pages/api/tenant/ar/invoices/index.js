@@ -75,6 +75,11 @@ export default async function handler(req, res) {
     else if (customerIds.length > 1) query = query.in('customer_id', customerIds);
     if (branchIds.length === 1) query = query.eq('branch_id', branchIds[0]);
     else if (branchIds.length > 1) query = query.in('branch_id', branchIds);
+    // Invoice-level excludes (not order-level)
+    if (customerIdsExclude.length === 1) query = query.neq('customer_id', customerIdsExclude[0]);
+    else if (customerIdsExclude.length > 1) query = query.not('customer_id', 'in', '(' + customerIdsExclude.join(',') + ')');
+    if (branchIdsExclude.length === 1) query = query.neq('branch_id', branchIdsExclude[0]);
+    else if (branchIdsExclude.length > 1) query = query.not('branch_id', 'in', '(' + branchIdsExclude.join(',') + ')');
     if (from) query = query.gte('created_at', from);
     if (to)   query = query.lte('created_at', to);
     if (search) query = query.or(`invoice_number.ilike.%${search}%`);
@@ -103,8 +108,6 @@ export default async function handler(req, res) {
       }
       if (driverIds.length > 0 && !driverIds.includes(order.driver_id)) return false;
       // Phase B2 exclude variants
-      if (customerIdsExclude.length > 0 && order.customer_id && customerIdsExclude.includes(order.customer_id)) return false;
-      if (branchIdsExclude.length > 0 && order.branch_id && branchIdsExclude.includes(order.branch_id)) return false;
       if (loadTypesExclude.length > 0 && order.load_type && loadTypesExclude.includes(order.load_type)) return false;
       if (containerTypesExclude.length > 0 && order.container_type && containerTypesExclude.includes(order.container_type)) return false;
       if (containerSizesExclude.length > 0 && order.container_size && containerSizesExclude.includes(order.container_size)) return false;
@@ -125,7 +128,6 @@ export default async function handler(req, res) {
       (reference_number && typeof reference_number === 'string' && reference_number.trim().length > 0) ||
       loadTypes.length > 0 || containerTypes.length > 0 || containerSizes.length > 0 ||
       flagKeys.length > 0 || sslCodes.length > 0 || driverIds.length > 0 ||
-      customerIdsExclude.length > 0 || branchIdsExclude.length > 0 ||
       loadTypesExclude.length > 0 || containerTypesExclude.length > 0 || containerSizesExclude.length > 0 ||
       flagKeysExclude.length > 0 || sslCodesExclude.length > 0 || driverIdsExclude.length > 0 ||
       pickupLocationIds.length > 0 || deliveryLocationIds.length > 0 || returnLocationIds.length > 0;
