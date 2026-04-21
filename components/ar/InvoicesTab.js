@@ -62,6 +62,11 @@ export default function InvoicesTab({ filters = {} }) {
       if (filters.pickup_location_ids?.length)   params.set('pickup_location_ids',   filters.pickup_location_ids.join(','));
       if (filters.delivery_location_ids?.length) params.set('delivery_location_ids', filters.delivery_location_ids.join(','));
       if (filters.return_location_ids?.length)   params.set('return_location_ids',   filters.return_location_ids.join(','));
+      if (filters.bill_to_primary_customer_ids?.length)    params.set('bill_to_primary_customer_ids',    filters.bill_to_primary_customer_ids.join(','));
+      if (filters.bill_to_primary_customer_ids_exclude?.length) params.set('bill_to_primary_customer_ids_exclude', filters.bill_to_primary_customer_ids_exclude.join(','));
+      if (filters.bill_to_additional_customer_ids?.length) params.set('bill_to_additional_customer_ids', filters.bill_to_additional_customer_ids.join(','));
+      if (filters.bill_to_additional_customer_ids_exclude?.length) params.set('bill_to_additional_customer_ids_exclude', filters.bill_to_additional_customer_ids_exclude.join(','));
+      if (filters.factor_company === 'yes' || filters.factor_company === 'no') params.set('factor_company', filters.factor_company);
       const res = await fetch(`/api/tenant/ar/invoices?${params}`);
       if (!res.ok) throw new Error('Failed to load invoices');
       const data = await res.json();

@@ -142,6 +142,7 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
     (draft.to ? 1 : 0) +
     (draft.invoiced_from ? 1 : 0) +
     (draft.invoiced_to ? 1 : 0) +
+    (draft.factor_company === 'yes' || draft.factor_company === 'no' ? 1 : 0) +
     (draft.reference_number && draft.reference_number.trim() ? 1 : 0);
 
   const filteredBranches = branchQuery
@@ -558,6 +559,36 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
             </section>
           )}
 
+          {/* Factor Company — customers.pay_type Y/N */}
+          {showKey('factor_company') && (
+            <section>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400 mb-2">Factor company</label>
+              <div className="inline-flex rounded-md border border-gray-200 dark:border-slate-700 overflow-hidden">
+                {[
+                  { value: '',    label: 'All' },
+                  { value: 'yes', label: 'Factor' },
+                  { value: 'no',  label: 'Direct-pay' },
+                ].map((opt, i) => {
+                  const active = (draft.factor_company ?? '') === opt.value;
+                  return (
+                    <button
+                      key={opt.value || 'all'}
+                      type="button"
+                      onClick={() => setDraft((d) => ({ ...d, factor_company: opt.value }))}
+                      className={`px-3 py-1 text-xs font-semibold ${i > 0 ? 'border-l border-gray-200 dark:border-slate-700' : ''} ${
+                        active
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white text-gray-600 dark:bg-slate-800 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
           {/* Branches */}
           {showKey('branch_ids') && (
             <section>
@@ -713,6 +744,9 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
                 if (draft.bill_to_primary_customer_ids_exclude?.length) cleaned.bill_to_primary_customer_ids_exclude = draft.bill_to_primary_customer_ids_exclude;
                 if (draft.bill_to_additional_customer_ids?.length)      cleaned.bill_to_additional_customer_ids      = draft.bill_to_additional_customer_ids;
                 if (draft.bill_to_additional_customer_ids_exclude?.length) cleaned.bill_to_additional_customer_ids_exclude = draft.bill_to_additional_customer_ids_exclude;
+                if (draft.factor_company === 'yes' || draft.factor_company === 'no') {
+                  cleaned.factor_company = draft.factor_company;
+                }
                 if (draft.pickup_location_ids?.length)   cleaned.pickup_location_ids   = draft.pickup_location_ids;
                 if (draft.delivery_location_ids?.length) cleaned.delivery_location_ids = draft.delivery_location_ids;
                 if (draft.return_location_ids?.length)   cleaned.return_location_ids   = draft.return_location_ids;
