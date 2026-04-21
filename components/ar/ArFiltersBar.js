@@ -59,7 +59,9 @@ export default function ArFiltersBar({
       !currentFilters.invoiced_from &&
       !currentFilters.invoiced_to &&
       !(currentFilters.reference_number && currentFilters.reference_number.trim().length > 0) &&
-      !(currentFilters.factor_company === 'yes' || currentFilters.factor_company === 'no')
+      !(currentFilters.factor_company === 'yes' || currentFilters.factor_company === 'no') &&
+      !(currentFilters.rate_con_sent_y === 'yes' || currentFilters.rate_con_sent_y === 'no') &&
+      !(currentFilters.invoice_email_sent_y === 'yes' || currentFilters.invoice_email_sent_y === 'no')
     );
 
   const matchesExistingTab = customTabs.some((t) => filtersMatch(t.filters, currentFilters));
@@ -207,6 +209,8 @@ function filtersMatch(a, b) {
     (a.invoiced_from ?? '') === (b.invoiced_from ?? '') &&
     (a.invoiced_to   ?? '') === (b.invoiced_to   ?? '') &&
     strEq(a.reference_number, b.reference_number) &&
-    (a.factor_company ?? '') === (b.factor_company ?? '')
+    (a.factor_company ?? '') === (b.factor_company ?? '') &&
+    (a.rate_con_sent_y ?? '') === (b.rate_con_sent_y ?? '') &&
+    (a.invoice_email_sent_y ?? '') === (b.invoice_email_sent_y ?? '')
   );
 }
