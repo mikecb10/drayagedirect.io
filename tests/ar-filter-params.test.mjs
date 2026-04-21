@@ -23,5 +23,27 @@ check('drops null dates', JSON.stringify(sanitizeFilterSet({ from: null, to: '20
 check('keeps populated fields', JSON.stringify(sanitizeFilterSet({ customer_ids: ['c1'], from: '2026-01-01', to: '2026-02-01' })) === '{"customer_ids":["c1"],"from":"2026-01-01","to":"2026-02-01"}');
 check('ignores unknown keys', JSON.stringify(sanitizeFilterSet({ customer_ids: ['c1'], garbage: 'x' })) === '{"customer_ids":["c1"]}');
 
+console.log('\nsanitizeFilterSet (Phase B1 keys)');
+check('keeps reference_number string',
+  JSON.stringify(sanitizeFilterSet({ reference_number: 'PO-123' })) === '{"reference_number":"PO-123"}');
+check('drops empty reference_number',
+  JSON.stringify(sanitizeFilterSet({ reference_number: '' })) === '{}');
+check('keeps load_types array',
+  JSON.stringify(sanitizeFilterSet({ load_types: ['import','export'] })) === '{"load_types":["import","export"]}');
+check('keeps container_types array',
+  JSON.stringify(sanitizeFilterSet({ container_types: ['dry_van'] })) === '{"container_types":["dry_van"]}');
+check('keeps container_sizes array',
+  JSON.stringify(sanitizeFilterSet({ container_sizes: ['20','40HC'] })) === '{"container_sizes":["20","40HC"]}');
+check('keeps flags array',
+  JSON.stringify(sanitizeFilterSet({ flags: ['hazmat','overweight'] })) === '{"flags":["hazmat","overweight"]}');
+check('keeps ssl_codes array',
+  JSON.stringify(sanitizeFilterSet({ ssl_codes: ['MSCU','MAEU'] })) === '{"ssl_codes":["MSCU","MAEU"]}');
+check('keeps driver_ids array',
+  JSON.stringify(sanitizeFilterSet({ driver_ids: ['u1','u2'] })) === '{"driver_ids":["u1","u2"]}');
+check('drops empty arrays (new keys)',
+  JSON.stringify(sanitizeFilterSet({ load_types: [], flags: [] })) === '{}');
+check('drops non-string entries (flags)',
+  JSON.stringify(sanitizeFilterSet({ flags: ['hazmat', 42, null, 'overweight'] })) === '{"flags":["hazmat","overweight"]}');
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
