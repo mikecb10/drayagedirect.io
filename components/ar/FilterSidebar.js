@@ -27,7 +27,16 @@ const FLAG_OPTIONS = [
   { key: 'liquor',      label: 'Liquor' },
 ];
 
-const EMPTY = { customer_ids: [], branch_ids: [], from: '', to: '', reference_number: '', load_types: [], container_types: [], container_sizes: [], flags: [], ssl_codes: [], driver_ids: [] };
+const EMPTY = {
+  customer_ids: [], branch_ids: [], from: '', to: '',
+  reference_number: '',
+  load_types: [], container_types: [], container_sizes: [], flags: [], ssl_codes: [], driver_ids: [],
+  customer_ids_exclude: [], branch_ids_exclude: [], load_types_exclude: [],
+  container_types_exclude: [], container_sizes_exclude: [],
+  flags_exclude: [], ssl_codes_exclude: [], driver_ids_exclude: [],
+  invoiced_from: '', invoiced_to: '',
+  pickup_location_ids: [], delivery_location_ids: [], return_location_ids: [],
+};
 
 export default function FilterSidebar({ isOpen, onClose, filters, onApply, section = 'billing' }) {
   const visibleKeys = filterKeysForSection(section);
@@ -42,6 +51,17 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
   const [customerQuery, setCustomerQuery] = useState('');
   const [driverQuery, setDriverQuery] = useState('');
   const [branchQuery, setBranchQuery] = useState('');
+  const [modes, setModes] = useState({
+    customer:       'include',
+    branch:         'include',
+    load_type:      'include',
+    container_type: 'include',
+    container_size: 'include',
+    flag:           'include',
+    ssl:            'include',
+    driver:         'include',
+  });
+  const setMode = (key, mode) => setModes((m) => ({ ...m, [key]: mode }));
 
   useEffect(() => {
     if (!isOpen) return;
@@ -90,8 +110,21 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
     (draft.flags?.length           || 0) +
     (draft.ssl_codes?.length       || 0) +
     (draft.driver_ids?.length      || 0) +
+    (draft.customer_ids_exclude?.length    || 0) +
+    (draft.branch_ids_exclude?.length      || 0) +
+    (draft.load_types_exclude?.length      || 0) +
+    (draft.container_types_exclude?.length || 0) +
+    (draft.container_sizes_exclude?.length || 0) +
+    (draft.flags_exclude?.length           || 0) +
+    (draft.ssl_codes_exclude?.length       || 0) +
+    (draft.driver_ids_exclude?.length      || 0) +
+    (draft.pickup_location_ids?.length   || 0) +
+    (draft.delivery_location_ids?.length || 0) +
+    (draft.return_location_ids?.length   || 0) +
     (draft.from ? 1 : 0) +
     (draft.to ? 1 : 0) +
+    (draft.invoiced_from ? 1 : 0) +
+    (draft.invoiced_to ? 1 : 0) +
     (draft.reference_number && draft.reference_number.trim() ? 1 : 0);
 
   const filteredBranches = branchQuery
@@ -146,22 +179,28 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
             <section>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Load type</label>
-                {(draft.load_types?.length ?? 0) > 0 && (
-                  <span className="text-[10px] text-gray-500 dark:text-slate-400">{draft.load_types.length} selected</span>
-                )}
+                <div className="flex items-center gap-2">
+                  {((draft.load_types?.length ?? 0) + (draft.load_types_exclude?.length ?? 0)) > 0 && (
+                    <span className="text-[10px] text-gray-500 dark:text-slate-400">
+                      {(modes.load_type === 'exclude' ? (draft.load_types_exclude?.length ?? 0) : (draft.load_types?.length ?? 0))} selected
+                    </span>
+                  )}
+                  <ExcludeToggle mode={modes.load_type} onChange={(m) => setMode('load_type', m)} />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-1 border border-gray-100 dark:border-slate-800 rounded-md p-1">
                 {LOAD_TYPE_OPTIONS.map((opt) => {
-                  const selected = draft.load_types?.includes(opt.value) ?? false;
+                  const activeKey = modes.load_type === 'exclude' ? 'load_types_exclude' : 'load_types';
+                  const selected = (draft[activeKey] ?? []).includes(opt.value);
                   return (
                     <label key={opt.value} className="flex items-center gap-2 px-2 py-1 text-xs hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer rounded">
                       <input
                         type="checkbox"
                         checked={selected}
                         onChange={() => setDraft((d) => {
-                          const set = new Set(d.load_types ?? []);
+                          const set = new Set(d[activeKey] ?? []);
                           if (set.has(opt.value)) set.delete(opt.value); else set.add(opt.value);
-                          return { ...d, load_types: Array.from(set) };
+                          return { ...d, [activeKey]: Array.from(set) };
                         })}
                         className="rounded"
                       />
@@ -178,25 +217,31 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
             <section>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Container type</label>
-                {(draft.container_types?.length ?? 0) > 0 && (
-                  <span className="text-[10px] text-gray-500 dark:text-slate-400">{draft.container_types.length} selected</span>
-                )}
+                <div className="flex items-center gap-2">
+                  {((draft.container_types?.length ?? 0) + (draft.container_types_exclude?.length ?? 0)) > 0 && (
+                    <span className="text-[10px] text-gray-500 dark:text-slate-400">
+                      {(modes.container_type === 'exclude' ? (draft.container_types_exclude?.length ?? 0) : (draft.container_types?.length ?? 0))} selected
+                    </span>
+                  )}
+                  <ExcludeToggle mode={modes.container_type} onChange={(m) => setMode('container_type', m)} />
+                </div>
               </div>
               <div className="max-h-40 overflow-y-auto border border-gray-100 dark:border-slate-800 rounded-md">
                 {containerTypes.length === 0 ? (
                   <div className="px-3 py-2 text-xs text-gray-400 dark:text-slate-500">No types available</div>
                 ) : (
                   containerTypes.map((t) => {
-                    const selected = draft.container_types?.includes(t.code) ?? false;
+                    const activeKey = modes.container_type === 'exclude' ? 'container_types_exclude' : 'container_types';
+                    const selected = (draft[activeKey] ?? []).includes(t.code);
                     return (
                       <label key={t.id} className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={selected}
                           onChange={() => setDraft((d) => {
-                            const set = new Set(d.container_types ?? []);
+                            const set = new Set(d[activeKey] ?? []);
                             if (set.has(t.code)) set.delete(t.code); else set.add(t.code);
-                            return { ...d, container_types: Array.from(set) };
+                            return { ...d, [activeKey]: Array.from(set) };
                           })}
                           className="rounded"
                         />
@@ -214,25 +259,31 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
             <section>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Container size</label>
-                {(draft.container_sizes?.length ?? 0) > 0 && (
-                  <span className="text-[10px] text-gray-500 dark:text-slate-400">{draft.container_sizes.length} selected</span>
-                )}
+                <div className="flex items-center gap-2">
+                  {((draft.container_sizes?.length ?? 0) + (draft.container_sizes_exclude?.length ?? 0)) > 0 && (
+                    <span className="text-[10px] text-gray-500 dark:text-slate-400">
+                      {(modes.container_size === 'exclude' ? (draft.container_sizes_exclude?.length ?? 0) : (draft.container_sizes?.length ?? 0))} selected
+                    </span>
+                  )}
+                  <ExcludeToggle mode={modes.container_size} onChange={(m) => setMode('container_size', m)} />
+                </div>
               </div>
               <div className="grid grid-cols-3 gap-1 border border-gray-100 dark:border-slate-800 rounded-md p-1">
                 {containerSizes.length === 0 ? (
                   <div className="col-span-3 px-3 py-2 text-xs text-gray-400 dark:text-slate-500">No sizes available</div>
                 ) : (
                   containerSizes.map((s) => {
-                    const selected = draft.container_sizes?.includes(s.code) ?? false;
+                    const activeKey = modes.container_size === 'exclude' ? 'container_sizes_exclude' : 'container_sizes';
+                    const selected = (draft[activeKey] ?? []).includes(s.code);
                     return (
                       <label key={s.id} className="flex items-center gap-2 px-2 py-1 text-xs hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer rounded">
                         <input
                           type="checkbox"
                           checked={selected}
                           onChange={() => setDraft((d) => {
-                            const set = new Set(d.container_sizes ?? []);
+                            const set = new Set(d[activeKey] ?? []);
                             if (set.has(s.code)) set.delete(s.code); else set.add(s.code);
-                            return { ...d, container_sizes: Array.from(set) };
+                            return { ...d, [activeKey]: Array.from(set) };
                           })}
                           className="rounded"
                         />
@@ -250,22 +301,28 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
             <section>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Flags</label>
-                {(draft.flags?.length ?? 0) > 0 && (
-                  <span className="text-[10px] text-gray-500 dark:text-slate-400">{draft.flags.length} selected</span>
-                )}
+                <div className="flex items-center gap-2">
+                  {((draft.flags?.length ?? 0) + (draft.flags_exclude?.length ?? 0)) > 0 && (
+                    <span className="text-[10px] text-gray-500 dark:text-slate-400">
+                      {(modes.flag === 'exclude' ? (draft.flags_exclude?.length ?? 0) : (draft.flags?.length ?? 0))} selected
+                    </span>
+                  )}
+                  <ExcludeToggle mode={modes.flag} onChange={(m) => setMode('flag', m)} />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-1 border border-gray-100 dark:border-slate-800 rounded-md p-1">
                 {FLAG_OPTIONS.map((opt) => {
-                  const selected = draft.flags?.includes(opt.key) ?? false;
+                  const activeKey = modes.flag === 'exclude' ? 'flags_exclude' : 'flags';
+                  const selected = (draft[activeKey] ?? []).includes(opt.key);
                   return (
                     <label key={opt.key} className="flex items-center gap-2 px-2 py-1 text-xs hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer rounded">
                       <input
                         type="checkbox"
                         checked={selected}
                         onChange={() => setDraft((d) => {
-                          const set = new Set(d.flags ?? []);
+                          const set = new Set(d[activeKey] ?? []);
                           if (set.has(opt.key)) set.delete(opt.key); else set.add(opt.key);
-                          return { ...d, flags: Array.from(set) };
+                          return { ...d, [activeKey]: Array.from(set) };
                         })}
                         className="rounded"
                       />
@@ -282,25 +339,31 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
             <section>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">SSL</label>
-                {(draft.ssl_codes?.length ?? 0) > 0 && (
-                  <span className="text-[10px] text-gray-500 dark:text-slate-400">{draft.ssl_codes.length} selected</span>
-                )}
+                <div className="flex items-center gap-2">
+                  {((draft.ssl_codes?.length ?? 0) + (draft.ssl_codes_exclude?.length ?? 0)) > 0 && (
+                    <span className="text-[10px] text-gray-500 dark:text-slate-400">
+                      {(modes.ssl === 'exclude' ? (draft.ssl_codes_exclude?.length ?? 0) : (draft.ssl_codes?.length ?? 0))} selected
+                    </span>
+                  )}
+                  <ExcludeToggle mode={modes.ssl} onChange={(m) => setMode('ssl', m)} />
+                </div>
               </div>
               <div className="max-h-40 overflow-y-auto border border-gray-100 dark:border-slate-800 rounded-md">
                 {sslCodes.length === 0 ? (
                   <div className="px-3 py-2 text-xs text-gray-400 dark:text-slate-500">No SSL codes in orders</div>
                 ) : (
                   sslCodes.map((code) => {
-                    const selected = draft.ssl_codes?.includes(code) ?? false;
+                    const activeKey = modes.ssl === 'exclude' ? 'ssl_codes_exclude' : 'ssl_codes';
+                    const selected = (draft[activeKey] ?? []).includes(code);
                     return (
                       <label key={code} className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={selected}
                           onChange={() => setDraft((d) => {
-                            const set = new Set(d.ssl_codes ?? []);
+                            const set = new Set(d[activeKey] ?? []);
                             if (set.has(code)) set.delete(code); else set.add(code);
-                            return { ...d, ssl_codes: Array.from(set) };
+                            return { ...d, [activeKey]: Array.from(set) };
                           })}
                           className="rounded"
                         />
@@ -318,14 +381,22 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
             <section>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Driver</label>
-                {(draft.driver_ids?.length ?? 0) > 0 && (
-                  <span className="text-[10px] text-gray-500 dark:text-slate-400">{draft.driver_ids.length} selected</span>
-                )}
+                <div className="flex items-center gap-2">
+                  {((draft.driver_ids?.length ?? 0) + (draft.driver_ids_exclude?.length ?? 0)) > 0 && (
+                    <span className="text-[10px] text-gray-500 dark:text-slate-400">
+                      {(modes.driver === 'exclude' ? (draft.driver_ids_exclude?.length ?? 0) : (draft.driver_ids?.length ?? 0))} selected
+                    </span>
+                  )}
+                  <ExcludeToggle mode={modes.driver} onChange={(m) => setMode('driver', m)} />
+                </div>
               </div>
               <CustomerCombobox
                 options={drivers.map((d) => ({ id: d.id, name: d.name || `${d.first_name || ''} ${d.last_name || ''}`.trim() || 'Unnamed Driver' }))}
-                selectedIds={draft.driver_ids ?? []}
-                onChange={(ids) => setDraft((d) => ({ ...d, driver_ids: ids }))}
+                selectedIds={modes.driver === 'exclude' ? (draft.driver_ids_exclude ?? []) : (draft.driver_ids ?? [])}
+                onChange={(ids) => setDraft((d) => ({
+                  ...d,
+                  [modes.driver === 'exclude' ? 'driver_ids_exclude' : 'driver_ids']: ids,
+                }))}
                 query={driverQuery}
                 onQueryChange={setDriverQuery}
               />
@@ -337,14 +408,22 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
             <section>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Customers</label>
-                {(draft.customer_ids?.length ?? 0) > 0 && (
-                  <span className="text-[10px] text-gray-500 dark:text-slate-400">{draft.customer_ids.length} selected</span>
-                )}
+                <div className="flex items-center gap-2">
+                  {((draft.customer_ids?.length ?? 0) + (draft.customer_ids_exclude?.length ?? 0)) > 0 && (
+                    <span className="text-[10px] text-gray-500 dark:text-slate-400">
+                      {(modes.customer === 'exclude' ? (draft.customer_ids_exclude?.length ?? 0) : (draft.customer_ids?.length ?? 0))} selected
+                    </span>
+                  )}
+                  <ExcludeToggle mode={modes.customer} onChange={(m) => setMode('customer', m)} />
+                </div>
               </div>
               <CustomerCombobox
                 options={customers}
-                selectedIds={draft.customer_ids ?? []}
-                onChange={(ids) => setDraft((d) => ({ ...d, customer_ids: ids }))}
+                selectedIds={modes.customer === 'exclude' ? (draft.customer_ids_exclude ?? []) : (draft.customer_ids ?? [])}
+                onChange={(ids) => setDraft((d) => ({
+                  ...d,
+                  [modes.customer === 'exclude' ? 'customer_ids_exclude' : 'customer_ids']: ids,
+                }))}
                 query={customerQuery}
                 onQueryChange={setCustomerQuery}
               />
@@ -356,9 +435,14 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
             <section>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Branches</label>
-                {(draft.branch_ids?.length ?? 0) > 0 && (
-                  <span className="text-[10px] text-gray-500 dark:text-slate-400">{draft.branch_ids.length} selected</span>
-                )}
+                <div className="flex items-center gap-2">
+                  {((draft.branch_ids?.length ?? 0) + (draft.branch_ids_exclude?.length ?? 0)) > 0 && (
+                    <span className="text-[10px] text-gray-500 dark:text-slate-400">
+                      {(modes.branch === 'exclude' ? (draft.branch_ids_exclude?.length ?? 0) : (draft.branch_ids?.length ?? 0))} selected
+                    </span>
+                  )}
+                  <ExcludeToggle mode={modes.branch} onChange={(m) => setMode('branch', m)} />
+                </div>
               </div>
               <div className="relative mb-2">
                 <Search className="absolute left-2 top-2 w-3.5 h-3.5 text-gray-400 dark:text-slate-500" />
@@ -374,17 +458,25 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
                 {filteredBranches.length === 0 ? (
                   <div className="px-3 py-2 text-xs text-gray-400 dark:text-slate-500">No matches</div>
                 ) : (
-                  filteredBranches.map((b) => (
-                    <label key={b.id} className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={draft.branch_ids?.includes(b.id) ?? false}
-                        onChange={() => toggleArray('branch_ids', b.id)}
-                        className="rounded"
-                      />
-                      <span className="text-gray-700 dark:text-slate-300 truncate">{b.name}</span>
-                    </label>
-                  ))
+                  filteredBranches.map((b) => {
+                    const activeKey = modes.branch === 'exclude' ? 'branch_ids_exclude' : 'branch_ids';
+                    const selected = (draft[activeKey] ?? []).includes(b.id);
+                    return (
+                      <label key={b.id} className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => setDraft((d) => {
+                            const set = new Set(d[activeKey] ?? []);
+                            if (set.has(b.id)) set.delete(b.id); else set.add(b.id);
+                            return { ...d, [activeKey]: Array.from(set) };
+                          })}
+                          className="rounded"
+                        />
+                        <span className="text-gray-700 dark:text-slate-300 truncate">{b.name}</span>
+                      </label>
+                    );
+                  })
                 )}
               </div>
             </section>
@@ -444,6 +536,14 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
                 if (draft.flags?.length) cleaned.flags = draft.flags;
                 if (draft.ssl_codes?.length) cleaned.ssl_codes = draft.ssl_codes;
                 if (draft.driver_ids?.length) cleaned.driver_ids = draft.driver_ids;
+                if (draft.customer_ids_exclude?.length)    cleaned.customer_ids_exclude    = draft.customer_ids_exclude;
+                if (draft.branch_ids_exclude?.length)      cleaned.branch_ids_exclude      = draft.branch_ids_exclude;
+                if (draft.load_types_exclude?.length)      cleaned.load_types_exclude      = draft.load_types_exclude;
+                if (draft.container_types_exclude?.length) cleaned.container_types_exclude = draft.container_types_exclude;
+                if (draft.container_sizes_exclude?.length) cleaned.container_sizes_exclude = draft.container_sizes_exclude;
+                if (draft.flags_exclude?.length)           cleaned.flags_exclude           = draft.flags_exclude;
+                if (draft.ssl_codes_exclude?.length)       cleaned.ssl_codes_exclude       = draft.ssl_codes_exclude;
+                if (draft.driver_ids_exclude?.length)      cleaned.driver_ids_exclude      = draft.driver_ids_exclude;
                 onApply(cleaned);
                 onClose();
               }}
@@ -455,6 +555,28 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
         </div>
       </div>
     </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+// Small pill toggle for Include / Exclude mode on a multi-select
+// section. Keeps include + exclude lists in the draft simultaneously;
+// the UI only shows one mode's list at a time.
+// ──────────────────────────────────────────────────────────────
+function ExcludeToggle({ mode, onChange }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(mode === 'exclude' ? 'include' : 'exclude')}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide border ${
+        mode === 'exclude'
+          ? 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900'
+          : 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+      }`}
+      aria-pressed={mode === 'exclude'}
+    >
+      {mode === 'exclude' ? 'Excluding' : 'Include'}
+    </button>
   );
 }
 

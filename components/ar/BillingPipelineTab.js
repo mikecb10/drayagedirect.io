@@ -67,6 +67,14 @@ export default function BillingPipelineTab({ filters = {} }) {
       if (filters.flags?.length) params.set('flags', filters.flags.join(','));
       if (filters.ssl_codes?.length) params.set('ssl_codes', filters.ssl_codes.join(','));
       if (filters.driver_ids?.length) params.set('driver_ids', filters.driver_ids.join(','));
+      if (filters.customer_ids_exclude?.length)    params.set('customer_ids_exclude',    filters.customer_ids_exclude.join(','));
+      if (filters.branch_ids_exclude?.length)      params.set('branch_ids_exclude',      filters.branch_ids_exclude.join(','));
+      if (filters.load_types_exclude?.length)      params.set('load_types_exclude',      filters.load_types_exclude.join(','));
+      if (filters.container_types_exclude?.length) params.set('container_types_exclude', filters.container_types_exclude.join(','));
+      if (filters.container_sizes_exclude?.length) params.set('container_sizes_exclude', filters.container_sizes_exclude.join(','));
+      if (filters.flags_exclude?.length)           params.set('flags_exclude',           filters.flags_exclude.join(','));
+      if (filters.ssl_codes_exclude?.length)       params.set('ssl_codes_exclude',       filters.ssl_codes_exclude.join(','));
+      if (filters.driver_ids_exclude?.length)      params.set('driver_ids_exclude',      filters.driver_ids_exclude.join(','));
       const res = await fetch(`/api/tenant/ar?${params}`);
       if (!res.ok) throw new Error('Failed to load');
       const data = await res.json();
