@@ -11,7 +11,23 @@ const LOAD_TYPE_OPTIONS = [
   { value: 'bill_only', label: 'Bill Only' },
 ];
 
-const EMPTY = { customer_ids: [], branch_ids: [], from: '', to: '', reference_number: '', load_types: [], container_types: [], container_sizes: [] };
+const FLAG_OPTIONS = [
+  { key: 'hazmat',      label: 'Hazmat' },
+  { key: 'overweight',  label: 'Overweight' },
+  { key: 'overheight',  label: 'Overheight' },
+  { key: 'hot',         label: 'Hot' },
+  { key: 'genset',      label: 'Genset' },
+  { key: 'scale',       label: 'Scale' },
+  { key: 'ev',          label: 'EV' },
+  { key: 'street_turn', label: 'Street Turn' },
+  { key: 'oog',         label: 'OOG' },
+  { key: 'bonded',      label: 'Bonded' },
+  { key: 'double',      label: 'Double' },
+  { key: 'tanker',      label: 'Tanker' },
+  { key: 'liquor',      label: 'Liquor' },
+];
+
+const EMPTY = { customer_ids: [], branch_ids: [], from: '', to: '', reference_number: '', load_types: [], container_types: [], container_sizes: [], flags: [] };
 
 export default function FilterSidebar({ isOpen, onClose, filters, onApply, section = 'billing' }) {
   const visibleKeys = filterKeysForSection(section);
@@ -209,6 +225,38 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
             </section>
           )}
 
+          {/* Load flags — AND semantics; row must have every selected flag set true */}
+          {showKey('flags') && (
+            <section>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Flags</label>
+                {(draft.flags?.length ?? 0) > 0 && (
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400">{draft.flags.length} selected</span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-1 border border-gray-100 dark:border-slate-800 rounded-md p-1">
+                {FLAG_OPTIONS.map((opt) => {
+                  const selected = draft.flags?.includes(opt.key) ?? false;
+                  return (
+                    <label key={opt.key} className="flex items-center gap-2 px-2 py-1 text-xs hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer rounded">
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => setDraft((d) => {
+                          const set = new Set(d.flags ?? []);
+                          if (set.has(opt.key)) set.delete(opt.key); else set.add(opt.key);
+                          return { ...d, flags: Array.from(set) };
+                        })}
+                        className="rounded"
+                      />
+                      <span className="text-gray-700 dark:text-slate-300">{opt.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
           {/* Customers — typeahead combobox with chips */}
           <section>
             <div className="flex items-center justify-between mb-2">
@@ -312,6 +360,7 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
                 if (draft.load_types?.length) cleaned.load_types = draft.load_types;
                 if (draft.container_types?.length) cleaned.container_types = draft.container_types;
                 if (draft.container_sizes?.length) cleaned.container_sizes = draft.container_sizes;
+                if (draft.flags?.length) cleaned.flags = draft.flags;
                 onApply(cleaned);
                 onClose();
               }}
