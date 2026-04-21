@@ -40,6 +40,21 @@ export default async function handler(req, res) {
     const sslCodes        = parseCsvParam(req.query.ssl_codes);
     const driverIds       = parseCsvParam(req.query.driver_ids);
 
+    // Exclude variants
+    const customerIdsExclude    = parseCsvParam(req.query.customer_ids_exclude);
+    const branchIdsExclude      = parseCsvParam(req.query.branch_ids_exclude);
+    const loadTypesExclude      = parseCsvParam(req.query.load_types_exclude);
+    const containerTypesExclude = parseCsvParam(req.query.container_types_exclude);
+    const containerSizesExclude = parseCsvParam(req.query.container_sizes_exclude);
+    const flagKeysExclude       = parseCsvParam(req.query.flags_exclude);
+    const sslCodesExclude       = parseCsvParam(req.query.ssl_codes_exclude);
+    const driverIdsExclude      = parseCsvParam(req.query.driver_ids_exclude);
+    // New dimensions
+    const { invoiced_from, invoiced_to } = req.query;
+    const pickupLocationIds   = parseCsvParam(req.query.pickup_location_ids);
+    const deliveryLocationIds = parseCsvParam(req.query.delivery_location_ids);
+    const returnLocationIds   = parseCsvParam(req.query.return_location_ids);
+
     let query = svc
       .from('invoices')
       .select(`
@@ -47,7 +62,7 @@ export default async function handler(req, res) {
         customer:customers!customer_id(id, name),
         charge_sets:invoice_charge_sets(
           charge_set:order_charge_sets(id, charge_set_number, order_id, total_cents,
-            order:orders(id, order_number, load_type, customer_reference, branch_id, driver_id, container_type, container_size, steamship_line_scac, is_hazmat, is_overweight, is_overheight, is_liquor, is_hot, is_genset, is_scale, is_ev, is_street_turn, is_oog, is_bonded, is_double, is_tanker)
+            order:orders(id, order_number, load_type, customer_reference, branch_id, driver_id, container_type, container_size, steamship_line_scac, is_hazmat, is_overweight, is_overheight, is_liquor, is_hot, is_genset, is_scale, is_ev, is_street_turn, is_oog, is_bonded, is_double, is_tanker, pickup_location_id, delivery_location_id, return_location_id)
           )
         )
       `)
@@ -87,23 +102,48 @@ export default async function handler(req, res) {
         if (!order.steamship_line_scac || !codes.has(order.steamship_line_scac.toUpperCase())) return false;
       }
       if (driverIds.length > 0 && !driverIds.includes(order.driver_id)) return false;
+      // Phase B2 exclude variants
+      if (customerIdsExclude.length > 0 && order.customer_id && customerIdsExclude.includes(order.customer_id)) return false;
+      if (branchIdsExclude.length > 0 && order.branch_id && branchIdsExclude.includes(order.branch_id)) return false;
+      if (loadTypesExclude.length > 0 && order.load_type && loadTypesExclude.includes(order.load_type)) return false;
+      if (containerTypesExclude.length > 0 && order.container_type && containerTypesExclude.includes(order.container_type)) return false;
+      if (containerSizesExclude.length > 0 && order.container_size && containerSizesExclude.includes(order.container_size)) return false;
+      if (flagKeysExclude.length > 0 && !flagKeysExclude.every((key) => order[`is_${key}`] !== true)) return false;
+      if (sslCodesExclude.length > 0) {
+        const codes = new Set(sslCodesExclude.map((c) => c.toUpperCase()));
+        if (order.steamship_line_scac && codes.has(order.steamship_line_scac.toUpperCase())) return false;
+      }
+      if (driverIdsExclude.length > 0 && order.driver_id && driverIdsExclude.includes(order.driver_id)) return false;
+      // Phase B2 locations
+      if (pickupLocationIds.length > 0 && !(order.pickup_location_id && pickupLocationIds.includes(order.pickup_location_id))) return false;
+      if (deliveryLocationIds.length > 0 && !(order.delivery_location_id && deliveryLocationIds.includes(order.delivery_location_id))) return false;
+      if (returnLocationIds.length > 0 && !(order.return_location_id && returnLocationIds.includes(order.return_location_id))) return false;
       return true;
     };
 
     const hasOrderFilters =
       (reference_number && typeof reference_number === 'string' && reference_number.trim().length > 0) ||
-      loadTypes.length > 0 ||
-      containerTypes.length > 0 ||
-      containerSizes.length > 0 ||
-      flagKeys.length > 0 ||
-      sslCodes.length > 0 ||
-      driverIds.length > 0;
+      loadTypes.length > 0 || containerTypes.length > 0 || containerSizes.length > 0 ||
+      flagKeys.length > 0 || sslCodes.length > 0 || driverIds.length > 0 ||
+      customerIdsExclude.length > 0 || branchIdsExclude.length > 0 ||
+      loadTypesExclude.length > 0 || containerTypesExclude.length > 0 || containerSizesExclude.length > 0 ||
+      flagKeysExclude.length > 0 || sslCodesExclude.length > 0 || driverIdsExclude.length > 0 ||
+      pickupLocationIds.length > 0 || deliveryLocationIds.length > 0 || returnLocationIds.length > 0;
 
     if (hasOrderFilters) {
       filtered = filtered.filter((inv) => {
         const sets = inv.charge_sets || [];
         return sets.some((cs) => orderMatches(cs?.charge_set?.order));
       });
+    }
+
+    // Phase B2: invoiced date range — invoices.created_at is when the
+    // invoice row was generated, which equals the invoicing moment.
+    if (invoiced_from && typeof invoiced_from === 'string') {
+      filtered = filtered.filter((inv) => inv.created_at && inv.created_at >= invoiced_from);
+    }
+    if (invoiced_to && typeof invoiced_to === 'string') {
+      filtered = filtered.filter((inv) => inv.created_at && inv.created_at <= invoiced_to);
     }
 
     const stats = {
