@@ -4,7 +4,7 @@ import Alert from '../ui/Alert';
 import StatsCards from '../ui/StatsCards';
 import { formatCents } from '../../lib/ar-utils';
 
-export default function AgingTab() {
+export default function AgingTab({ filters = {} }) {
   const [data, setData] = useState({ customers: [], totals: {} });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -13,7 +13,14 @@ export default function AgingTab() {
   async function load() {
     setLoading(true);
     try {
-      const res = await fetch('/api/tenant/ar/aging');
+      const params = new URLSearchParams();
+      if (filters.customer_ids?.length)         params.set('customer_ids', filters.customer_ids.join(','));
+      if (filters.customer_ids_exclude?.length) params.set('customer_ids_exclude', filters.customer_ids_exclude.join(','));
+      if (filters.invoiced_from) params.set('invoiced_from', filters.invoiced_from);
+      if (filters.invoiced_to)   params.set('invoiced_to',   filters.invoiced_to);
+
+      const qs = params.toString();
+      const res = await fetch(`/api/tenant/ar/aging${qs ? `?${qs}` : ''}`);
       if (!res.ok) throw new Error('Failed to load aging data');
       const d = await res.json();
       setData(d);
@@ -21,7 +28,7 @@ export default function AgingTab() {
     finally { setLoading(false); }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [filters]);
 
   function toggleExpand(customerId) {
     setExpanded((prev) => {
