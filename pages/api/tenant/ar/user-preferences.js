@@ -12,26 +12,25 @@ const AR_PERMS = [
   PERMISSIONS.ALL,
 ];
 
-const MAX_TABS_PER_SECTION = 20;
+const MAX_TABS_TOTAL = 40;
 const MAX_TAB_NAME_LEN = 60;
-const VALID_SECTIONS = new Set(['billing', 'invoices']);
 
 /**
  * Shape-check + normalize a single tab coming from the client.
  * Returns a canonical tab object (with id + created_at assigned if new),
  * or throws an Error describing the first validation failure.
+ *
+ * v2 shape: { id, name, filters, created_at }. No `section` — tabs
+ * apply globally across AR sub-tabs.
  */
 function normalizeTab(raw) {
   if (!raw || typeof raw !== 'object') throw new Error('tab must be an object');
-  const section = raw.section;
-  if (!VALID_SECTIONS.has(section)) throw new Error(`invalid section: ${section}`);
   const name = typeof raw.name === 'string' ? raw.name.trim() : '';
   if (!name) throw new Error('tab.name is required');
   if (name.length > MAX_TAB_NAME_LEN) throw new Error(`tab.name exceeds ${MAX_TAB_NAME_LEN} chars`);
   const filters = sanitizeFilterSet(raw.filters);
   return {
     id: typeof raw.id === 'string' && raw.id.length > 0 ? raw.id : randomUUID(),
-    section,
     name,
     filters,
     created_at: typeof raw.created_at === 'string' ? raw.created_at : new Date().toISOString(),
@@ -75,13 +74,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: err.message });
     }
 
-    // Cap per section so a buggy client can't blow up the JSONB blob.
-    const billingCount  = normalized.filter((t) => t.section === 'billing').length;
-    const invoicesCount = normalized.filter((t) => t.section === 'invoices').length;
-    if (billingCount > MAX_TABS_PER_SECTION || invoicesCount > MAX_TABS_PER_SECTION) {
-      return res.status(400).json({
-        error: `max ${MAX_TABS_PER_SECTION} tabs per section`,
-      });
+    if (normalized.length > MAX_TABS_TOTAL) {
+      return res.status(400).json({ error: `max ${MAX_TABS_TOTAL} tabs` });
     }
 
     const { error } = await svc
