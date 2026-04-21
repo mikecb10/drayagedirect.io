@@ -8,9 +8,6 @@ import Select from '../ui/Select';
 import { formatCents } from '../../lib/ar-utils';
 import EmailComposeSlideOver from './EmailComposeSlideOver';
 import { useEmailCompose } from '../../hooks/useEmailCompose';
-import FilterSidebar from './FilterSidebar';
-import CustomTabsRow from './CustomTabsRow';
-import { useArUserPreferences } from './useArUserPreferences';
 
 const STATUS_BADGES = {
   draft: { variant: 'gray', label: 'Draft' },
@@ -20,7 +17,7 @@ const STATUS_BADGES = {
   void: { variant: 'red', label: 'Void' },
 };
 
-export default function InvoicesTab() {
+export default function InvoicesTab({ filters = {} }) {
   const emailCompose = useEmailCompose();
   const [invoices, setInvoices] = useState([]);
   const [stats, setStats] = useState({});
@@ -29,11 +26,6 @@ export default function InvoicesTab() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
-
-  const [filters, setFilters]                     = useState({});
-  const [activeTabId, setActiveTabId]             = useState(null);
-  const [filterSidebarOpen, setFilterSidebarOpen] = useState(false);
-  const { customTabs, saveCustomTab, deleteCustomTab } = useArUserPreferences();
 
   // Create invoice state
   const [approvedSets, setApprovedSets] = useState([]);
@@ -120,28 +112,6 @@ export default function InvoicesTab() {
   return (
     <div className="space-y-5">
       {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
-
-      <CustomTabsRow
-        section="invoices"
-        customTabs={customTabs}
-        activeTabId={activeTabId}
-        currentFilters={filters}
-        onSelectTab={(id) => {
-          setActiveTabId(id);
-          if (id == null) {
-            setFilters({});
-          } else {
-            const tab = customTabs.find((t) => t.id === id);
-            if (tab) setFilters(tab.filters || {});
-          }
-        }}
-        onSaveTab={(tab) => saveCustomTab(tab)}
-        onDeleteTab={(id) => {
-          if (activeTabId === id) { setActiveTabId(null); setFilters({}); }
-          deleteCustomTab(id);
-        }}
-        onOpenFilters={() => setFilterSidebarOpen(true)}
-      />
 
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -329,15 +299,6 @@ export default function InvoicesTab() {
           </div>
         </Modal>
       )}
-      <FilterSidebar
-        isOpen={filterSidebarOpen}
-        onClose={() => setFilterSidebarOpen(false)}
-        filters={filters}
-        onApply={(next) => {
-          setFilters(next);
-          setActiveTabId(null);
-        }}
-      />
     </div>
   );
 }
