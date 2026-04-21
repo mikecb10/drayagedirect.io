@@ -36,8 +36,6 @@ CREATE TABLE user_ar_preferences (
   UNIQUE(tenant_id, user_id)
 );
 
-CREATE INDEX idx_user_ar_prefs_user ON user_ar_preferences(user_id);
-
 -- Row-level security: user sees/modifies only their own tenant+user row.
 ALTER TABLE user_ar_preferences ENABLE ROW LEVEL SECURITY;
 
@@ -52,18 +50,12 @@ CREATE POLICY user_ar_prefs_self ON user_ar_preferences
     AND user_id = current_setting('app.user_id', true)::uuid
   );
 
--- Touch updated_at on every UPDATE.
-CREATE OR REPLACE FUNCTION user_ar_preferences_touch()
-RETURNS trigger AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
+-- Touch updated_at on every UPDATE. Uses the shared trigger function
+-- defined in migration 001 — same pattern as user_dispatcher_preferences.
+DROP TRIGGER IF EXISTS trg_user_ar_prefs_touch ON user_ar_preferences;
 CREATE TRIGGER trg_user_ar_prefs_touch
   BEFORE UPDATE ON user_ar_preferences
-  FOR EACH ROW EXECUTE FUNCTION user_ar_preferences_touch();
+  FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();
 
 NOTIFY pgrst, 'reload schema';
 
