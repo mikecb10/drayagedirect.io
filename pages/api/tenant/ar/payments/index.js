@@ -5,6 +5,7 @@ import {
 } from '../../../../../lib/tenant-api';
 import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
 import { PERMISSIONS } from '../../../../../lib/permissions';
+import { parseCsvParam } from '../../../../../lib/ar-filter-params';
 
 /**
  * /api/tenant/ar/payments
@@ -20,7 +21,13 @@ export default async function handler(req, res) {
   const svc = getServiceClient();
 
   if (req.method === 'GET') {
-    const { customer_id, from, to, payment_method } = req.query;
+    const { customer_id, from, to, payment_method, reference_number } = req.query;
+    const customerIdsRaw = parseCsvParam(req.query.customer_ids);
+    const customerIdsExclude = parseCsvParam(req.query.customer_ids_exclude);
+    // Backward-compat: fold single `customer_id` into the include array.
+    const customerIds = customer_id
+      ? Array.from(new Set([...customerIdsRaw, customer_id]))
+      : customerIdsRaw;
 
     let query = svc
       .from('payments_received')
@@ -35,10 +42,17 @@ export default async function handler(req, res) {
       .eq('tenant_id', ctx.tenantId)
       .order('payment_date', { ascending: false });
 
-    if (customer_id) query = query.eq('customer_id', customer_id);
+    if (customerIds.length === 1) query = query.eq('customer_id', customerIds[0]);
+    else if (customerIds.length > 1) query = query.in('customer_id', customerIds);
+    if (customerIdsExclude.length === 1) query = query.neq('customer_id', customerIdsExclude[0]);
+    else if (customerIdsExclude.length > 1) query = query.not('customer_id', 'in', '(' + customerIdsExclude.join(',') + ')');
     if (payment_method) query = query.eq('payment_method', payment_method);
     if (from) query = query.gte('payment_date', from);
     if (to) query = query.lte('payment_date', to);
+
+    if (reference_number && typeof reference_number === 'string' && reference_number.trim().length > 0) {
+      query = query.ilike('reference_number', `%${reference_number.trim()}%`);
+    }
 
     const { data, error } = await query;
     if (error) return res.status(500).json({ error: error.message });
