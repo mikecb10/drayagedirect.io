@@ -89,5 +89,15 @@ check('keeps factor_company string',
 check('drops empty factor_company',
   JSON.stringify(sanitizeFilterSet({ factor_company: '' })) === '{}');
 
+console.log('\nsanitizeFilterSet (Phase C keys)');
+check('keeps rate_con_sent_y yes',
+  JSON.stringify(sanitizeFilterSet({ rate_con_sent_y: 'yes' })) === '{"rate_con_sent_y":"yes"}');
+check('keeps rate_con_sent_y no',
+  JSON.stringify(sanitizeFilterSet({ rate_con_sent_y: 'no' })) === '{"rate_con_sent_y":"no"}');
+check('keeps invoice_email_sent_y yes',
+  JSON.stringify(sanitizeFilterSet({ invoice_email_sent_y: 'yes' })) === '{"invoice_email_sent_y":"yes"}');
+check('drops empty rate_con_sent_y',
+  JSON.stringify(sanitizeFilterSet({ rate_con_sent_y: '' })) === '{}');
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
