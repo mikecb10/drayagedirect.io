@@ -9,9 +9,6 @@ import { formatInvoiceNumber } from '../../lib/invoice-utils';
 import BulkActionBar from './BulkActionBar';
 import BulkGroupingModal from './BulkGroupingModal';
 import BulkEmailQueue from './BulkEmailQueue';
-import FilterSidebar from './FilterSidebar';
-import CustomTabsRow from './CustomTabsRow';
-import { useArUserPreferences } from './useArUserPreferences';
 
 const STATUS_BADGES = {
   draft: { label: 'Draft', cls: 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300' },
@@ -29,7 +26,7 @@ function formatCents(cents) {
   return `$${(cents / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 }
 
-export default function BillingPipelineTab() {
+export default function BillingPipelineTab({ filters = {} }) {
   const { openOverlay } = useOverlay();
   const [chargeSets, setChargeSets] = useState([]);
   const [counts, setCounts] = useState({});
@@ -47,11 +44,6 @@ export default function BillingPipelineTab() {
   // queueState so the invoice and rate-con flows coexist cleanly.
   const [groupingModalRateCons, setGroupingModalRateCons] = useState(null);
   const [rateConQueueState, setRateConQueueState] = useState(null);
-
-  const [filters, setFilters]                     = useState({});   // live applied filters
-  const [activeTabId, setActiveTabId]             = useState(null); // null = "All"
-  const [filterSidebarOpen, setFilterSidebarOpen] = useState(false);
-  const { customTabs, saveCustomTab, deleteCustomTab } = useArUserPreferences();
 
   async function fetchAR({ silent = false } = {}) {
     if (!silent) setLoading(true);
@@ -411,28 +403,6 @@ export default function BillingPipelineTab() {
         />
       )}
 
-      <CustomTabsRow
-        section="billing"
-        customTabs={customTabs}
-        activeTabId={activeTabId}
-        currentFilters={filters}
-        onSelectTab={(id) => {
-          setActiveTabId(id);
-          if (id == null) {
-            setFilters({});
-          } else {
-            const tab = customTabs.find((t) => t.id === id);
-            if (tab) setFilters(tab.filters || {});
-          }
-        }}
-        onSaveTab={(tab) => saveCustomTab(tab)}
-        onDeleteTab={(id) => {
-          if (activeTabId === id) { setActiveTabId(null); setFilters({}); }
-          deleteCustomTab(id);
-        }}
-        onOpenFilters={() => setFilterSidebarOpen(true)}
-      />
-
       {/* Pre-Invoice Pipeline */}
       <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
         <div className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-3">Pre-Invoice Pipeline</div>
@@ -655,15 +625,6 @@ export default function BillingPipelineTab() {
           }}
         />
       )}
-      <FilterSidebar
-        isOpen={filterSidebarOpen}
-        onClose={() => setFilterSidebarOpen(false)}
-        filters={filters}
-        onApply={(next) => {
-          setFilters(next);
-          setActiveTabId(null); // applying raw filters drops out of any saved tab
-        }}
-      />
     </div>
   );
 }
