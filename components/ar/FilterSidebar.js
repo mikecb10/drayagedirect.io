@@ -11,7 +11,7 @@ const LOAD_TYPE_OPTIONS = [
   { value: 'bill_only', label: 'Bill Only' },
 ];
 
-const EMPTY = { customer_ids: [], branch_ids: [], from: '', to: '', reference_number: '', load_types: [] };
+const EMPTY = { customer_ids: [], branch_ids: [], from: '', to: '', reference_number: '', load_types: [], container_types: [], container_sizes: [] };
 
 export default function FilterSidebar({ isOpen, onClose, filters, onApply, section = 'billing' }) {
   const visibleKeys = filterKeysForSection(section);
@@ -19,6 +19,8 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
   const [draft, setDraft] = useState(() => ({ ...EMPTY, ...filters }));
   const [customers, setCustomers] = useState([]);
   const [branches, setBranches] = useState([]);
+  const [containerTypes, setContainerTypes] = useState([]);
+  const [containerSizes, setContainerSizes] = useState([]);
   const [customerQuery, setCustomerQuery] = useState('');
   const [branchQuery, setBranchQuery] = useState('');
 
@@ -31,12 +33,16 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
     if (!isOpen) return;
     (async () => {
       try {
-        const [custRes, brRes] = await Promise.all([
+        const [custRes, brRes, ctRes, csRes] = await Promise.all([
           fetch('/api/tenant/organizations?type=customer').then((r) => (r.ok ? r.json() : { organizations: [] })),
           fetch('/api/tenant/branches').then((r) => (r.ok ? r.json() : { branches: [] })),
+          fetch('/api/tenant/container-types?enabled=true').then((r) => (r.ok ? r.json() : { items: [] })),
+          fetch('/api/tenant/container-sizes?enabled=true').then((r) => (r.ok ? r.json() : { items: [] })),
         ]);
         setCustomers(custRes.organizations ?? custRes.customers ?? custRes ?? []);
         setBranches(brRes.branches ?? brRes ?? []);
+        setContainerTypes(ctRes.items ?? []);
+        setContainerSizes(csRes.items ?? []);
       } catch (_) { /* swallow — user sees empty list, can still type dates */ }
     })();
   }, [isOpen]);
@@ -127,6 +133,78 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
                     </label>
                   );
                 })}
+              </div>
+            </section>
+          )}
+
+          {/* Container type */}
+          {showKey('container_types') && (
+            <section>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Container type</label>
+                {(draft.container_types?.length ?? 0) > 0 && (
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400">{draft.container_types.length} selected</span>
+                )}
+              </div>
+              <div className="max-h-40 overflow-y-auto border border-gray-100 dark:border-slate-800 rounded-md">
+                {containerTypes.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-gray-400 dark:text-slate-500">No types available</div>
+                ) : (
+                  containerTypes.map((t) => {
+                    const selected = draft.container_types?.includes(t.code) ?? false;
+                    return (
+                      <label key={t.id} className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => setDraft((d) => {
+                            const set = new Set(d.container_types ?? []);
+                            if (set.has(t.code)) set.delete(t.code); else set.add(t.code);
+                            return { ...d, container_types: Array.from(set) };
+                          })}
+                          className="rounded"
+                        />
+                        <span className="text-gray-700 dark:text-slate-300 truncate">{t.label || t.code}</span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* Container size */}
+          {showKey('container_sizes') && (
+            <section>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Container size</label>
+                {(draft.container_sizes?.length ?? 0) > 0 && (
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400">{draft.container_sizes.length} selected</span>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-1 border border-gray-100 dark:border-slate-800 rounded-md p-1">
+                {containerSizes.length === 0 ? (
+                  <div className="col-span-3 px-3 py-2 text-xs text-gray-400 dark:text-slate-500">No sizes available</div>
+                ) : (
+                  containerSizes.map((s) => {
+                    const selected = draft.container_sizes?.includes(s.code) ?? false;
+                    return (
+                      <label key={s.id} className="flex items-center gap-2 px-2 py-1 text-xs hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer rounded">
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => setDraft((d) => {
+                            const set = new Set(d.container_sizes ?? []);
+                            if (set.has(s.code)) set.delete(s.code); else set.add(s.code);
+                            return { ...d, container_sizes: Array.from(set) };
+                          })}
+                          className="rounded"
+                        />
+                        <span className="text-gray-700 dark:text-slate-300">{s.label || s.code}</span>
+                      </label>
+                    );
+                  })
+                )}
               </div>
             </section>
           )}
@@ -232,6 +310,8 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
                   cleaned.reference_number = draft.reference_number.trim();
                 }
                 if (draft.load_types?.length) cleaned.load_types = draft.load_types;
+                if (draft.container_types?.length) cleaned.container_types = draft.container_types;
+                if (draft.container_sizes?.length) cleaned.container_sizes = draft.container_sizes;
                 onApply(cleaned);
                 onClose();
               }}
