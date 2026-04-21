@@ -48,9 +48,13 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
   const [containerSizes, setContainerSizes] = useState([]);
   const [sslCodes, setSslCodes] = useState([]);
   const [drivers, setDrivers] = useState([]);
+  const [orgs, setOrgs] = useState([]);       // all org types — for pickup / delivery / return locations
   const [customerQuery, setCustomerQuery] = useState('');
   const [driverQuery, setDriverQuery] = useState('');
   const [branchQuery, setBranchQuery] = useState('');
+  const [pickupQuery, setPickupQuery]     = useState('');
+  const [deliveryQuery, setDeliveryQuery] = useState('');
+  const [returnQuery, setReturnQuery]     = useState('');
   const [modes, setModes] = useState({
     customer:       'include',
     branch:         'include',
@@ -72,13 +76,14 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
     if (!isOpen) return;
     (async () => {
       try {
-        const [custRes, brRes, ctRes, csRes, sslRes, drvRes] = await Promise.all([
+        const [custRes, brRes, ctRes, csRes, sslRes, drvRes, orgsRes] = await Promise.all([
           fetch('/api/tenant/organizations?type=customer').then((r) => (r.ok ? r.json() : { organizations: [] })),
           fetch('/api/tenant/branches').then((r) => (r.ok ? r.json() : { branches: [] })),
           fetch('/api/tenant/container-types?enabled=true').then((r) => (r.ok ? r.json() : { items: [] })),
           fetch('/api/tenant/container-sizes?enabled=true').then((r) => (r.ok ? r.json() : { items: [] })),
           fetch('/api/tenant/ar/ssl-codes').then((r) => (r.ok ? r.json() : { codes: [] })),
           fetch('/api/tenant/drivers').then((r) => (r.ok ? r.json() : { drivers: [] })),
+          fetch('/api/tenant/organizations').then((r) => (r.ok ? r.json() : { organizations: [] })),
         ]);
         setCustomers(custRes.organizations ?? custRes.customers ?? custRes ?? []);
         setBranches(brRes.branches ?? brRes ?? []);
@@ -86,6 +91,7 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
         setContainerSizes(csRes.items ?? []);
         setSslCodes(sslRes.codes ?? []);
         setDrivers(drvRes.drivers ?? []);
+        setOrgs(orgsRes.organizations ?? orgsRes.customers ?? orgsRes ?? []);
       } catch (_) { /* swallow — user sees empty list, can still type dates */ }
     })();
   }, [isOpen]);
@@ -403,6 +409,63 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
             </section>
           )}
 
+          {/* Pickup location */}
+          {showKey('pickup_location_ids') && (
+            <section>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Pickup location</label>
+                {(draft.pickup_location_ids?.length ?? 0) > 0 && (
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400">{draft.pickup_location_ids.length} selected</span>
+                )}
+              </div>
+              <CustomerCombobox
+                options={orgs.map((o) => ({ id: o.id, name: o.name }))}
+                selectedIds={draft.pickup_location_ids ?? []}
+                onChange={(ids) => setDraft((d) => ({ ...d, pickup_location_ids: ids }))}
+                query={pickupQuery}
+                onQueryChange={setPickupQuery}
+              />
+            </section>
+          )}
+
+          {/* Delivery location */}
+          {showKey('delivery_location_ids') && (
+            <section>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Delivery location</label>
+                {(draft.delivery_location_ids?.length ?? 0) > 0 && (
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400">{draft.delivery_location_ids.length} selected</span>
+                )}
+              </div>
+              <CustomerCombobox
+                options={orgs.map((o) => ({ id: o.id, name: o.name }))}
+                selectedIds={draft.delivery_location_ids ?? []}
+                onChange={(ids) => setDraft((d) => ({ ...d, delivery_location_ids: ids }))}
+                query={deliveryQuery}
+                onQueryChange={setDeliveryQuery}
+              />
+            </section>
+          )}
+
+          {/* Return location */}
+          {showKey('return_location_ids') && (
+            <section>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Return location</label>
+                {(draft.return_location_ids?.length ?? 0) > 0 && (
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400">{draft.return_location_ids.length} selected</span>
+                )}
+              </div>
+              <CustomerCombobox
+                options={orgs.map((o) => ({ id: o.id, name: o.name }))}
+                selectedIds={draft.return_location_ids ?? []}
+                onChange={(ids) => setDraft((d) => ({ ...d, return_location_ids: ids }))}
+                query={returnQuery}
+                onQueryChange={setReturnQuery}
+              />
+            </section>
+          )}
+
           {/* Customers — typeahead combobox with chips */}
           {showKey('customer_ids') && (
             <section>
@@ -567,6 +630,9 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
                 if (draft.flags_exclude?.length)           cleaned.flags_exclude           = draft.flags_exclude;
                 if (draft.ssl_codes_exclude?.length)       cleaned.ssl_codes_exclude       = draft.ssl_codes_exclude;
                 if (draft.driver_ids_exclude?.length)      cleaned.driver_ids_exclude      = draft.driver_ids_exclude;
+                if (draft.pickup_location_ids?.length)   cleaned.pickup_location_ids   = draft.pickup_location_ids;
+                if (draft.delivery_location_ids?.length) cleaned.delivery_location_ids = draft.delivery_location_ids;
+                if (draft.return_location_ids?.length)   cleaned.return_location_ids   = draft.return_location_ids;
                 onApply(cleaned);
                 onClose();
               }}

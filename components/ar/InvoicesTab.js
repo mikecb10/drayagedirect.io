@@ -59,6 +59,9 @@ export default function InvoicesTab({ filters = {} }) {
       if (filters.flags_exclude?.length)           params.set('flags_exclude',           filters.flags_exclude.join(','));
       if (filters.ssl_codes_exclude?.length)       params.set('ssl_codes_exclude',       filters.ssl_codes_exclude.join(','));
       if (filters.driver_ids_exclude?.length)      params.set('driver_ids_exclude',      filters.driver_ids_exclude.join(','));
+      if (filters.pickup_location_ids?.length)   params.set('pickup_location_ids',   filters.pickup_location_ids.join(','));
+      if (filters.delivery_location_ids?.length) params.set('delivery_location_ids', filters.delivery_location_ids.join(','));
+      if (filters.return_location_ids?.length)   params.set('return_location_ids',   filters.return_location_ids.join(','));
       const res = await fetch(`/api/tenant/ar/invoices?${params}`);
       if (!res.ok) throw new Error('Failed to load invoices');
       const data = await res.json();
