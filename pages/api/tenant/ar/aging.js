@@ -4,6 +4,7 @@ import {
   getServiceClient,
 } from '../../../../lib/tenant-api';
 import { PERMISSIONS } from '../../../../lib/permissions';
+import { parseCsvParam } from '../../../../lib/ar-filter-params';
 
 /**
  * /api/tenant/ar/aging
@@ -19,8 +20,12 @@ export default async function handler(req, res) {
 
   const svc = getServiceClient();
 
+  const customerIds        = parseCsvParam(req.query.customer_ids);
+  const customerIdsExclude = parseCsvParam(req.query.customer_ids_exclude);
+  const { invoiced_from, invoiced_to } = req.query;
+
   // Fetch all open invoices (sent or overdue, not deleted)
-  const { data: invoices, error } = await svc
+  let invoicesQuery = svc
     .from('invoices')
     .select('id, invoice_number, customer_id, due_date, balance_due_cents, total_amount_cents, status, created_at')
     .eq('tenant_id', ctx.tenantId)
@@ -29,16 +34,25 @@ export default async function handler(req, res) {
     .gt('balance_due_cents', 0)
     .order('due_date', { ascending: true });
 
+  if (customerIds.length === 1) invoicesQuery = invoicesQuery.eq('customer_id', customerIds[0]);
+  else if (customerIds.length > 1) invoicesQuery = invoicesQuery.in('customer_id', customerIds);
+  if (customerIdsExclude.length === 1) invoicesQuery = invoicesQuery.neq('customer_id', customerIdsExclude[0]);
+  else if (customerIdsExclude.length > 1) invoicesQuery = invoicesQuery.not('customer_id', 'in', '(' + customerIdsExclude.join(',') + ')');
+  if (invoiced_from && typeof invoiced_from === 'string') invoicesQuery = invoicesQuery.gte('created_at', invoiced_from);
+  if (invoiced_to   && typeof invoiced_to   === 'string') invoicesQuery = invoicesQuery.lte('created_at', invoiced_to);
+
+  const { data: invoices, error } = await invoicesQuery;
+
   if (error) return res.status(500).json({ error: error.message });
 
   // Fetch customer names
-  const customerIds = [...new Set((invoices || []).map((i) => i.customer_id))];
+  const invoiceCustomerIds = [...new Set((invoices || []).map((i) => i.customer_id))];
   let customerMap = {};
-  if (customerIds.length > 0) {
+  if (invoiceCustomerIds.length > 0) {
     const { data: customers } = await svc
       .from('customers')
       .select('id, name')
-      .in('id', customerIds);
+      .in('id', invoiceCustomerIds);
     for (const c of customers || []) {
       customerMap[c.id] = c.name;
     }
