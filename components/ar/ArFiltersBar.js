@@ -30,10 +30,19 @@ export default function ArFiltersBar({
 
   const filtersAreEmpty =
     !currentFilters ||
-    ((currentFilters.customer_ids?.length ?? 0) === 0 &&
-     (currentFilters.branch_ids?.length ?? 0) === 0 &&
-     !currentFilters.from &&
-     !currentFilters.to);
+    (
+      (currentFilters.customer_ids?.length    ?? 0) === 0 &&
+      (currentFilters.branch_ids?.length      ?? 0) === 0 &&
+      (currentFilters.load_types?.length      ?? 0) === 0 &&
+      (currentFilters.container_types?.length ?? 0) === 0 &&
+      (currentFilters.container_sizes?.length ?? 0) === 0 &&
+      (currentFilters.flags?.length           ?? 0) === 0 &&
+      (currentFilters.ssl_codes?.length       ?? 0) === 0 &&
+      (currentFilters.driver_ids?.length      ?? 0) === 0 &&
+      !currentFilters.from &&
+      !currentFilters.to &&
+      !(currentFilters.reference_number && currentFilters.reference_number.trim().length > 0)
+    );
 
   const matchesExistingTab = customTabs.some((t) => filtersMatch(t.filters, currentFilters));
   const canSave = !filtersAreEmpty && !matchesExistingTab;
@@ -142,15 +151,26 @@ function TabButton({ label, active, onClick, onDelete }) {
 }
 
 function filtersMatch(a, b) {
+  a = a || {};
+  b = b || {};
   const arrEq = (x, y) => {
     const xs = [...(x ?? [])].sort();
     const ys = [...(y ?? [])].sort();
     return xs.length === ys.length && xs.every((v, i) => v === ys[i]);
   };
+  const strEq = (x, y) => (x ?? '').trim().toLowerCase() === (y ?? '').trim().toLowerCase();
+
   return (
-    arrEq(a.customer_ids, b.customer_ids) &&
-    arrEq(a.branch_ids, b.branch_ids) &&
+    arrEq(a.customer_ids,    b.customer_ids) &&
+    arrEq(a.branch_ids,      b.branch_ids) &&
+    arrEq(a.load_types,      b.load_types) &&
+    arrEq(a.container_types, b.container_types) &&
+    arrEq(a.container_sizes, b.container_sizes) &&
+    arrEq(a.flags,           b.flags) &&
+    arrEq(a.ssl_codes,       b.ssl_codes) &&
+    arrEq(a.driver_ids,      b.driver_ids) &&
     (a.from ?? '') === (b.from ?? '') &&
-    (a.to ?? '') === (b.to ?? '')
+    (a.to   ?? '') === (b.to   ?? '') &&
+    strEq(a.reference_number, b.reference_number)
   );
 }
