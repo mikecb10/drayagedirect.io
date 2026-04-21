@@ -62,6 +62,9 @@ export default async function handler(req, res) {
     const billToAdditionalCustomerIdsExclude = parseCsvParam(req.query.bill_to_additional_customer_ids_exclude);
     const { factor_company } = req.query;
 
+    // Phase C: invoice-email-sent Y/N
+    const { invoice_email_sent_y } = req.query;
+
     let query = svc
       .from('invoices')
       .select(`
@@ -200,6 +203,43 @@ export default async function handler(req, res) {
     }
     if (invoiced_to && typeof invoiced_to === 'string') {
       filtered = filtered.filter((inv) => inv.created_at && inv.created_at <= invoiced_to);
+    }
+
+    // ── Phase C: invoice-email-sent Y/N ────────────────────────────────
+    // Signal from email_trigger_log event_name in manual invoice send events.
+    // Single sends stash invoice ID at umbrella_decisions[0].related_entity.id;
+    // bulk sends stash invoice_ids array at umbrella_decisions[0].invoice_ids.
+    if (invoice_email_sent_y === 'yes' || invoice_email_sent_y === 'no') {
+      const { data: logRows } = await svc
+        .from('email_trigger_log')
+        .select('event_name, umbrella_decisions, outcome')
+        .eq('tenant_id', ctx.tenantId)
+        .in('event_name', ['manual:invoice_send', 'manual:invoice_bulk_send'])
+        .neq('outcome', 'errored');
+
+      const sentInvoiceIds = new Set();
+      for (const row of logRows || []) {
+        const decisions = Array.isArray(row.umbrella_decisions) ? row.umbrella_decisions : [];
+        for (const d of decisions) {
+          if (d?.related_entity?.type === 'invoice' && d.related_entity.id) {
+            for (const id of String(d.related_entity.id).split(',')) {
+              const trimmed = id.trim();
+              if (trimmed) sentInvoiceIds.add(trimmed);
+            }
+          }
+          if (Array.isArray(d?.invoice_ids)) {
+            for (const id of d.invoice_ids) {
+              if (id) sentInvoiceIds.add(id);
+            }
+          }
+        }
+      }
+
+      if (invoice_email_sent_y === 'yes') {
+        filtered = filtered.filter((inv) => sentInvoiceIds.has(inv.id));
+      } else {
+        filtered = filtered.filter((inv) => !sentInvoiceIds.has(inv.id));
+      }
     }
 
     const stats = {
