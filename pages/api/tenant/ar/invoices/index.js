@@ -32,6 +32,14 @@ export default async function handler(req, res) {
       ? Array.from(new Set([...customerIdsRaw, customer_id]))
       : customerIdsRaw;
 
+    const { reference_number } = req.query;
+    const loadTypes       = parseCsvParam(req.query.load_types);
+    const containerTypes  = parseCsvParam(req.query.container_types);
+    const containerSizes  = parseCsvParam(req.query.container_sizes);
+    const flagKeys        = parseCsvParam(req.query.flags);
+    const sslCodes        = parseCsvParam(req.query.ssl_codes);
+    const driverIds       = parseCsvParam(req.query.driver_ids);
+
     let query = svc
       .from('invoices')
       .select(`
@@ -39,7 +47,7 @@ export default async function handler(req, res) {
         customer:customers!customer_id(id, name),
         charge_sets:invoice_charge_sets(
           charge_set:order_charge_sets(id, charge_set_number, order_id, total_cents,
-            order:orders(id, order_number)
+            order:orders(id, order_number, load_type, customer_reference, branch_id, driver_id, container_type, container_size, steamship_line_scac, is_hazmat, is_overweight, is_overheight, is_liquor, is_hot, is_genset, is_scale, is_ev, is_street_turn, is_oog, is_bonded, is_double, is_tanker)
           )
         )
       `)
@@ -59,20 +67,58 @@ export default async function handler(req, res) {
     const { data, error } = await query;
     if (error) return res.status(500).json({ error: error.message });
 
-    const invoices = data || [];
+    let filtered = data || [];
+
+    // Phase B1: order-level filters. An invoice passes if ANY of its
+    // constituent charge-sets' orders satisfies every active order-level
+    // filter. Order lookup path: invoice.charge_sets[i].charge_set.order.
+    const orderMatches = (order) => {
+      if (!order) return false;
+      if (reference_number && typeof reference_number === 'string' && reference_number.trim().length > 0) {
+        const q = reference_number.trim().toLowerCase();
+        if (!order.customer_reference?.toLowerCase().includes(q)) return false;
+      }
+      if (loadTypes.length > 0 && !loadTypes.includes(order.load_type)) return false;
+      if (containerTypes.length > 0 && !containerTypes.includes(order.container_type)) return false;
+      if (containerSizes.length > 0 && !containerSizes.includes(order.container_size)) return false;
+      if (flagKeys.length > 0 && !flagKeys.every((key) => order[`is_${key}`] === true)) return false;
+      if (sslCodes.length > 0) {
+        const codes = new Set(sslCodes.map((c) => c.toUpperCase()));
+        if (!order.steamship_line_scac || !codes.has(order.steamship_line_scac.toUpperCase())) return false;
+      }
+      if (driverIds.length > 0 && !driverIds.includes(order.driver_id)) return false;
+      return true;
+    };
+
+    const hasOrderFilters =
+      (reference_number && typeof reference_number === 'string' && reference_number.trim().length > 0) ||
+      loadTypes.length > 0 ||
+      containerTypes.length > 0 ||
+      containerSizes.length > 0 ||
+      flagKeys.length > 0 ||
+      sslCodes.length > 0 ||
+      driverIds.length > 0;
+
+    if (hasOrderFilters) {
+      filtered = filtered.filter((inv) => {
+        const sets = inv.charge_sets || [];
+        return sets.some((cs) => orderMatches(cs?.charge_set?.order));
+      });
+    }
+
     const stats = {
-      total:    invoices.length,
-      draft:    invoices.filter((i) => i.status === 'draft').length,
-      sent:     invoices.filter((i) => i.status === 'sent').length,
-      paid:     invoices.filter((i) => i.status === 'paid').length,
-      overdue:  invoices.filter((i) => i.status === 'overdue').length,
-      void:     invoices.filter((i) => i.status === 'void').length,
-      total_outstanding_cents: invoices
+      total:    filtered.length,
+      draft:    filtered.filter((i) => i.status === 'draft').length,
+      sent:     filtered.filter((i) => i.status === 'sent').length,
+      paid:     filtered.filter((i) => i.status === 'paid').length,
+      overdue:  filtered.filter((i) => i.status === 'overdue').length,
+      void:     filtered.filter((i) => i.status === 'void').length,
+      total_outstanding_cents: filtered
         .filter((i) => ['sent', 'overdue'].includes(i.status))
         .reduce((sum, i) => sum + (i.balance_due_cents || 0), 0),
     };
 
-    return res.status(200).json({ invoices, stats });
+    return res.status(200).json({ invoices: filtered, stats });
   }
 
   // ── CREATE FROM CHARGE SETS ──
