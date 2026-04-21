@@ -55,13 +55,21 @@ export default async function handler(req, res) {
     const deliveryLocationIds = parseCsvParam(req.query.delivery_location_ids);
     const returnLocationIds   = parseCsvParam(req.query.return_location_ids);
 
+    // Phase B4
+    const billToPrimaryCustomerIds        = parseCsvParam(req.query.bill_to_primary_customer_ids);
+    const billToPrimaryCustomerIdsExclude = parseCsvParam(req.query.bill_to_primary_customer_ids_exclude);
+    const billToAdditionalCustomerIds     = parseCsvParam(req.query.bill_to_additional_customer_ids);
+    const billToAdditionalCustomerIdsExclude = parseCsvParam(req.query.bill_to_additional_customer_ids_exclude);
+    const { factor_company } = req.query;
+
     let query = svc
       .from('invoices')
       .select(`
         *,
         customer:customers!customer_id(id, name),
         charge_sets:invoice_charge_sets(
-          charge_set:order_charge_sets(id, charge_set_number, order_id, total_cents,
+          charge_set:order_charge_sets(id, charge_set_number, order_id, total_cents, bill_to_customer_id,
+            bill_to:customers!order_charge_sets_bill_to_customer_id_fkey(id, name, pay_type),
             order:orders(id, order_number, load_type, customer_reference, branch_id, driver_id, container_type, container_size, steamship_line_scac, is_hazmat, is_overweight, is_overheight, is_liquor, is_hot, is_genset, is_scale, is_ev, is_street_turn, is_oog, is_bonded, is_double, is_tanker, pickup_location_id, delivery_location_id, return_location_id)
           )
         )
@@ -124,6 +132,44 @@ export default async function handler(req, res) {
       return true;
     };
 
+    const SECONDARY_PATTERN = /_\d+$/;
+    const isPrimaryCs = (cs) => cs && !SECONDARY_PATTERN.test(cs.charge_set_number || '');
+
+    const chargeSetBillToMatches = (cs) => {
+      if (!cs) return false;
+      const isPrimary = isPrimaryCs(cs);
+      // Primary include
+      if (billToPrimaryCustomerIds.length > 0) {
+        if (!(isPrimary && cs.bill_to_customer_id && billToPrimaryCustomerIds.includes(cs.bill_to_customer_id))) return false;
+      }
+      // Primary exclude
+      if (billToPrimaryCustomerIdsExclude.length > 0) {
+        if (isPrimary && cs.bill_to_customer_id && billToPrimaryCustomerIdsExclude.includes(cs.bill_to_customer_id)) return false;
+      }
+      // Additional include
+      if (billToAdditionalCustomerIds.length > 0) {
+        if (!(!isPrimary && cs.bill_to_customer_id && billToAdditionalCustomerIds.includes(cs.bill_to_customer_id))) return false;
+      }
+      // Additional exclude
+      if (billToAdditionalCustomerIdsExclude.length > 0) {
+        if (!isPrimary && cs.bill_to_customer_id && billToAdditionalCustomerIdsExclude.includes(cs.bill_to_customer_id)) return false;
+      }
+      // Factor company
+      if (factor_company === 'yes') {
+        if (cs.bill_to?.pay_type !== 'factoring') return false;
+      } else if (factor_company === 'no') {
+        if (!cs.bill_to?.pay_type || cs.bill_to.pay_type === 'factoring') return false;
+      }
+      return true;
+    };
+
+    const hasChargeSetFilters =
+      billToPrimaryCustomerIds.length > 0 ||
+      billToPrimaryCustomerIdsExclude.length > 0 ||
+      billToAdditionalCustomerIds.length > 0 ||
+      billToAdditionalCustomerIdsExclude.length > 0 ||
+      factor_company === 'yes' || factor_company === 'no';
+
     const hasOrderFilters =
       (reference_number && typeof reference_number === 'string' && reference_number.trim().length > 0) ||
       loadTypes.length > 0 || containerTypes.length > 0 || containerSizes.length > 0 ||
@@ -136,6 +182,13 @@ export default async function handler(req, res) {
       filtered = filtered.filter((inv) => {
         const sets = inv.charge_sets || [];
         return sets.some((cs) => orderMatches(cs?.charge_set?.order));
+      });
+    }
+
+    if (hasChargeSetFilters) {
+      filtered = filtered.filter((inv) => {
+        const sets = inv.charge_sets || [];
+        return sets.some((cs) => chargeSetBillToMatches(cs?.charge_set));
       });
     }
 
