@@ -57,14 +57,22 @@ export default function BulkEmailQueue({ groups, groupingKind, docType = 'invoic
   const [editingKey, setEditingKey] = useState(null);
   const editingRow = editingKey ? rows.find((r) => r.groupKey === editingKey) : null;
 
-  // Hybrid close: auto-close on all-green after a 1s beat
+  // Hybrid close: auto-close on all-sent-and-none-bad after a 1s beat.
+  // A row with status='sent' but delivery_status in {bounced, dropped,
+  // spam_reported} is a delivery failure surfaced post-send — the operator
+  // needs visibility on it, so we do NOT auto-dismiss in that case.
+  const hasBadDelivery = rows.some(
+    (r) => r.status === 'sent'
+      && ['bounced', 'dropped', 'spam_reported'].includes(r.delivery_status)
+  );
   useEffect(() => {
     if (!allSent) return;
+    if (hasBadDelivery) return;
     const t = setTimeout(() => {
       onAllSent?.();
     }, 1000);
     return () => clearTimeout(t);
-  }, [allSent, onAllSent]);
+  }, [allSent, hasBadDelivery, onAllSent]);
 
   const totalCents = rows.reduce((a, r) => a + (r.group.total_cents || 0), 0);
 
