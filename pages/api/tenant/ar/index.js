@@ -34,12 +34,26 @@ export default async function handler(req, res) {
   const flagKeys        = parseCsvParam(req.query.flags);
   const sslCodes        = parseCsvParam(req.query.ssl_codes);
   const driverIds       = parseCsvParam(req.query.driver_ids);
+  // Exclude variants
+  const customerIdsExclude    = parseCsvParam(req.query.customer_ids_exclude);
+  const branchIdsExclude      = parseCsvParam(req.query.branch_ids_exclude);
+  const loadTypesExclude      = parseCsvParam(req.query.load_types_exclude);
+  const containerTypesExclude = parseCsvParam(req.query.container_types_exclude);
+  const containerSizesExclude = parseCsvParam(req.query.container_sizes_exclude);
+  const flagKeysExclude       = parseCsvParam(req.query.flags_exclude);
+  const sslCodesExclude       = parseCsvParam(req.query.ssl_codes_exclude);
+  const driverIdsExclude      = parseCsvParam(req.query.driver_ids_exclude);
+  // New dimensions
+  const { invoiced_from, invoiced_to } = req.query;
+  const pickupLocationIds   = parseCsvParam(req.query.pickup_location_ids);
+  const deliveryLocationIds = parseCsvParam(req.query.delivery_location_ids);
+  const returnLocationIds   = parseCsvParam(req.query.return_location_ids);
 
   let query = svc
     .from('order_charge_sets')
     .select(`
       *,
-      order:orders(id, order_number, status, load_type, customer_id, customer_reference, branch_id, driver_id, container_type, container_size, steamship_line_scac, is_hazmat, is_overweight, is_overheight, is_liquor, is_hot, is_genset, is_scale, is_ev, is_street_turn, is_oog, is_bonded, is_double, is_tanker, created_at, deleted_at,
+      order:orders(id, order_number, status, load_type, customer_id, customer_reference, branch_id, driver_id, container_type, container_size, steamship_line_scac, is_hazmat, is_overweight, is_overheight, is_liquor, is_hot, is_genset, is_scale, is_ev, is_street_turn, is_oog, is_bonded, is_double, is_tanker, pickup_location_id, delivery_location_id, return_location_id, created_at, deleted_at,
         customer:customers!orders_customer_id_fkey(id, name)
       ),
       bill_to:customers!order_charge_sets_bill_to_customer_id_fkey(id, name),
@@ -116,6 +130,69 @@ export default async function handler(req, res) {
   if (driverIds.length > 0) {
     const ids = new Set(driverIds);
     scopedSets = scopedSets.filter((cs) => cs.order?.driver_id && ids.has(cs.order.driver_id));
+  }
+
+  // ── Phase B2: exclude variants ─────────────────────────────────────
+  if (customerIdsExclude.length > 0) {
+    const ids = new Set(customerIdsExclude);
+    scopedSets = scopedSets.filter((cs) =>
+      !(cs.order?.customer_id && ids.has(cs.order.customer_id)) &&
+      !(cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id))
+    );
+  }
+  if (branchIdsExclude.length > 0) {
+    const ids = new Set(branchIdsExclude);
+    scopedSets = scopedSets.filter((cs) => !(cs.order?.branch_id && ids.has(cs.order.branch_id)));
+  }
+  if (loadTypesExclude.length > 0) {
+    const types = new Set(loadTypesExclude);
+    scopedSets = scopedSets.filter((cs) => !(cs.order?.load_type && types.has(cs.order.load_type)));
+  }
+  if (containerTypesExclude.length > 0) {
+    const types = new Set(containerTypesExclude);
+    scopedSets = scopedSets.filter((cs) => !(cs.order?.container_type && types.has(cs.order.container_type)));
+  }
+  if (containerSizesExclude.length > 0) {
+    const sizes = new Set(containerSizesExclude);
+    scopedSets = scopedSets.filter((cs) => !(cs.order?.container_size && sizes.has(cs.order.container_size)));
+  }
+  // Flags exclude: row must have NONE of the selected flags set true (every flag is_<key> !== true).
+  if (flagKeysExclude.length > 0) {
+    scopedSets = scopedSets.filter((cs) =>
+      flagKeysExclude.every((key) => cs.order?.[`is_${key}`] !== true)
+    );
+  }
+  if (sslCodesExclude.length > 0) {
+    const codes = new Set(sslCodesExclude.map((c) => c.toUpperCase()));
+    scopedSets = scopedSets.filter((cs) =>
+      !(cs.order?.steamship_line_scac && codes.has(cs.order.steamship_line_scac.toUpperCase()))
+    );
+  }
+  if (driverIdsExclude.length > 0) {
+    const ids = new Set(driverIdsExclude);
+    scopedSets = scopedSets.filter((cs) => !(cs.order?.driver_id && ids.has(cs.order.driver_id)));
+  }
+
+  // ── Phase B2: invoiced date range (order_charge_sets.invoiced_at) ──
+  if (invoiced_from && typeof invoiced_from === 'string') {
+    scopedSets = scopedSets.filter((cs) => cs.invoiced_at && cs.invoiced_at >= invoiced_from);
+  }
+  if (invoiced_to && typeof invoiced_to === 'string') {
+    scopedSets = scopedSets.filter((cs) => cs.invoiced_at && cs.invoiced_at <= invoiced_to);
+  }
+
+  // ── Phase B2: location filters (include only) ──────────────────────
+  if (pickupLocationIds.length > 0) {
+    const ids = new Set(pickupLocationIds);
+    scopedSets = scopedSets.filter((cs) => cs.order?.pickup_location_id && ids.has(cs.order.pickup_location_id));
+  }
+  if (deliveryLocationIds.length > 0) {
+    const ids = new Set(deliveryLocationIds);
+    scopedSets = scopedSets.filter((cs) => cs.order?.delivery_location_id && ids.has(cs.order.delivery_location_id));
+  }
+  if (returnLocationIds.length > 0) {
+    const ids = new Set(returnLocationIds);
+    scopedSets = scopedSets.filter((cs) => cs.order?.return_location_id && ids.has(cs.order.return_location_id));
   }
 
   // Compute counts over the SCOPED set — filter cards reflect the current
