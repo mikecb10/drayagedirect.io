@@ -6,7 +6,7 @@
 // row. Orphan events (sg_message_id we don't recognize) are logged and
 // skipped without failing the batch — SendGrid would otherwise retry.
 
-import { createClient } from '@supabase/supabase-js';
+import { getServiceClient } from '../../../lib/tenant-api';
 import { verifySendGridSignature } from '../../../lib/webhooks/sendgrid-signature';
 import {
   extractBaseMessageId,
@@ -35,17 +35,6 @@ async function readRawBody(req) {
     chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
   }
   return Buffer.concat(chunks);
-}
-
-function getServiceClient() {
-  // Inline client factory — matches the pattern in lib/tenant-api but without
-  // the tenant-scoping since this endpoint runs pre-tenant (webhook is global).
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    throw new Error('SUPABASE env vars missing');
-  }
-  return createClient(url, key, { auth: { persistSession: false } });
 }
 
 export default async function handler(req, res) {
@@ -108,14 +97,19 @@ export default async function handler(req, res) {
       continue;
     }
 
-    // Look up the row. Use maybeSingle — if SendGrid has sent us a webhook
-    // for a message we didn't originate (shared webhook URL, test event for
-    // a nonexistent ID), we log and move on rather than failing the batch.
-    const { data: row, error: selectErr } = await svc
+    // Look up the row. provider_message_id has no UNIQUE constraint (migration
+    // 053), so we use .limit(1) + array indexing instead of .maybeSingle() to
+    // avoid a 500-loop if a duplicate ever slips in. maybeSingle throws PGRST116
+    // on multi-match, which SendGrid would retry for 24h with no remediation.
+    // .limit(1) gracefully picks the first match; normal operation produces no
+    // duplicates because SendGrid's x-message-id is globally unique.
+    const { data: rows, error: selectErr } = await svc
       .from('email_messages')
       .select('id, delivery_events, delivery_status')
       .eq('provider_message_id', baseId)
-      .maybeSingle();
+      .limit(1);
+
+    const row = rows?.[0] ?? null;
 
     if (selectErr) {
       // DB errors are operational failures — let SendGrid retry.
@@ -124,7 +118,11 @@ export default async function handler(req, res) {
     }
 
     if (!row) {
-      console.warn('[webhook/sendgrid] orphan event, no email_messages row for', baseId);
+      console.warn('[webhook/sendgrid] orphan event', {
+        baseId,
+        event: raw.event,
+        sg_event_id: raw.sg_event_id ?? 'missing',
+      });
       orphan++;
       continue;
     }
