@@ -45,5 +45,35 @@ check('drops empty arrays (new keys)',
 check('drops non-string entries (flags)',
   JSON.stringify(sanitizeFilterSet({ flags: ['hazmat', 42, null, 'overweight'] })) === '{"flags":["hazmat","overweight"]}');
 
+console.log('\nsanitizeFilterSet (Phase B2 keys)');
+check('keeps customer_ids_exclude',
+  JSON.stringify(sanitizeFilterSet({ customer_ids_exclude: ['c1'] })) === '{"customer_ids_exclude":["c1"]}');
+check('keeps branch_ids_exclude',
+  JSON.stringify(sanitizeFilterSet({ branch_ids_exclude: ['b1'] })) === '{"branch_ids_exclude":["b1"]}');
+check('keeps load_types_exclude',
+  JSON.stringify(sanitizeFilterSet({ load_types_exclude: ['import'] })) === '{"load_types_exclude":["import"]}');
+check('keeps container_types_exclude',
+  JSON.stringify(sanitizeFilterSet({ container_types_exclude: ['dry_van'] })) === '{"container_types_exclude":["dry_van"]}');
+check('keeps container_sizes_exclude',
+  JSON.stringify(sanitizeFilterSet({ container_sizes_exclude: ['40HC'] })) === '{"container_sizes_exclude":["40HC"]}');
+check('keeps flags_exclude',
+  JSON.stringify(sanitizeFilterSet({ flags_exclude: ['hazmat'] })) === '{"flags_exclude":["hazmat"]}');
+check('keeps ssl_codes_exclude',
+  JSON.stringify(sanitizeFilterSet({ ssl_codes_exclude: ['MSCU'] })) === '{"ssl_codes_exclude":["MSCU"]}');
+check('keeps driver_ids_exclude',
+  JSON.stringify(sanitizeFilterSet({ driver_ids_exclude: ['u1'] })) === '{"driver_ids_exclude":["u1"]}');
+check('keeps invoiced_from',
+  JSON.stringify(sanitizeFilterSet({ invoiced_from: '2026-01-01' })) === '{"invoiced_from":"2026-01-01"}');
+check('keeps invoiced_to',
+  JSON.stringify(sanitizeFilterSet({ invoiced_to: '2026-02-01' })) === '{"invoiced_to":"2026-02-01"}');
+check('keeps pickup_location_ids',
+  JSON.stringify(sanitizeFilterSet({ pickup_location_ids: ['loc1'] })) === '{"pickup_location_ids":["loc1"]}');
+check('keeps delivery_location_ids',
+  JSON.stringify(sanitizeFilterSet({ delivery_location_ids: ['loc2'] })) === '{"delivery_location_ids":["loc2"]}');
+check('keeps return_location_ids',
+  JSON.stringify(sanitizeFilterSet({ return_location_ids: ['loc3'] })) === '{"return_location_ids":["loc3"]}');
+check('drops empty exclude arrays',
+  JSON.stringify(sanitizeFilterSet({ customer_ids_exclude: [], flags_exclude: [] })) === '{}');
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
