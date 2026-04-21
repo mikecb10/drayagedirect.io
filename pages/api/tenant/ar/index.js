@@ -56,6 +56,9 @@ export default async function handler(req, res) {
   const billToAdditionalCustomerIdsExclude = parseCsvParam(req.query.bill_to_additional_customer_ids_exclude);
   const { factor_company } = req.query;
 
+  // Phase C: rate-con-sent Y/N
+  const { rate_con_sent_y } = req.query;
+
   let query = svc
     .from('order_charge_sets')
     .select(`
@@ -243,6 +246,45 @@ export default async function handler(req, res) {
   } else if (factor_company === 'no') {
     // NULL pay_type defaults to direct-pay (most customers), so include them.
     scopedSets = scopedSets.filter((cs) => cs.bill_to?.pay_type !== 'factoring');
+  }
+
+  // ── Phase C: rate-con-sent Y/N ─────────────────────────────────────
+  // Signal comes from email_trigger_log rows with event_name in the
+  // manual rate_con_send events. Single sends stash the charge_set ID
+  // at umbrella_decisions[0].related_entity.id; bulk sends stash
+  // comma-joined IDs in the same field and/or an array at charge_set_ids.
+  if (rate_con_sent_y === 'yes' || rate_con_sent_y === 'no') {
+    const { data: logRows } = await svc
+      .from('email_trigger_log')
+      .select('event_name, umbrella_decisions, outcome')
+      .eq('tenant_id', ctx.tenantId)
+      .in('event_name', ['manual:rate_con_send', 'manual:rate_con_bulk_send'])
+      .neq('outcome', 'errored');
+
+    const sentChargeSetIds = new Set();
+    for (const row of logRows || []) {
+      const decisions = Array.isArray(row.umbrella_decisions) ? row.umbrella_decisions : [];
+      for (const d of decisions) {
+        if (d?.related_entity?.type?.startsWith('charge_set') && d.related_entity.id) {
+          // related_entity.id may be a single UUID OR a comma-joined list (bulk send).
+          for (const id of String(d.related_entity.id).split(',')) {
+            const trimmed = id.trim();
+            if (trimmed) sentChargeSetIds.add(trimmed);
+          }
+        }
+        if (Array.isArray(d?.charge_set_ids)) {
+          for (const id of d.charge_set_ids) {
+            if (id) sentChargeSetIds.add(id);
+          }
+        }
+      }
+    }
+
+    if (rate_con_sent_y === 'yes') {
+      scopedSets = scopedSets.filter((cs) => sentChargeSetIds.has(cs.id));
+    } else {
+      scopedSets = scopedSets.filter((cs) => !sentChargeSetIds.has(cs.id));
+    }
   }
 
   // Compute counts over the SCOPED set — filter cards reflect the current
