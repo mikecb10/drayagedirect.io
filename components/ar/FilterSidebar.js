@@ -36,6 +36,9 @@ const EMPTY = {
   flags_exclude: [], ssl_codes_exclude: [], driver_ids_exclude: [],
   invoiced_from: '', invoiced_to: '',
   pickup_location_ids: [], delivery_location_ids: [], return_location_ids: [],
+  bill_to_primary_customer_ids: [],    bill_to_primary_customer_ids_exclude: [],
+  bill_to_additional_customer_ids: [], bill_to_additional_customer_ids_exclude: [],
+  factor_company: '',
 };
 
 export default function FilterSidebar({ isOpen, onClose, filters, onApply, section = 'billing' }) {
@@ -52,18 +55,22 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
   const [customerQuery, setCustomerQuery] = useState('');
   const [driverQuery, setDriverQuery] = useState('');
   const [branchQuery, setBranchQuery] = useState('');
+  const [primaryBillToQuery, setPrimaryBillToQuery]       = useState('');
+  const [additionalBillToQuery, setAdditionalBillToQuery] = useState('');
   const [pickupQuery, setPickupQuery]     = useState('');
   const [deliveryQuery, setDeliveryQuery] = useState('');
   const [returnQuery, setReturnQuery]     = useState('');
   const [modes, setModes] = useState({
-    customer:       'include',
-    branch:         'include',
-    load_type:      'include',
-    container_type: 'include',
-    container_size: 'include',
-    flag:           'include',
-    ssl:            'include',
-    driver:         'include',
+    customer:            'include',
+    branch:              'include',
+    load_type:           'include',
+    container_type:      'include',
+    container_size:      'include',
+    flag:                'include',
+    ssl:                 'include',
+    driver:              'include',
+    bill_to_primary:     'include',
+    bill_to_additional:  'include',
   });
   const setMode = (key, mode) => setModes((m) => ({ ...m, [key]: mode }));
 
@@ -127,6 +134,10 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
     (draft.pickup_location_ids?.length   || 0) +
     (draft.delivery_location_ids?.length || 0) +
     (draft.return_location_ids?.length   || 0) +
+    (draft.bill_to_primary_customer_ids?.length            || 0) +
+    (draft.bill_to_primary_customer_ids_exclude?.length    || 0) +
+    (draft.bill_to_additional_customer_ids?.length         || 0) +
+    (draft.bill_to_additional_customer_ids_exclude?.length || 0) +
     (draft.from ? 1 : 0) +
     (draft.to ? 1 : 0) +
     (draft.invoiced_from ? 1 : 0) +
@@ -493,6 +504,60 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
             </section>
           )}
 
+          {/* Bill To — Primary (primary charge set's bill_to_customer_id) */}
+          {showKey('bill_to_primary_customer_ids') && (
+            <section>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Bill To — Primary</label>
+                <div className="flex items-center gap-2">
+                  {((draft.bill_to_primary_customer_ids?.length ?? 0) + (draft.bill_to_primary_customer_ids_exclude?.length ?? 0)) > 0 && (
+                    <span className="text-[10px] text-gray-500 dark:text-slate-400">
+                      {modes.bill_to_primary === 'exclude' ? (draft.bill_to_primary_customer_ids_exclude?.length ?? 0) : (draft.bill_to_primary_customer_ids?.length ?? 0)} selected
+                    </span>
+                  )}
+                  <ExcludeToggle mode={modes.bill_to_primary} onChange={(m) => setMode('bill_to_primary', m)} />
+                </div>
+              </div>
+              <CustomerCombobox
+                options={customers}
+                selectedIds={modes.bill_to_primary === 'exclude' ? (draft.bill_to_primary_customer_ids_exclude ?? []) : (draft.bill_to_primary_customer_ids ?? [])}
+                onChange={(ids) => setDraft((d) => ({
+                  ...d,
+                  [modes.bill_to_primary === 'exclude' ? 'bill_to_primary_customer_ids_exclude' : 'bill_to_primary_customer_ids']: ids,
+                }))}
+                query={primaryBillToQuery}
+                onQueryChange={setPrimaryBillToQuery}
+              />
+            </section>
+          )}
+
+          {/* Bill To — Additional (secondary charge sets' bill_to_customer_id) */}
+          {showKey('bill_to_additional_customer_ids') && (
+            <section>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Bill To — Additional</label>
+                <div className="flex items-center gap-2">
+                  {((draft.bill_to_additional_customer_ids?.length ?? 0) + (draft.bill_to_additional_customer_ids_exclude?.length ?? 0)) > 0 && (
+                    <span className="text-[10px] text-gray-500 dark:text-slate-400">
+                      {modes.bill_to_additional === 'exclude' ? (draft.bill_to_additional_customer_ids_exclude?.length ?? 0) : (draft.bill_to_additional_customer_ids?.length ?? 0)} selected
+                    </span>
+                  )}
+                  <ExcludeToggle mode={modes.bill_to_additional} onChange={(m) => setMode('bill_to_additional', m)} />
+                </div>
+              </div>
+              <CustomerCombobox
+                options={customers}
+                selectedIds={modes.bill_to_additional === 'exclude' ? (draft.bill_to_additional_customer_ids_exclude ?? []) : (draft.bill_to_additional_customer_ids ?? [])}
+                onChange={(ids) => setDraft((d) => ({
+                  ...d,
+                  [modes.bill_to_additional === 'exclude' ? 'bill_to_additional_customer_ids_exclude' : 'bill_to_additional_customer_ids']: ids,
+                }))}
+                query={additionalBillToQuery}
+                onQueryChange={setAdditionalBillToQuery}
+              />
+            </section>
+          )}
+
           {/* Branches */}
           {showKey('branch_ids') && (
             <section>
@@ -594,14 +659,16 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
             onClick={() => {
               setDraft(EMPTY);
               setModes({
-                customer:       'include',
-                branch:         'include',
-                load_type:      'include',
-                container_type: 'include',
-                container_size: 'include',
-                flag:           'include',
-                ssl:            'include',
-                driver:         'include',
+                customer:            'include',
+                branch:              'include',
+                load_type:           'include',
+                container_type:      'include',
+                container_size:      'include',
+                flag:                'include',
+                ssl:                 'include',
+                driver:              'include',
+                bill_to_primary:     'include',
+                bill_to_additional:  'include',
               });
             }}
             className="inline-flex items-center gap-1 text-xs font-semibold text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200"
@@ -642,6 +709,10 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
                 if (draft.flags_exclude?.length)           cleaned.flags_exclude           = draft.flags_exclude;
                 if (draft.ssl_codes_exclude?.length)       cleaned.ssl_codes_exclude       = draft.ssl_codes_exclude;
                 if (draft.driver_ids_exclude?.length)      cleaned.driver_ids_exclude      = draft.driver_ids_exclude;
+                if (draft.bill_to_primary_customer_ids?.length)         cleaned.bill_to_primary_customer_ids         = draft.bill_to_primary_customer_ids;
+                if (draft.bill_to_primary_customer_ids_exclude?.length) cleaned.bill_to_primary_customer_ids_exclude = draft.bill_to_primary_customer_ids_exclude;
+                if (draft.bill_to_additional_customer_ids?.length)      cleaned.bill_to_additional_customer_ids      = draft.bill_to_additional_customer_ids;
+                if (draft.bill_to_additional_customer_ids_exclude?.length) cleaned.bill_to_additional_customer_ids_exclude = draft.bill_to_additional_customer_ids_exclude;
                 if (draft.pickup_location_ids?.length)   cleaned.pickup_location_ids   = draft.pickup_location_ids;
                 if (draft.delivery_location_ids?.length) cleaned.delivery_location_ids = draft.delivery_location_ids;
                 if (draft.return_location_ids?.length)   cleaned.return_location_ids   = draft.return_location_ids;
