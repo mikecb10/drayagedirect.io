@@ -8,10 +8,23 @@
 
 import {
   requireTenantUser,
+  requirePermission,
   getServiceClient,
 } from '../../../../lib/tenant-api';
+import { PERMISSIONS } from '../../../../lib/permissions';
 
 const MAX_MESSAGE_IDS = 200;
+
+// Union of permissions used by both bulk-send endpoints that populate the
+// queue whose rows this endpoint polls (AR invoice send + rate-con send).
+// Anyone allowed to send is allowed to poll the delivery status of what
+// they sent.
+const POLL_PERMS = [
+  PERMISSIONS.ORDER_ENTRY,
+  PERMISSIONS.DISPATCHING,
+  PERMISSIONS.ACCOUNTS_RECEIVABLE,
+  PERMISSIONS.ALL,
+];
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -20,10 +33,14 @@ export default async function handler(req, res) {
 
   const ctx = await requireTenantUser(req, res);
   if (!ctx) return;
+  if (!requirePermission(ctx, POLL_PERMS, res)) return;
 
   const raw = req.query.message_ids;
-  if (!raw || typeof raw !== 'string') {
+  if (!raw) {
     return res.status(400).json({ error: 'message_ids query param required' });
+  }
+  if (typeof raw !== 'string') {
+    return res.status(400).json({ error: 'message_ids must be a comma-separated string' });
   }
 
   const messageIds = raw
@@ -58,5 +75,6 @@ export default async function handler(req, res) {
       last_delivery_event_at: row.last_delivery_event_at,
     };
   }
+  res.setHeader('Cache-Control', 'no-store');
   return res.status(200).json(map);
 }
