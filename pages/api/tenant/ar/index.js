@@ -259,7 +259,7 @@ export default async function handler(req, res) {
       .select('event_name, umbrella_decisions, outcome')
       .eq('tenant_id', ctx.tenantId)
       .in('event_name', ['manual:rate_con_send', 'manual:rate_con_bulk_send'])
-      .neq('outcome', 'errored');
+      .eq('outcome', 'fired');
 
     const sentChargeSetIds = new Set();
     for (const row of logRows || []) {

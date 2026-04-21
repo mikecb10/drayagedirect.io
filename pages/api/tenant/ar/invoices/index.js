@@ -215,13 +215,13 @@ export default async function handler(req, res) {
         .select('event_name, umbrella_decisions, outcome')
         .eq('tenant_id', ctx.tenantId)
         .in('event_name', ['manual:invoice_send', 'manual:invoice_bulk_send'])
-        .neq('outcome', 'errored');
+        .eq('outcome', 'fired');
 
       const sentInvoiceIds = new Set();
       for (const row of logRows || []) {
         const decisions = Array.isArray(row.umbrella_decisions) ? row.umbrella_decisions : [];
         for (const d of decisions) {
-          if (d?.related_entity?.type === 'invoice' && d.related_entity.id) {
+          if (d?.related_entity?.type?.startsWith('invoice') && d.related_entity.id) {
             for (const id of String(d.related_entity.id).split(',')) {
               const trimmed = id.trim();
               if (trimmed) sentInvoiceIds.add(trimmed);
