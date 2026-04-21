@@ -60,6 +60,8 @@ export default function BillingPipelineTab({ filters = {} }) {
       if (filters.branch_ids?.length)   params.set('branch_ids',   filters.branch_ids.join(','));
       if (filters.from)                 params.set('from',         filters.from);
       if (filters.to)                   params.set('to',           filters.to);
+      if (filters.invoiced_from)        params.set('invoiced_from', filters.invoiced_from);
+      if (filters.invoiced_to)          params.set('invoiced_to',   filters.invoiced_to);
       if (filters.reference_number)     params.set('reference_number', filters.reference_number);
       if (filters.load_types?.length)       params.set('load_types',       filters.load_types.join(','));
       if (filters.container_types?.length) params.set('container_types', filters.container_types.join(','));

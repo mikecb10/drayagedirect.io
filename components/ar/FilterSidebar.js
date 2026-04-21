@@ -502,6 +502,27 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
               </div>
             </section>
           )}
+
+          {/* Invoiced between — order_charge_sets.invoiced_at (Billing) / invoices.created_at (Invoices) */}
+          {(showKey('invoiced_from') || showKey('invoiced_to')) && (
+            <section>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400 mb-2">Invoiced between</label>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="date"
+                  value={draft.invoiced_from ?? ''}
+                  onChange={(e) => setDraft((d) => ({ ...d, invoiced_from: e.target.value }))}
+                  className="px-2 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100"
+                />
+                <input
+                  type="date"
+                  value={draft.invoiced_to ?? ''}
+                  onChange={(e) => setDraft((d) => ({ ...d, invoiced_to: e.target.value }))}
+                  className="px-2 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100"
+                />
+              </div>
+            </section>
+          )}
         </div>
 
         {/* Footer */}
@@ -527,6 +548,8 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
                 if (draft.branch_ids?.length)   cleaned.branch_ids   = draft.branch_ids;
                 if (draft.from)                 cleaned.from         = draft.from;
                 if (draft.to)                   cleaned.to           = draft.to;
+                if (draft.invoiced_from)        cleaned.invoiced_from = draft.invoiced_from;
+                if (draft.invoiced_to)          cleaned.invoiced_to   = draft.invoiced_to;
                 if (draft.reference_number && draft.reference_number.trim().length > 0) {
                   cleaned.reference_number = draft.reference_number.trim();
                 }
