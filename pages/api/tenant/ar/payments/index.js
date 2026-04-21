@@ -59,7 +59,7 @@ export default async function handler(req, res) {
 
     const payments = data || [];
     const stats = {
-      total: payments.length,
+      count: payments.length,
       total_cents: payments.reduce((s, p) => s + (p.amount_cents || 0), 0),
       unapplied_cents: payments.reduce((s, p) => s + (p.unapplied_cents || 0), 0),
     };

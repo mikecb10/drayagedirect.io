@@ -93,7 +93,7 @@ export default function PaymentsTab({ filters = {} }) {
         </div>
         <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">
           <div className="text-[10px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Payments</div>
-          <div className="text-xl font-bold text-blue-600 dark:text-blue-400 mt-0.5">{stats.total || 0}</div>
+          <div className="text-xl font-bold text-blue-600 dark:text-blue-400 mt-0.5">{stats.count || 0}</div>
         </div>
       </div>
 
