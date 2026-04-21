@@ -76,15 +76,18 @@ check('rejects when publicKey is empty', (() => {
   return r.ok === false && r.reason === 'missing_public_key';
 })());
 
-// Invalid signature with valid-shaped inputs → signature_invalid
-check('rejects invalid signature against fake key', (() => {
+// Malformed public key throws inside convertPublicKeyToECDSA → verification_error.
+// The signature_invalid path (valid key, bad signature) cannot be exercised
+// without a real ECDSA P-256 key pair; it's covered by Gate 2 in Task 8
+// against SendGrid's live "Test Your Integration" dashboard button.
+check('rejects malformed public key with verification_error', (() => {
   const r = verifySendGridSignature({
     publicKey: PUBLIC_KEY_FAKE,
     rawBody,
     signature: 'MEUCIQDfakeSignatureBase64fakeSignatureBase64fakeSignatureBase64fake=',
     timestamp: String(nowSec),
   });
-  return r.ok === false && (r.reason === 'signature_invalid' || r.reason === 'verification_error');
+  return r.ok === false && r.reason === 'verification_error';
 })());
 
 console.log(`\n${pass} passed, ${fail} failed`);
