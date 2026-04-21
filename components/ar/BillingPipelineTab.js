@@ -85,6 +85,7 @@ export default function BillingPipelineTab({ filters = {} }) {
       if (filters.bill_to_additional_customer_ids?.length) params.set('bill_to_additional_customer_ids', filters.bill_to_additional_customer_ids.join(','));
       if (filters.bill_to_additional_customer_ids_exclude?.length) params.set('bill_to_additional_customer_ids_exclude', filters.bill_to_additional_customer_ids_exclude.join(','));
       if (filters.factor_company === 'yes' || filters.factor_company === 'no') params.set('factor_company', filters.factor_company);
+      if (filters.rate_con_sent_y === 'yes' || filters.rate_con_sent_y === 'no') params.set('rate_con_sent_y', filters.rate_con_sent_y);
       const res = await fetch(`/api/tenant/ar?${params}`);
       if (!res.ok) throw new Error('Failed to load');
       const data = await res.json();

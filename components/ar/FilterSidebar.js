@@ -39,6 +39,8 @@ const EMPTY = {
   bill_to_primary_customer_ids: [],    bill_to_primary_customer_ids_exclude: [],
   bill_to_additional_customer_ids: [], bill_to_additional_customer_ids_exclude: [],
   factor_company: '',
+  rate_con_sent_y: '',
+  invoice_email_sent_y: '',
 };
 
 export default function FilterSidebar({ isOpen, onClose, filters, onApply, section = 'billing' }) {
@@ -143,6 +145,8 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
     (draft.invoiced_from ? 1 : 0) +
     (draft.invoiced_to ? 1 : 0) +
     (draft.factor_company === 'yes' || draft.factor_company === 'no' ? 1 : 0) +
+    (draft.rate_con_sent_y === 'yes' || draft.rate_con_sent_y === 'no' ? 1 : 0) +
+    (draft.invoice_email_sent_y === 'yes' || draft.invoice_email_sent_y === 'no' ? 1 : 0) +
     (draft.reference_number && draft.reference_number.trim() ? 1 : 0);
 
   const filteredBranches = branchQuery
@@ -589,6 +593,66 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
             </section>
           )}
 
+          {/* Rate Confirmation Sent — Billing only (per SECTION_KEYS) */}
+          {showKey('rate_con_sent_y') && (
+            <section>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400 mb-2">Rate confirmation sent</label>
+              <div className="inline-flex rounded-md border border-gray-200 dark:border-slate-700 overflow-hidden">
+                {[
+                  { value: '',    label: 'All' },
+                  { value: 'yes', label: 'Sent' },
+                  { value: 'no',  label: 'Not sent' },
+                ].map((opt, i) => {
+                  const active = (draft.rate_con_sent_y ?? '') === opt.value;
+                  return (
+                    <button
+                      key={opt.value || 'all'}
+                      type="button"
+                      onClick={() => setDraft((d) => ({ ...d, rate_con_sent_y: opt.value }))}
+                      className={`px-3 py-1 text-xs font-semibold ${i > 0 ? 'border-l border-gray-200 dark:border-slate-700' : ''} ${
+                        active
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white text-gray-600 dark:bg-slate-800 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* Invoice Email Sent — Invoices only (per SECTION_KEYS) */}
+          {showKey('invoice_email_sent_y') && (
+            <section>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400 mb-2">Invoice email sent</label>
+              <div className="inline-flex rounded-md border border-gray-200 dark:border-slate-700 overflow-hidden">
+                {[
+                  { value: '',    label: 'All' },
+                  { value: 'yes', label: 'Sent' },
+                  { value: 'no',  label: 'Not sent' },
+                ].map((opt, i) => {
+                  const active = (draft.invoice_email_sent_y ?? '') === opt.value;
+                  return (
+                    <button
+                      key={opt.value || 'all'}
+                      type="button"
+                      onClick={() => setDraft((d) => ({ ...d, invoice_email_sent_y: opt.value }))}
+                      className={`px-3 py-1 text-xs font-semibold ${i > 0 ? 'border-l border-gray-200 dark:border-slate-700' : ''} ${
+                        active
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white text-gray-600 dark:bg-slate-800 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
           {/* Branches */}
           {showKey('branch_ids') && (
             <section>
@@ -746,6 +810,12 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
                 if (draft.bill_to_additional_customer_ids_exclude?.length) cleaned.bill_to_additional_customer_ids_exclude = draft.bill_to_additional_customer_ids_exclude;
                 if (draft.factor_company === 'yes' || draft.factor_company === 'no') {
                   cleaned.factor_company = draft.factor_company;
+                }
+                if (draft.rate_con_sent_y === 'yes' || draft.rate_con_sent_y === 'no') {
+                  cleaned.rate_con_sent_y = draft.rate_con_sent_y;
+                }
+                if (draft.invoice_email_sent_y === 'yes' || draft.invoice_email_sent_y === 'no') {
+                  cleaned.invoice_email_sent_y = draft.invoice_email_sent_y;
                 }
                 if (draft.pickup_location_ids?.length)   cleaned.pickup_location_ids   = draft.pickup_location_ids;
                 if (draft.delivery_location_ids?.length) cleaned.delivery_location_ids = draft.delivery_location_ids;

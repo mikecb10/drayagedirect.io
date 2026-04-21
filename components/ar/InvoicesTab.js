@@ -67,6 +67,7 @@ export default function InvoicesTab({ filters = {} }) {
       if (filters.bill_to_additional_customer_ids?.length) params.set('bill_to_additional_customer_ids', filters.bill_to_additional_customer_ids.join(','));
       if (filters.bill_to_additional_customer_ids_exclude?.length) params.set('bill_to_additional_customer_ids_exclude', filters.bill_to_additional_customer_ids_exclude.join(','));
       if (filters.factor_company === 'yes' || filters.factor_company === 'no') params.set('factor_company', filters.factor_company);
+      if (filters.invoice_email_sent_y === 'yes' || filters.invoice_email_sent_y === 'no') params.set('invoice_email_sent_y', filters.invoice_email_sent_y);
       const res = await fetch(`/api/tenant/ar/invoices?${params}`);
       if (!res.ok) throw new Error('Failed to load invoices');
       const data = await res.json();
