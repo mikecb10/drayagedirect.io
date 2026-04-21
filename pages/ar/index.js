@@ -77,6 +77,7 @@ export default function AccountsReceivable() {
           isOpen={filterSidebarOpen}
           onClose={() => setFilterSidebarOpen(false)}
           filters={filters}
+          section={activeTab}
           onApply={(next) => {
             setFilters(next);
             setActiveTabId(null);

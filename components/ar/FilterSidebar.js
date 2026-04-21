@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { X, Search, RotateCcw } from 'lucide-react';
+import { filterKeysForSection } from '../../lib/ar-filter-schema';
 
-const EMPTY = { customer_ids: [], branch_ids: [], from: '', to: '' };
+const EMPTY = { customer_ids: [], branch_ids: [], from: '', to: '', reference_number: '' };
 
-export default function FilterSidebar({ isOpen, onClose, filters, onApply }) {
+export default function FilterSidebar({ isOpen, onClose, filters, onApply, section = 'billing' }) {
+  const visibleKeys = filterKeysForSection(section);
+  const showKey = (key) => visibleKeys.includes(key);
   const [draft, setDraft] = useState(() => ({ ...EMPTY, ...filters }));
   const [customers, setCustomers] = useState([]);
   const [branches, setBranches] = useState([]);
@@ -71,6 +74,22 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply }) {
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+          {/* Reference number — text search on orders.customer_reference */}
+          {showKey('reference_number') && (
+            <section>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400 mb-2">
+                Reference number
+              </label>
+              <input
+                type="text"
+                value={draft.reference_number ?? ''}
+                onChange={(e) => setDraft((d) => ({ ...d, reference_number: e.target.value }))}
+                placeholder="e.g. PO-12345"
+                className="w-full px-2 py-1.5 text-xs border border-gray-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </section>
+          )}
+
           {/* Customers — typeahead combobox with chips */}
           <section>
             <div className="flex items-center justify-between mb-2">
@@ -168,6 +187,9 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply }) {
                 if (draft.branch_ids?.length)   cleaned.branch_ids   = draft.branch_ids;
                 if (draft.from)                 cleaned.from         = draft.from;
                 if (draft.to)                   cleaned.to           = draft.to;
+                if (draft.reference_number && draft.reference_number.trim().length > 0) {
+                  cleaned.reference_number = draft.reference_number.trim();
+                }
                 onApply(cleaned);
                 onClose();
               }}
