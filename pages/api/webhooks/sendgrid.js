@@ -109,13 +109,13 @@ export default async function handler(req, res) {
       .eq('provider_message_id', baseId)
       .limit(1);
 
-    const row = rows?.[0] ?? null;
-
     if (selectErr) {
       // DB errors are operational failures — let SendGrid retry.
       console.error('[webhook/sendgrid] select failed:', selectErr.message);
       return res.status(500).json({ error: 'db_select_failed' });
     }
+
+    const row = rows?.[0] ?? null;
 
     if (!row) {
       console.warn('[webhook/sendgrid] orphan event', {

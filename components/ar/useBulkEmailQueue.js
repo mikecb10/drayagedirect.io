@@ -76,7 +76,7 @@ export function useBulkEmailQueue(groups, groupingKind, docType = 'invoice') {
   useEffect(() => {
     // Collect message_ids of rows that are awaiting delivery confirmation.
     const pendingIds = rows
-      .filter((r) => r.message_id && !TERMINAL.includes(r.delivery_status))
+      .filter((r) => r.status === 'sent' && r.message_id && !TERMINAL.includes(r.delivery_status))
       .map((r) => r.message_id);
 
     if (pendingIds.length === 0) return;
