@@ -49,6 +49,13 @@ export default async function handler(req, res) {
   const deliveryLocationIds = parseCsvParam(req.query.delivery_location_ids);
   const returnLocationIds   = parseCsvParam(req.query.return_location_ids);
 
+  // Phase B4: bill-to primary / additional + factor company
+  const billToPrimaryCustomerIds        = parseCsvParam(req.query.bill_to_primary_customer_ids);
+  const billToPrimaryCustomerIdsExclude = parseCsvParam(req.query.bill_to_primary_customer_ids_exclude);
+  const billToAdditionalCustomerIds     = parseCsvParam(req.query.bill_to_additional_customer_ids);
+  const billToAdditionalCustomerIdsExclude = parseCsvParam(req.query.bill_to_additional_customer_ids_exclude);
+  const { factor_company } = req.query;
+
   let query = svc
     .from('order_charge_sets')
     .select(`
@@ -56,7 +63,7 @@ export default async function handler(req, res) {
       order:orders(id, order_number, status, load_type, customer_id, customer_reference, branch_id, driver_id, container_type, container_size, steamship_line_scac, is_hazmat, is_overweight, is_overheight, is_liquor, is_hot, is_genset, is_scale, is_ev, is_street_turn, is_oog, is_bonded, is_double, is_tanker, pickup_location_id, delivery_location_id, return_location_id, created_at, deleted_at,
         customer:customers!orders_customer_id_fkey(id, name)
       ),
-      bill_to:customers!order_charge_sets_bill_to_customer_id_fkey(id, name),
+      bill_to:customers!order_charge_sets_bill_to_customer_id_fkey(id, name, pay_type),
       line_items:order_charge_set_line_items(id, name, total_cents, is_auto)
     `)
     .eq('tenant_id', ctx.tenantId)
@@ -193,6 +200,44 @@ export default async function handler(req, res) {
   if (returnLocationIds.length > 0) {
     const ids = new Set(returnLocationIds);
     scopedSets = scopedSets.filter((cs) => cs.order?.return_location_id && ids.has(cs.order.return_location_id));
+  }
+
+  // ── Phase B4: bill-to primary / additional ─────────────────────────
+  // Primary = charge_set_number does NOT match /_\d+$/ (no _N suffix).
+  // Secondary/additional = matches /_\d+$/.
+  const SECONDARY_PATTERN = /_\d+$/;
+  const isPrimaryCs = (cs) => !SECONDARY_PATTERN.test(cs.charge_set_number || '');
+
+  if (billToPrimaryCustomerIds.length > 0) {
+    const ids = new Set(billToPrimaryCustomerIds);
+    scopedSets = scopedSets.filter((cs) =>
+      isPrimaryCs(cs) && cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id)
+    );
+  }
+  if (billToPrimaryCustomerIdsExclude.length > 0) {
+    const ids = new Set(billToPrimaryCustomerIdsExclude);
+    scopedSets = scopedSets.filter((cs) =>
+      !(isPrimaryCs(cs) && cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id))
+    );
+  }
+  if (billToAdditionalCustomerIds.length > 0) {
+    const ids = new Set(billToAdditionalCustomerIds);
+    scopedSets = scopedSets.filter((cs) =>
+      !isPrimaryCs(cs) && cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id)
+    );
+  }
+  if (billToAdditionalCustomerIdsExclude.length > 0) {
+    const ids = new Set(billToAdditionalCustomerIdsExclude);
+    scopedSets = scopedSets.filter((cs) =>
+      !(!isPrimaryCs(cs) && cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id))
+    );
+  }
+
+  // ── Phase B4: factor company Y/N ───────────────────────────────────
+  if (factor_company === 'yes') {
+    scopedSets = scopedSets.filter((cs) => cs.bill_to?.pay_type === 'factoring');
+  } else if (factor_company === 'no') {
+    scopedSets = scopedSets.filter((cs) => cs.bill_to?.pay_type && cs.bill_to.pay_type !== 'factoring');
   }
 
   // Compute counts over the SCOPED set — filter cards reflect the current
