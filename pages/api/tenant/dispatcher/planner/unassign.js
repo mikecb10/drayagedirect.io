@@ -53,6 +53,7 @@ export default async function handler(req, res) {
       chassis_id: null,
       scheduled_date: null,
       sort_order: null,
+      assigned_at: null,
       status: 'unassigned',
     })
     .eq('id', moveId)
@@ -67,7 +68,6 @@ export default async function handler(req, res) {
       .eq('tenant_id', ctx.tenantId)
       .eq('driver_id', prevDriverId)
       .eq('scheduled_date', prevDate)
-      .is('deleted_at', null)
       .order('sort_order', { ascending: true });
 
     await Promise.all(

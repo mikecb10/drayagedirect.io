@@ -47,6 +47,22 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'One or more moves not found' });
   }
 
+  // Completeness: ensure orderedMoveIds covers EVERY move on this driver+date,
+  // not just the subset the caller provided. Otherwise un-supplied moves keep
+  // their old sort_order and collide with the new dense sequence.
+  const { count: totalOnRow, error: countErr } = await svc
+    .from('order_container_moves')
+    .select('id', { count: 'exact', head: true })
+    .eq('tenant_id', ctx.tenantId)
+    .eq('driver_id', driverId)
+    .eq('scheduled_date', date);
+  if (countErr) return res.status(500).json({ error: countErr.message });
+  if ((totalOnRow ?? 0) !== orderedMoveIds.length) {
+    return res.status(400).json({
+      error: `orderedMoveIds must cover all ${totalOnRow} moves for this driver+date; got ${orderedMoveIds.length}`,
+    });
+  }
+
   // Dense resequence
   await Promise.all(
     orderedMoveIds.map((id, idx) =>
@@ -62,8 +78,8 @@ export default async function handler(req, res) {
     tenantId: ctx.tenantId,
     userId: ctx.userId,
     action: 'reorder',
-    entityType: 'order_container_move',
-    entityId: driverId, // log against the driver + date
+    entityType: 'driver',
+    entityId: driverId,
     oldValues: null,
     newValues: { driverId, date, orderedMoveIds },
     ipAddress: getClientIp(req),

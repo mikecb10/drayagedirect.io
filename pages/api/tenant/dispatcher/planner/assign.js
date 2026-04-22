@@ -19,7 +19,12 @@ export default async function handler(req, res) {
 
   if (!requirePermission(ctx, [PERMISSIONS.DISPATCHING, PERMISSIONS.ALL], res)) return;
 
-  const { moveId, driverId, truckId = null, chassisId = null, date, insertAfterMoveId = null, positionIndex = null } = req.body || {};
+  const body = req.body || {};
+  const { moveId, driverId, date, insertAfterMoveId = null, positionIndex = null } = body;
+  const hasTruckKey = Object.prototype.hasOwnProperty.call(body, 'truckId');
+  const hasChassisKey = Object.prototype.hasOwnProperty.call(body, 'chassisId');
+  const truckId = hasTruckKey ? body.truckId : undefined;
+  const chassisId = hasChassisKey ? body.chassisId : undefined;
 
   if (!moveId || !driverId || !date) {
     return res.status(400).json({ error: 'moveId, driverId, and date are required' });
@@ -48,16 +53,19 @@ export default async function handler(req, res) {
     return res.status(409).json({ error: `Cannot assign a move with status ${move.status}` });
   }
 
-  // Verify driver exists in this tenant
+  // Verify driver exists in this tenant and is active
   const { data: driver, error: driverErr } = await svc
     .from('drivers')
-    .select('id')
+    .select('id, status')
     .eq('id', driverId)
     .eq('tenant_id', ctx.tenantId)
     .is('deleted_at', null)
     .maybeSingle();
   if (driverErr) return res.status(500).json({ error: driverErr.message });
   if (!driver) return res.status(404).json({ error: 'Driver not found' });
+  if (driver.status !== 'active') {
+    return res.status(409).json({ error: `Cannot assign to a ${driver.status} driver` });
+  }
 
   // Compute target sort_order based on current row
   const { data: rowMoves, error: rowErr } = await svc
@@ -66,7 +74,6 @@ export default async function handler(req, res) {
     .eq('tenant_id', ctx.tenantId)
     .eq('driver_id', driverId)
     .eq('scheduled_date', date)
-    .is('deleted_at', null)
     .order('sort_order', { ascending: true });
   if (rowErr) return res.status(500).json({ error: rowErr.message });
 
@@ -92,12 +99,12 @@ export default async function handler(req, res) {
     if (id === moveId) {
       Object.assign(fields, {
         driver_id: driverId,
-        truck_id: truckId,
-        chassis_id: chassisId,
         scheduled_date: date,
         status: newStatus,
         assigned_at: new Date().toISOString(),
       });
+      if (hasTruckKey) fields.truck_id = truckId;
+      if (hasChassisKey) fields.chassis_id = chassisId;
     }
     return svc
       .from('order_container_moves')
@@ -109,6 +116,29 @@ export default async function handler(req, res) {
   const anyErr = results.find((r) => r.error);
   if (anyErr) return res.status(500).json({ error: anyErr.error.message });
 
+  // If this was a cross-driver OR cross-date move, dense-resequence the PRIOR row.
+  // (Target row was resequenced above; the old row now has a hole at the moved move's old sort_order.)
+  const prevDriverId = move.driver_id;
+  const prevDate = move.scheduled_date;
+  if (prevDriverId && prevDate && (prevDriverId !== driverId || prevDate !== date)) {
+    const { data: priorRow } = await svc
+      .from('order_container_moves')
+      .select('id')
+      .eq('tenant_id', ctx.tenantId)
+      .eq('driver_id', prevDriverId)
+      .eq('scheduled_date', prevDate)
+      .order('sort_order', { ascending: true });
+    await Promise.all(
+      (priorRow || []).map((r, idx) =>
+        svc
+          .from('order_container_moves')
+          .update({ sort_order: idx })
+          .eq('id', r.id)
+          .eq('tenant_id', ctx.tenantId)
+      )
+    );
+  }
+
   await logTenantAction(svc, {
     tenantId: ctx.tenantId,
     userId: ctx.userId,
@@ -116,7 +146,15 @@ export default async function handler(req, res) {
     entityType: 'order_container_move',
     entityId: moveId,
     oldValues: { driver_id: move.driver_id, status: prevStatus, scheduled_date: move.scheduled_date, sort_order: move.sort_order },
-    newValues: { driver_id: driverId, truck_id: truckId, chassis_id: chassisId, scheduled_date: date, status: newStatus, insertAfterMoveId, positionIndex },
+    newValues: {
+      driver_id: driverId,
+      scheduled_date: date,
+      status: newStatus,
+      insertAfterMoveId,
+      positionIndex,
+      ...(hasTruckKey ? { truck_id: truckId } : {}),
+      ...(hasChassisKey ? { chassis_id: chassisId } : {}),
+    },
     ipAddress: getClientIp(req),
   });
 

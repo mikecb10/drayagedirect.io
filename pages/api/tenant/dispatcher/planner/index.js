@@ -69,8 +69,7 @@ export default async function handler(req, res) {
       )
       `
     )
-    .eq('tenant_id', ctx.tenantId)
-    .is('deleted_at', null);
+    .eq('tenant_id', ctx.tenantId);
 
   // Either: scheduled on this date (assigned moves shown on grid)
   // OR: unassigned (right-rail pool — shown regardless of scheduled_date)
