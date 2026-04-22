@@ -58,6 +58,7 @@ export default async function handler(req, res) {
       id, tenant_id, order_id, sequence, move_type,
       driver_id, truck_id, chassis_id,
       status, started_at, completed_at, scheduled_date, sort_order,
+      assigned_at,
       order:orders!order_container_moves_order_id_fkey(
         id, order_number, container_number, container_size, container_type,
         lfd, container_at_port, empty_ready_for_return_at, branch_id
