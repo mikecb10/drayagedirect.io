@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   DndContext,
   PointerSensor,
@@ -186,6 +186,40 @@ export default function RoutingTab({ load, onLoadRefresh }) {
     // Time format now comes from useTenantTimeFormat() above (shared cached hook).
   }, [fetchRouting]);
 
+  // Back-fill effect: when Google Maps resolves a distance for an event
+  // whose server-persisted estimated_miles is still null AND is not
+  // manually flagged, PUT the resolved value. Prevents silent $0 when
+  // a user saves before Google-Maps finishes computing.
+  const backfillInFlight = useRef(new Set());
+  useEffect(() => {
+    if (!Array.isArray(events) || events.length === 0) return;
+    for (const ev of events) {
+      if (ev.distance_is_manual === true) continue;
+      if (ev.estimated_miles != null) continue;  // already persisted
+      const live = legMetrics[ev.id]?.distance_miles;
+      if (typeof live !== 'number' || Number.isNaN(live)) continue;
+      if (backfillInFlight.current.has(ev.id)) continue;
+      backfillInFlight.current.add(ev.id);
+      (async () => {
+        try {
+          await fetch(`/api/tenant/loads/${load.id}/routing/events/${ev.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ estimated_miles: live, distance_is_manual: false }),
+          });
+          // Update local events state so the next render sees the new value
+          // (avoids re-firing the backfill in a loop).
+          setEvents((prev) => prev.map((e) =>
+            e.id === ev.id ? { ...e, estimated_miles: live } : e
+          ));
+        } catch {
+          // Transient failure — drop the flag so a later render can retry.
+          backfillInFlight.current.delete(ev.id);
+        }
+      })();
+    }
+  }, [events, legMetrics, load.id]);
+
   // ===== Compute per-leg metrics when events change =============
   useEffect(() => {
     if (events.length < 2) return;
@@ -359,10 +393,16 @@ export default function RoutingTab({ load, onLoadRefresh }) {
       const currentEvent = events.find((e) => e.id === eventId);
       const isManual = currentEvent?.distance_is_manual === true;
       const isPatchManualOverride = 'distance_is_manual' in patch;
+      // Only inject distance fields when we have a numeric value.
+      // Otherwise leave the PUT body untouched so the server preserves
+      // whatever's persisted (avoids clobbering with null during the
+      // Google-Maps-still-resolving race).
+      const liveDistance = legMetrics[eventId]?.distance_miles;
+      const hasLiveDistance = typeof liveDistance === 'number' && !Number.isNaN(liveDistance);
       const distanceFields =
-        !isManual && !isPatchManualOverride
+        !isManual && !isPatchManualOverride && hasLiveDistance
           ? {
-              estimated_miles: legMetrics[eventId]?.distance_miles ?? null,
+              estimated_miles: liveDistance,
               distance_is_manual: false,
             }
           : {};
