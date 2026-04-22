@@ -38,11 +38,21 @@ function makeCtx(load, profileOverrides = {}) {
   };
 }
 
+function callResolveAmountCents(ctx, tier, tiers) {
+  return resolveAmountCents({
+    tiers,
+    calculation_mode: ctx.profile?.calculation_mode,
+    unit_of_measure: ctx.profile?.unit_of_measure,
+  }, {
+    load: ctx.load,
+  });
+}
+
 console.log('Test: per_mile charge with estimated_miles fallback');
 {
   const ctx = makeCtx({ actual_miles: null, estimated_miles: 25 });
   const tier = makeTier();
-  const out = resolveAmountCents(ctx, tier, [tier]);
+  const out = callResolveAmountCents(ctx, tier, [tier]);
   check('uses estimated_miles via COALESCE', out.amount_cents === 25 * 250);
   check('miles field reflects the resolved value', out.miles === 25);
   check('needs_distance not set', !out.needs_distance);
@@ -52,7 +62,7 @@ console.log('Test: per_mile charge prefers actual_miles over estimated');
 {
   const ctx = makeCtx({ actual_miles: 30, estimated_miles: 25 });
   const tier = makeTier();
-  const out = resolveAmountCents(ctx, tier, [tier]);
+  const out = callResolveAmountCents(ctx, tier, [tier]);
   check('uses actual_miles (30) not estimated (25)', out.amount_cents === 30 * 250);
   check('miles field is 30', out.miles === 30);
 }
@@ -61,7 +71,7 @@ console.log('Test: per_mile charge returns null when BOTH miles are NULL');
 {
   const ctx = makeCtx({ actual_miles: null, estimated_miles: null });
   const tier = makeTier();
-  const out = resolveAmountCents(ctx, tier, [tier]);
+  const out = callResolveAmountCents(ctx, tier, [tier]);
   check('amount_cents is null', out.amount_cents === null);
   check('needs_distance is true', out.needs_distance === true);
   check('reason is no_miles_on_load', out.reason === 'no_miles_on_load');
@@ -74,7 +84,7 @@ console.log('Test: fixed-fee charge unaffected by missing miles');
     { unit_of_measure: 'fixed' }
   );
   const tier = makeTier({ amount_cents: 5000 });
-  const out = resolveAmountCents(ctx, tier, [tier]);
+  const out = callResolveAmountCents(ctx, tier, [tier]);
   check('fixed-fee returns its amount regardless', out.amount_cents === 5000);
   check('needs_distance not set on fixed charges', !out.needs_distance);
 }
@@ -86,7 +96,7 @@ console.log('Test: per_load charge unaffected by missing miles');
     { unit_of_measure: 'per_load' }
   );
   const tier = makeTier({ amount_cents: 15000 });
-  const out = resolveAmountCents(ctx, tier, [tier]);
+  const out = callResolveAmountCents(ctx, tier, [tier]);
   check('per_load returns its amount', out.amount_cents === 15000);
   check('needs_distance not set', !out.needs_distance);
 }
@@ -98,7 +108,7 @@ console.log('Test: percentage charge unaffected by missing miles');
     { unit_of_measure: 'percentage' }
   );
   const tier = makeTier({ amount_cents: 10 });
-  const out = resolveAmountCents(ctx, tier, [tier]);
+  const out = callResolveAmountCents(ctx, tier, [tier]);
   check('percentage charge unaffected', !out.needs_distance);
 }
 
@@ -111,7 +121,7 @@ console.log('Test: radius_rate charge returns null when both miles NULL');
   const tier = makeTier({
     radius_tiers: [{ amount_cents: 10000, start_distance: 0, end_distance: 50, rate_type: 'fixed' }],
   });
-  const out = resolveAmountCents(ctx, tier, [tier]);
+  const out = callResolveAmountCents(ctx, tier, [tier]);
   check('amount_cents is null', out.amount_cents === null);
   check('needs_distance is true', out.needs_distance === true);
 }
@@ -128,7 +138,7 @@ console.log('Test: radius_rate bracket lookup uses estimated_miles when actual N
       { amount_cents: 20000, start_distance: 51, end_distance: 100, rate_type: 'fixed' },
     ],
   });
-  const out = resolveAmountCents(ctx, tier, [tier]);
+  const out = callResolveAmountCents(ctx, tier, [tier]);
   check('miles=30 falls in [0,50] bracket', out.amount_cents === 10000);
   check('bracket index is 0', out.radius_bracket_index === 0);
 }
@@ -138,7 +148,7 @@ console.log('Test: legitimately zero-mile load does NOT trigger gate');
   // Load with miles explicitly stored as 0 (same-location pickup + delivery)
   const ctx = makeCtx({ actual_miles: 0, estimated_miles: 0 });
   const tier = makeTier();
-  const out = resolveAmountCents(ctx, tier, [tier]);
+  const out = callResolveAmountCents(ctx, tier, [tier]);
   check('amount_cents is 0 (not null)', out.amount_cents === 0);
   check('needs_distance is NOT set', !out.needs_distance);
 }
@@ -148,7 +158,7 @@ console.log('Test: load with only actual_miles=0 + estimated_miles=0 treated as 
   // Edge case: both are 0 (not null). These are VALID resolved values.
   const ctx = makeCtx({ actual_miles: 0, estimated_miles: 0 });
   const tier = makeTier();
-  const out = resolveAmountCents(ctx, tier, [tier]);
+  const out = callResolveAmountCents(ctx, tier, [tier]);
   check('0 * rate = 0 without gate trigger', out.amount_cents === 0 && !out.needs_distance);
 }
 
@@ -160,7 +170,7 @@ console.log('Test: isDistanceBased covers per_mile, per_miles, per_unit');
       { actual_miles: null, estimated_miles: null },
       { unit_of_measure: uom }
     );
-    const out = resolveAmountCents(ctx, makeTier(), [makeTier()]);
+    const out = callResolveAmountCents(ctx, makeTier(), [makeTier()]);
     check(`${uom} triggers needs_distance when both miles NULL`, out.needs_distance === true);
   }
 }
