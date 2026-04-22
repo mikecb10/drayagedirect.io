@@ -4,7 +4,7 @@ import { DndContext, PointerSensor, KeyboardSensor, useSensor, useSensors, close
 import useDriverPlanner from '../../../hooks/useDriverPlanner';
 import PlannerToolbar from './PlannerToolbar';
 import DriverPlannerGrid from './DriverPlannerGrid';
-import UnassignedMoveCard from './UnassignedMoveCard';
+import UnassignedRightRail from './UnassignedRightRail';
 
 function todayIso() {
   const d = new Date();
@@ -81,15 +81,8 @@ export default function DriverPlannerView() {
             )}
           </div>
 
-          <aside className="w-[360px] border-l border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 overflow-auto">
-            <div className="p-2 text-xs text-gray-500 dark:text-gray-400">
-              Unassigned (interim flat list — replaced by buckets in Task 16)
-            </div>
-            <div className="p-2 space-y-2">
-              {[...unassignedBuckets.atPort, ...unassignedBuckets.deliveries, ...unassignedBuckets.return, ...unassignedBuckets.other].map((m) => (
-                <UnassignedMoveCard key={m.id} move={m} />
-              ))}
-            </div>
+          <aside className="w-[360px] border-l border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 overflow-hidden flex flex-col">
+            <UnassignedRightRail buckets={unassignedBuckets} />
           </aside>
         </div>
       </div>
