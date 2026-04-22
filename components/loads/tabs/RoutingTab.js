@@ -19,6 +19,7 @@ import RouteMap from '../routing/RouteMap';
 import RoutingOptions from '../routing/RoutingOptions';
 import LoadStateBanner from '../routing/LoadStateBanner';
 import RailCheckInSlip from '../routing/RailCheckInSlip';
+import LegDeleteConfirmModal from '../routing/LegDeleteConfirmModal';
 import { getDistanceAndDuration } from '../../../utils/getDistanceMiles';
 import { getValidNextEvents, canAddEvent, canAddMove, checkAutoRestructure } from '../../../lib/routing-rules';
 import { useTenantTimeFormat, useTenantSettings } from '../../../hooks/useTenantSettings';
@@ -41,6 +42,7 @@ export default function RoutingTab({ load, onLoadRefresh }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [legDeleteConfirm, setLegDeleteConfirm] = useState(null); // { eventId, runs } | null
   const [templateId, setTemplateId] = useState(load?.routing_template_id || null);
   const [options, setOptions] = useState({});
   const [viewFilter, setViewFilter] = useState('all');
@@ -442,8 +444,21 @@ export default function RoutingTab({ load, onLoadRefresh }) {
     // Normal delete (non-Drop or no merge needed)
     if (!routingConfirm('Delete this event?')) return;
     try {
-      await fetch(`/api/tenant/loads/${load.id}/routing/events/${eventId}`, { method: 'DELETE' });
-      await fetchRouting();
+      const res = await fetch(`/api/tenant/loads/${load.id}/routing/events/${eventId}`, { method: 'DELETE' });
+      if (res.status === 204) {
+        await fetchRouting();
+        return;
+      }
+      const body = await res.json().catch(() => ({}));
+      if (body.blocked) {
+        setError(body.error || 'Cannot delete: leg has invoiced/settled dry runs.');
+        return;
+      }
+      if (body.needs_confirmation) {
+        setLegDeleteConfirm({ eventId, runs: body.dry_runs || [] });
+        return;
+      }
+      setError(body.error || 'Delete failed');
     } catch (e) {
       setError(e.message);
     }
@@ -1137,6 +1152,48 @@ export default function RoutingTab({ load, onLoadRefresh }) {
           </div>
         </div>
       </DndContext>
+
+      {legDeleteConfirm && (
+        <LegDeleteConfirmModal
+          open
+          onClose={() => setLegDeleteConfirm(null)}
+          onDetach={async () => {
+            try {
+              const res = await fetch(
+                `/api/tenant/loads/${load.id}/routing/events/${legDeleteConfirm.eventId}?mode=detach`,
+                { method: 'DELETE' }
+              );
+              if (res.status === 204) {
+                setLegDeleteConfirm(null);
+                await fetchRouting();
+              } else {
+                const body = await res.json().catch(() => ({}));
+                setError(body.error || 'Detach failed');
+              }
+            } catch (e) {
+              setError(e.message);
+            }
+          }}
+          onDeleteAll={async () => {
+            try {
+              const res = await fetch(
+                `/api/tenant/loads/${load.id}/routing/events/${legDeleteConfirm.eventId}?mode=delete_all`,
+                { method: 'DELETE' }
+              );
+              if (res.status === 204) {
+                setLegDeleteConfirm(null);
+                await fetchRouting();
+              } else {
+                const body = await res.json().catch(() => ({}));
+                setError(body.error || 'Delete failed');
+              }
+            } catch (e) {
+              setError(e.message);
+            }
+          }}
+          runs={legDeleteConfirm.runs}
+        />
+      )}
     </div>
   );
 }
