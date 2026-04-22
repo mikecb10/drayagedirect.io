@@ -22,9 +22,12 @@ ALTER TABLE order_driver_pay_lines
 
 -- 4. Trigger function: recompute orders.estimated_miles from the sum of
 --    estimated_miles across all routing events for the affected order.
---    NULLIF(sum, 0) preserves NULL when every event has NULL distance —
---    this keeps the engine's "both NULL means unresolved" check
---    working correctly for legacy loads.
+--    The CASE distinguishes two cases so the engine's gate works correctly:
+--      - ALL events have NULL distance (legacy / pre-migration) → store NULL
+--        → engine treats as unresolved → safety-net gate triggers.
+--      - At least one event has a distance value (even 0) → store sum
+--        → engine proceeds with the sum (legitimately zero-mile loads
+--        return $0 per_mile without triggering the gate).
 CREATE OR REPLACE FUNCTION trigger_sync_order_estimated_miles()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -32,12 +35,16 @@ DECLARE
   new_total NUMERIC(8,2);
 BEGIN
   affected_order_id := COALESCE(NEW.order_id, OLD.order_id);
-  SELECT COALESCE(SUM(estimated_miles), 0)
+  SELECT
+    CASE
+      WHEN COUNT(*) FILTER (WHERE estimated_miles IS NOT NULL) = 0 THEN NULL
+      ELSE COALESCE(SUM(estimated_miles), 0)
+    END
     INTO new_total
     FROM order_routing_events
     WHERE order_id = affected_order_id;
   UPDATE orders
-    SET estimated_miles = NULLIF(new_total, 0),
+    SET estimated_miles = new_total,
         updated_at = now()
     WHERE id = affected_order_id;
   RETURN COALESCE(NEW, OLD);
