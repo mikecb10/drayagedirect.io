@@ -253,6 +253,17 @@ export default function InvoicesTab({ filters = {} }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 dark:border-slate-800 bg-gray-50/60 dark:bg-slate-800/40">
+                <th className="px-3 py-2 w-10">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    ref={(el) => { if (el) el.indeterminate = someSelected; }}
+                    onChange={toggleAllResendable}
+                    disabled={bulkAction != null || visibleResendableIds.length === 0}
+                    aria-label="Select all resendable invoices"
+                    className="rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                </th>
                 <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Invoice #</th>
                 <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Customer</th>
                 <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Status</th>
@@ -265,17 +276,38 @@ export default function InvoicesTab({ filters = {} }) {
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-slate-800">
               {loading ? (
-                <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">Loading...</td></tr>
+                <tr><td colSpan={9} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">Loading...</td></tr>
               ) : invoices.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">No invoices yet.</td></tr>
+                <tr><td colSpan={9} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">No invoices yet.</td></tr>
               ) : (
                 invoices.map((inv) => {
                   const badge = STATUS_BADGES[inv.status] || STATUS_BADGES.draft;
                   const loadNums = (inv.charge_sets || [])
                     .map((jc) => jc.charge_set?.order?.order_number)
                     .filter(Boolean);
+                  const isResendable = inv.status === 'sent' || inv.status === 'overdue';
                   return (
-                    <tr key={inv.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40">
+                    <tr
+                      key={inv.id}
+                      className={`${
+                        selectedIds.has(inv.id)
+                          ? 'bg-blue-50 dark:bg-blue-950/40'
+                          : 'hover:bg-gray-50 dark:hover:bg-slate-800/40'
+                      }`}
+                    >
+                      <td className="px-3 py-2.5 w-10">
+                        {isResendable ? (
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(inv.id)}
+                            onChange={(e) => toggleResendableRow(inv.id, e)}
+                            onClick={(e) => e.stopPropagation()}
+                            disabled={bulkAction != null}
+                            aria-label={`Select invoice ${inv.invoice_number || ''}`}
+                            className="rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                        ) : null}
+                      </td>
                       <td className="px-4 py-2.5">
                         <span className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400">{inv.invoice_number}</span>
                         {inv.is_consolidated && (
