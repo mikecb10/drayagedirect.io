@@ -33,7 +33,7 @@
 
 **New files:**
 ```
-supabase/migrations/089_driver_planner_foundations.sql
+supabase/migrations/090_driver_planner_foundations.sql
 lib/dispatcher/moveBuckets.js
 scripts/moveBuckets.smoke.js
 pages/api/tenant/dispatcher/planner/index.js           (GET)
@@ -115,7 +115,7 @@ Confirm the next available migration number. If the latest is not `088`, update 
 ```bash
 git add docs/superpowers/plans/2026-04-22-driver-planner-audit.md
 git commit -m "$(cat <<'EOF'
-docs(driver-planner): schema audit — findings for migration 089
+docs(driver-planner): schema audit — findings for migration 090
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
@@ -124,19 +124,19 @@ EOF
 
 ---
 
-## Task 2: Migration 089 — driver_planner_foundations
+## Task 2: Migration 090 — driver_planner_foundations
 
 **Files:**
-- Create: `supabase/migrations/089_driver_planner_foundations.sql`
+- Create: `supabase/migrations/090_driver_planner_foundations.sql`
 
 This migration is additive and reversible. Exact behavior adapts to Task 1 audit findings — if a column already exists, skip the ADD; if a CHECK constraint is already present, ALTER it. Use `IF NOT EXISTS` / `IF EXISTS` aggressively.
 
 - [ ] **Step 1: Draft the migration**
 
-Create `supabase/migrations/089_driver_planner_foundations.sql`:
+Create `supabase/migrations/090_driver_planner_foundations.sql`:
 
 ```sql
--- Migration 089: Driver Planner foundations
+-- Migration 090: Driver Planner foundations
 --
 -- Additive schema changes supporting the new Driver Planner tab on the
 -- dispatcher module. Spec: docs/superpowers/specs/2026-04-22-driver-planner-design.md
@@ -219,16 +219,16 @@ NOTIFY pgrst, 'reload schema';
 
 Run (dry-run parse via psql-style comment check):
 ```bash
-head -100 supabase/migrations/089_driver_planner_foundations.sql
+head -100 supabase/migrations/090_driver_planner_foundations.sql
 ```
 Expected: no obvious syntax errors visible in the file output. (Full SQL correctness is verified when the user applies it.)
 
 - [ ] **Step 3: Commit the migration**
 
 ```bash
-git add supabase/migrations/089_driver_planner_foundations.sql
+git add supabase/migrations/090_driver_planner_foundations.sql
 git commit -m "$(cat <<'EOF'
-feat(driver-planner): migration 089 — planner foundations
+feat(driver-planner): migration 090 — planner foundations
 
 Adds scheduled_date/sort_order on order_container_moves, container_at_port
 + empty_ready_for_return_at on orders, eld_snapshot jsonb on drivers.
@@ -243,7 +243,7 @@ EOF
 - [ ] **Step 4: USER ACTION — apply the migration**
 
 Stop and tell the user:
-> "Migration 089 is ready. Please apply it to the Supabase DB (paste into SQL editor and run) before I continue to Task 3."
+> "Migration 090 is ready. Please apply it to the Supabase DB (paste into SQL editor and run) before I continue to Task 3."
 
 Do not proceed to Task 3 until the user confirms application.
 
@@ -3157,7 +3157,7 @@ Update `memory/MEMORY.md` with a new entry referencing the completed feature (fo
 
 All of the following must be true before marking the plan done:
 
-- [ ] Migration 089 applied to the live DB (user action in Task 2).
+- [ ] Migration 090 applied to the live DB (user action in Task 2).
 - [ ] All 21 tasks committed.
 - [ ] All 12 Chrome verification gates pass.
 - [ ] Code reviewer has no unaddressed findings.
