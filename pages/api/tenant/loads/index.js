@@ -4,7 +4,7 @@ import {
   getServiceClient,
 } from '../../../../lib/tenant-api';
 import { logTenantAction, getClientIp } from '../../../../lib/tenant-audit';
-import { PERMISSIONS } from '../../../../lib/permissions';
+import { PERMISSIONS, hasPermission } from '../../../../lib/permissions';
 import { buildRoutingEventsForTemplate } from '../../../../lib/routing-template-seed';
 import { computeKpiStats } from '../../../../lib/kpi-engine';
 import { findMatchingCharges, applyChargesToLoad } from '../../../../lib/tariff-engine';
@@ -286,14 +286,7 @@ export default async function handler(req, res) {
     // Attach margin per row for users with AR/reporting access.
     // Uses the full `data` set (before active_only filter) so every row in
     // visibleLoads already has .margin when it reaches the client.
-    if (
-      data.length > 0 &&
-      (
-        ctx.permissions.includes(PERMISSIONS.ACCOUNTS_RECEIVABLE) ||
-        ctx.permissions.includes(PERMISSIONS.REPORTING) ||
-        ctx.permissions.includes(PERMISSIONS.ALL)
-      )
-    ) {
+    if (data.length > 0 && hasPermission(ctx, [PERMISSIONS.ACCOUNTS_RECEIVABLE, PERMISSIONS.REPORTING])) {
       try {
         const { data: tenant, error: tErr } = await svc
           .from('tenants')

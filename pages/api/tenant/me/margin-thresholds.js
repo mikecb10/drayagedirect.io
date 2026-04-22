@@ -1,5 +1,5 @@
 import { requireTenantUser, requirePermission, getServiceClient } from '../../../../lib/tenant-api';
-import { PERMISSIONS } from '../../../../lib/permissions';
+import { PERMISSIONS, hasPermission } from '../../../../lib/permissions';
 
 export default async function handler(req, res) {
   const ctx = await requireTenantUser(req, res);
@@ -12,12 +12,7 @@ export default async function handler(req, res) {
 }
 
 async function handleGet(req, res, ctx) {
-  if (
-    !ctx.permissions.includes(PERMISSIONS.SETTINGS) &&
-    !ctx.permissions.includes(PERMISSIONS.ACCOUNTS_RECEIVABLE) &&
-    !ctx.permissions.includes(PERMISSIONS.REPORTING) &&
-    !ctx.permissions.includes(PERMISSIONS.ALL)
-  ) {
+  if (!hasPermission(ctx, [PERMISSIONS.SETTINGS, PERMISSIONS.ACCOUNTS_RECEIVABLE, PERMISSIONS.REPORTING])) {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
@@ -41,8 +36,8 @@ async function handleGet(req, res, ctx) {
 }
 
 async function handlePut(req, res, ctx) {
-  // Permission check: only SETTINGS or ALL can write
-  if (!requirePermission(ctx, [PERMISSIONS.SETTINGS, PERMISSIONS.ALL], res)) return;
+  // Permission check: only SETTINGS (or super_admin / 'all') can write
+  if (!requirePermission(ctx, [PERMISSIONS.SETTINGS], res)) return;
 
   const { red_threshold, yellow_threshold, include_dry_runs } = req.body ?? {};
 

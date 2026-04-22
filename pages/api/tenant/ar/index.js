@@ -1,7 +1,7 @@
 import { requireTenantUser, getServiceClient } from '../../../../lib/tenant-api';
 import { parseCsvParam } from '../../../../lib/ar-filter-params';
 import { fetchLoadMarginInputs, computeLoadMargin } from '../../../../lib/load-margin';
-import { PERMISSIONS } from '../../../../lib/permissions';
+import { PERMISSIONS, hasPermission } from '../../../../lib/permissions';
 
 /**
  * GET /api/tenant/ar
@@ -290,13 +290,10 @@ export default async function handler(req, res) {
   }
 
   // ── Load Margin: attach margin object per row ─────────────────────────
-  // Gated on ACCOUNTS_RECEIVABLE | REPORTING | ALL — users without the
-  // permission receive rows without a margin object, and the margin filter
+  // Gated on ACCOUNTS_RECEIVABLE | REPORTING | super_admin — users without
+  // the permission receive rows without a margin object, and the margin filter
   // is treated as a no-op so they don't accidentally see empty results.
-  const canSeeMargin =
-    ctx.permissions.includes(PERMISSIONS.ACCOUNTS_RECEIVABLE) ||
-    ctx.permissions.includes(PERMISSIONS.REPORTING) ||
-    ctx.permissions.includes(PERMISSIONS.ALL);
+  const canSeeMargin = hasPermission(ctx, [PERMISSIONS.ACCOUNTS_RECEIVABLE, PERMISSIONS.REPORTING]);
 
   if (canSeeMargin && scopedSets.length > 0) {
     try {
