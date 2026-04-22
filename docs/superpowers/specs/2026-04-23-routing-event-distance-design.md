@@ -94,12 +94,16 @@ DECLARE
   new_total NUMERIC(8,2);
 BEGIN
   affected_order_id := COALESCE(NEW.order_id, OLD.order_id);
-  SELECT COALESCE(SUM(estimated_miles), 0)
+  SELECT
+    CASE
+      WHEN COUNT(*) FILTER (WHERE estimated_miles IS NOT NULL) = 0 THEN NULL
+      ELSE COALESCE(SUM(estimated_miles), 0)
+    END
     INTO new_total
     FROM order_routing_events
     WHERE order_id = affected_order_id;
   UPDATE orders
-    SET estimated_miles = NULLIF(new_total, 0),
+    SET estimated_miles = new_total,
         updated_at = now()
     WHERE id = affected_order_id;
   RETURN COALESCE(NEW, OLD);
@@ -111,7 +115,7 @@ CREATE TRIGGER trg_sync_order_estimated_miles
   FOR EACH ROW EXECUTE FUNCTION trigger_sync_order_estimated_miles();
 ```
 
-`NULLIF(new_total, 0)` keeps `orders.estimated_miles` as NULL (not 0) when every event has NULL distance — preserves the gate's ability to distinguish "unresolved" from "genuinely zero-mileage load".
+The CASE distinguishes two cases so the engine's gate works correctly: if ALL events have NULL distance, store NULL (engine treats as unresolved → safety-net gate triggers). If at least one event has a distance value (even 0), store the sum (legitimately zero-mile loads return $0 per_mile without triggering the gate).
 
 ## Write Path
 
