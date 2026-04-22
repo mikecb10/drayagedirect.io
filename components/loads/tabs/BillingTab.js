@@ -10,7 +10,9 @@ import CurrencyInput from '../../ui/CurrencyInput';
 import Input from '../../ui/Input';
 import Select from '../../ui/Select';
 import EmailComposeSlideOver from '../../ar/EmailComposeSlideOver';
+import DryRunSlideOver from '../routing/DryRunSlideOver';
 import { useEmailCompose } from '../../../hooks/useEmailCompose';
+import MarginBadge from '../../ui/MarginBadge';
 
 const STATUS_STYLES = {
   draft: 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200',
@@ -69,6 +71,8 @@ export default function BillingTab({ load }) {
   const [creating, setCreating] = useState(false);
   const [recalculating, setRecalculating] = useState(false);
   const [recalcSuccess, setRecalcSuccess] = useState(null);
+  const [dryRunEdit, setDryRunEdit] = useState(null);
+  const [dryRunDrivers, setDryRunDrivers] = useState([]);
 
   async function fetchChargeSets({ silent = false } = {}) {
     if (!load?.id) return;
@@ -97,6 +101,15 @@ export default function BillingTab({ load }) {
     fetchChargeSets();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/tenant/drivers')
+      .then((r) => r.json())
+      .then((data) => { if (!cancelled) setDryRunDrivers(data?.drivers || []); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   async function handleCreate() {
     setCreating(true);
@@ -138,11 +151,44 @@ export default function BillingTab({ load }) {
     }
   }
 
+  async function openDryRunEdit(lineItem) {
+    try {
+      const res = await fetch(`/api/tenant/loads/${load.id}/dry-runs`);
+      const data = await res.json();
+      const match = (data.dry_runs || []).find((r) => r.id === lineItem.dry_run_attempt_id);
+      if (match) setDryRunEdit(match);
+    } catch {}
+  }
+
   const grandTotal = chargeSets.reduce((sum, cs) => sum + (cs.total_cents || 0), 0);
 
   return (
     <div className="space-y-4">
       {error && <Alert type="error" message={error} />}
+
+      {load?.margin && (
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900/50 px-3 py-2 text-sm">
+          <span className="text-gray-600 dark:text-slate-400">Revenue</span>
+          <span className="font-medium text-gray-900 dark:text-slate-100">
+            {load.margin.revenueCents > 0 ? formatCents(load.margin.revenueCents) : '—'}
+          </span>
+          <span className="text-gray-400 dark:text-slate-600">·</span>
+          <span className="text-gray-600 dark:text-slate-400">Cost</span>
+          <span className="font-medium text-gray-900 dark:text-slate-100">
+            {load.margin.costCents > 0 ? formatCents(load.margin.costCents) : '—'}
+          </span>
+          <span className="text-gray-400 dark:text-slate-600">·</span>
+          <span className="text-gray-600 dark:text-slate-400">Margin</span>
+          <span className="font-medium text-gray-900 dark:text-slate-100">
+            {load.margin.bucket !== 'neutral' ? formatCents(load.margin.marginCents) : '—'}
+          </span>
+          <MarginBadge
+            marginPct={load.margin.marginPct}
+            bucket={load.margin.bucket}
+            size="sm"
+          />
+        </div>
+      )}
 
       {/* Summary strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -244,9 +290,30 @@ export default function BillingTab({ load }) {
               onChanged={fetchChargeSets}
               onError={setError}
               openOverlay={openOverlay}
+              onOpenDryRun={openDryRunEdit}
             />
           ))}
         </div>
+      )}
+
+      {dryRunEdit && (
+        <DryRunSlideOver
+          open={!!dryRunEdit}
+          onClose={() => setDryRunEdit(null)}
+          onSaved={() => {
+            setDryRunEdit(null);
+            fetchChargeSets();
+          }}
+          orderId={load.id}
+          event={{
+            id: dryRunEdit.event_id,
+            event_type: 'DRY_RUN',
+            location_label: '',
+            distance_miles: dryRunEdit.miles,
+          }}
+          drivers={dryRunDrivers}
+          existing={dryRunEdit}
+        />
       )}
     </div>
   );
@@ -274,7 +341,7 @@ function SummaryCard({ label, value, icon: Icon, color }) {
   );
 }
 
-function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
+function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay, onOpenDryRun }) {
   const [adding, setAdding] = useState(false);
   const [savingStatus, setSavingStatus] = useState(false);
   const emailCompose = useEmailCompose();
@@ -567,6 +634,7 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
                 onDelete={() => deleteLineItem(li.id)}
                 formatCents={formatCents}
                 openOverlay={openOverlay}
+                onOpenDryRun={onOpenDryRun}
               />
             ))}
           </tbody>
@@ -872,12 +940,18 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
 /**
  * EditableLineRow — click a cell to edit inline, save on blur.
  */
-function EditableLineRow({ li, isEditable, onUpdate, onDelete, formatCents, openOverlay }) {
+function EditableLineRow({ li, isEditable, onUpdate, onDelete, formatCents, openOverlay, onOpenDryRun }) {
   const [editField, setEditField] = useState(null);
   const [editValue, setEditValue] = useState('');
 
+  // Dry-run rows are edited exclusively via the slide-over. Allowing inline
+  // cell editing causes a double-fire bug: clicking a cell triggers both
+  // startEdit AND the row-level onClick (which opens the slide-over).
+  // Disable inline editing for dry-run rows.
+  const rowIsEditable = isEditable && !li.dry_run_attempt_id;
+
   function startEdit(field, value) {
-    if (!isEditable) return;
+    if (!rowIsEditable) return;
     setEditField(field);
     setEditValue(value ?? '');
   }
@@ -922,7 +996,7 @@ function EditableLineRow({ li, isEditable, onUpdate, onDelete, formatCents, open
     }
     return (
       <td
-        className={`px-4 py-2 ${align === 'right' ? 'text-right' : ''} ${cls} ${isEditable ? 'cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/40' : ''}`}
+        className={`px-4 py-2 ${align === 'right' ? 'text-right' : ''} ${cls} ${rowIsEditable ? 'cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/40' : ''}`}
         onClick={() => startEdit(field, field === 'per_unit_price_cents' ? ((value || 0) / 100).toFixed(2) : value)}
       >
         {display}
@@ -937,7 +1011,12 @@ function EditableLineRow({ li, isEditable, onUpdate, onDelete, formatCents, open
   const tariffId = li.source_tariff_id;
 
   return (
-    <tr className="hover:bg-gray-50 dark:hover:bg-slate-800 group">
+    <tr
+      className={`hover:bg-gray-50 dark:hover:bg-slate-800 group ${
+        li.dry_run_attempt_id ? 'cursor-pointer bg-amber-50/40 dark:bg-amber-950/20 hover:bg-amber-100/60 dark:hover:bg-amber-950/30' : ''
+      }`}
+      onClick={() => li.dry_run_attempt_id ? onOpenDryRun?.(li) : undefined}
+    >
       {/* Source badge: A = Auto, M = Manual */}
       <td className="px-2 py-2 text-center">
         {li.is_auto ? (
@@ -958,7 +1037,7 @@ function EditableLineRow({ li, isEditable, onUpdate, onDelete, formatCents, open
             {li.name}
             <ExternalLink className="w-2.5 h-2.5 opacity-50" />
           </button>
-        ) : isEditable ? (
+        ) : rowIsEditable ? (
           <span className="cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => startEdit('name', li.name)}>{li.name}</span>
         ) : (
           li.name
@@ -975,7 +1054,7 @@ function EditableLineRow({ li, isEditable, onUpdate, onDelete, formatCents, open
             </button>
           </span>
         ) : (
-          <span className={isEditable ? 'cursor-pointer hover:text-blue-600 dark:hover:text-blue-400' : ''} onClick={() => startEdit('description', li.description)}>
+          <span className={rowIsEditable ? 'cursor-pointer hover:text-blue-600 dark:hover:text-blue-400' : ''} onClick={() => startEdit('description', li.description)}>
             {li.description || '—'}
           </span>
         )}
@@ -987,10 +1066,20 @@ function EditableLineRow({ li, isEditable, onUpdate, onDelete, formatCents, open
       {renderCell('free_units', li.free_units, li.free_units, 'right', 'text-gray-500 dark:text-slate-400 text-xs')}
       {renderCell('per_unit_price_cents', li.per_unit_price_cents, formatCents(li.per_unit_price_cents), 'right', 'text-gray-700 dark:text-slate-200')}
       <td className="px-4 py-2 text-right font-semibold text-strong">
-        {formatCents(li.total_cents)}
+        {li.needs_distance && li.total_cents == null ? (
+          <span
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded px-1.5 py-0.5"
+            title="Load needs a saved route. Open the Routing tab and save."
+          >
+            <span aria-hidden="true">⚠</span>
+            Distance missing
+          </span>
+        ) : (
+          <span>{formatCents(li.total_cents)}</span>
+        )}
       </td>
       <td className="px-2 py-2">
-        {isEditable && (
+        {rowIsEditable && (
           <button
             onClick={onDelete}
             className="text-gray-300 dark:text-slate-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"

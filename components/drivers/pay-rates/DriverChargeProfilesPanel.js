@@ -75,7 +75,7 @@ export default function DriverChargeProfilesPanel() {
     name: '', charge_name: '', description: '', driver_group_id: '',
     unit_of_measure: 'fixed', percentage_based_on: '', percentage_charge_code: '',
     effective_date_basis: 'CURRENT_DATE', calculation_mode: 'by_event',
-    auto_add: false, match_resolution: 'first_match_wins',
+    auto_add: false, is_dry_run: false, match_resolution: 'first_match_wins',
     // Calc mode config — mode-specific subsets used depending on calculation_mode:
     status_from: '', status_to: '',                 // between_statuses
     event_config: { ...EMPTY_EVENT_CONFIG },        // by_event
@@ -131,7 +131,7 @@ export default function DriverChargeProfilesPanel() {
       name: '', charge_name: '', description: '', driver_group_id: '',
       unit_of_measure: 'fixed', percentage_based_on: '', percentage_charge_code: '',
       effective_date_basis: 'CURRENT_DATE', calculation_mode: 'by_event',
-      auto_add: false, match_resolution: 'first_match_wins',
+      auto_add: false, is_dry_run: false, match_resolution: 'first_match_wins',
       status_from: '', status_to: '',
       event_config: { ...EMPTY_EVENT_CONFIG },
       move_events: [makeEmptyMoveEvent()],
@@ -164,6 +164,7 @@ export default function DriverChargeProfilesPanel() {
       effective_date_basis: profile.effective_date_basis || 'CURRENT_DATE',
       calculation_mode: profile.calculation_mode || 'by_event',
       auto_add: profile.auto_add || false,
+      is_dry_run: profile.is_dry_run || false,
       match_resolution: profile.match_resolution || 'first_match_wins',
       conditions: profile.conditions || [],
       // Between Statuses
@@ -299,6 +300,7 @@ export default function DriverChargeProfilesPanel() {
         effective_date_basis: form.effective_date_basis,
         calculation_mode: form.calculation_mode,
         auto_add: form.auto_add,
+        is_dry_run: form.is_dry_run,
         match_resolution: form.match_resolution,
         conditions: form.conditions || [],
         versions: [{ label: 'Version 1', rows }],
@@ -439,6 +441,15 @@ export default function DriverChargeProfilesPanel() {
                   </div>
                 </label>
               </div>
+              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={!!form.is_dry_run}
+                  onChange={(e) => setForm({ ...form, is_dry_run: e.target.checked })}
+                  className="rounded border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-950 text-blue-600 focus:ring-blue-500"
+                />
+                <span>Available for Dry Runs</span>
+              </label>
               {requiresPercentageBase(form.unit_of_measure) && (
                 <>
                   <Select label="Percentage Based On" value={form.percentage_based_on}

@@ -80,6 +80,27 @@ export default async function handler(req, res) {
       updates.priority = n;
     }
 
+    if ('from_display_name' in body) {
+      updates.from_display_name = typeof body.from_display_name === 'string'
+        ? body.from_display_name.trim().slice(0, 100) || null
+        : null;
+    }
+    if ('reply_to_email' in body) {
+      updates.reply_to_email = typeof body.reply_to_email === 'string'
+        ? body.reply_to_email.trim() || null
+        : null;
+    }
+    if ('reply_to_name' in body) {
+      updates.reply_to_name = typeof body.reply_to_name === 'string'
+        ? body.reply_to_name.trim() || null
+        : null;
+    }
+    if ('branch_id' in body) {
+      updates.branch_id = typeof body.branch_id === 'string' && body.branch_id
+        ? body.branch_id
+        : null;
+    }
+
     // Sender kind change — must flip all 3 columns atomically
     if ('sender_kind' in body) {
       const sender = resolveSenderColumns(body);

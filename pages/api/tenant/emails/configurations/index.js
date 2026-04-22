@@ -201,6 +201,18 @@ export default async function handler(req, res) {
       is_active: body.is_active !== false,
       is_default: !!body.is_default,
       priority: Number.isFinite(Number(body.priority)) ? Number(body.priority) : 0,
+      from_display_name: typeof body.from_display_name === 'string'
+        ? body.from_display_name.trim().slice(0, 100) || null
+        : null,
+      reply_to_email: typeof body.reply_to_email === 'string'
+        ? body.reply_to_email.trim() || null
+        : null,
+      reply_to_name: typeof body.reply_to_name === 'string'
+        ? body.reply_to_name.trim() || null
+        : null,
+      branch_id: typeof body.branch_id === 'string' && body.branch_id
+        ? body.branch_id
+        : null,
       ...sender.cols,
     };
 

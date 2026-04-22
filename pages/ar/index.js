@@ -11,6 +11,10 @@ import PaymentsTab from '../../components/ar/PaymentsTab';
 import CreditMemosTab from '../../components/ar/CreditMemosTab';
 import AgingTab from '../../components/ar/AgingTab';
 
+import ArFiltersBar from '../../components/ar/ArFiltersBar';
+import FilterSidebar from '../../components/ar/FilterSidebar';
+import { useArUserPreferences } from '../../components/ar/useArUserPreferences';
+
 const AR_TABS = [
   { id: 'billing', label: 'Billing' },
   { id: 'invoices', label: 'Invoices' },
@@ -23,6 +27,14 @@ const AR_TABS = [
 export default function AccountsReceivable() {
   const [activeTab, setActiveTab] = useState('billing');
 
+  // Global AR filter state — applies across all sub-tabs that consume it.
+  // Phase A: Billing + Invoices consume. Other sub-tabs ignore for now;
+  // Phase B wires them up when their endpoints learn array filters.
+  const [filters, setFilters]                     = useState({});
+  const [activeTabId, setActiveTabId]             = useState(null);
+  const [filterSidebarOpen, setFilterSidebarOpen] = useState(false);
+  const { customTabs, saveCustomTab, deleteCustomTab } = useArUserPreferences();
+
   return (
     <TenantLayout title="Accounts Receivable" requiredPermission={[PERMISSIONS.ACCOUNTS_RECEIVABLE, PERMISSIONS.ALL]}>
       <div className="space-y-5">
@@ -33,12 +45,44 @@ export default function AccountsReceivable() {
 
         <SubTabs tabs={AR_TABS} active={activeTab} onChange={setActiveTab} />
 
-        {activeTab === 'billing' && <BillingPipelineTab />}
-        {activeTab === 'invoices' && <InvoicesTab />}
+        <ArFiltersBar
+          customTabs={customTabs}
+          activeTabId={activeTabId}
+          currentFilters={filters}
+          onSelectTab={(id) => {
+            setActiveTabId(id);
+            if (id == null) {
+              setFilters({});
+            } else {
+              const tab = customTabs.find((t) => t.id === id);
+              if (tab) setFilters(tab.filters || {});
+            }
+          }}
+          onSaveTab={(tab) => saveCustomTab(tab)}
+          onDeleteTab={(id) => {
+            if (activeTabId === id) { setActiveTabId(null); setFilters({}); }
+            deleteCustomTab(id);
+          }}
+          onOpenFilters={() => setFilterSidebarOpen(true)}
+        />
+
+        {activeTab === 'billing'        && <BillingPipelineTab filters={filters} />}
+        {activeTab === 'invoices'       && <InvoicesTab filters={filters} />}
         {activeTab === 'apply_payments' && <ApplyPaymentsTab />}
-        {activeTab === 'payments' && <PaymentsTab />}
-        {activeTab === 'credit_memos' && <CreditMemosTab />}
-        {activeTab === 'aging' && <AgingTab />}
+        {activeTab === 'payments'       && <PaymentsTab filters={filters} />}
+        {activeTab === 'credit_memos'   && <CreditMemosTab filters={filters} />}
+        {activeTab === 'aging'          && <AgingTab filters={filters} />}
+
+        <FilterSidebar
+          isOpen={filterSidebarOpen}
+          onClose={() => setFilterSidebarOpen(false)}
+          filters={filters}
+          section={activeTab}
+          onApply={(next) => {
+            setFilters(next);
+            setActiveTabId(null);
+          }}
+        />
       </div>
     </TenantLayout>
   );

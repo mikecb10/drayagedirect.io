@@ -10,8 +10,10 @@ import {
   logManualBulkSend,
 } from '../../../../../lib/email-dispatch';
 import { fetchFullConfiguration } from '../../../../../lib/email-configuration-helpers';
+import { selectActiveConfig } from '../../../../../lib/email-dispatch/select-config.js';
 import { renderInvoicePdf } from '../../../../../lib/pdf/render-invoice';
 import { archiveInvoicePdf } from '../../../../../lib/pdf/archive';
+import { checkChargeSetDistanceGate } from '../../../../../lib/charge-set-distance-gate';
 
 export const config = { runtime: 'nodejs' };
 
@@ -89,26 +91,38 @@ export default async function handler(req, res) {
     const skippedIds = invoiceIds.filter((id) => !claimedSet.has(String(id).toLowerCase()));
 
     // ── STAGE: fetch_config ───────────────────────────────────────────────────
-    // Mirror single-invoice send-email.js exactly: pick active config by
-    // is_active + priority ordering (no kind discriminator).
+    // Branch-aware config selection: prefer a config scoped to the load's
+    // branch; fall back to tenant-default. For bulk sends the first invoice's
+    // branch is used (all invoices share the same customer per the cross-
+    // customer guard below; ambiguous multi-branch batches should be split).
     stage = STAGE.fetch_config;
-    const { data: configRow, error: configErr } = await svc
-      .from('email_configurations')
-      .select('id')
+
+    // Fetch invoice data (including branch_id for config selection) before
+    // selecting the config so we can pass the branch to selectActiveConfig.
+    // branch_id is a direct column on invoices (added in migration 064) —
+    // there is no load_id FK on this table.
+    const { data: invoices, error: invErr } = await svc
+      .from('invoices')
+      .select('id, invoice_number, customer_id, branch_id, customers:customer_id(name)')
       .eq('tenant_id', ctx.tenantId)
-      .eq('is_active', true)
-      .order('priority', { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    if (configErr) throw new Error(`config lookup: ${configErr.message}`);
-    if (!configRow) throw new Error('No active email sender configuration');
+      .is('deleted_at', null)
+      .in('id', claimedIds);
+    if (invErr) throw new Error(`invoice load: ${invErr.message}`);
+
+    const loadBranchId = invoices?.[0]?.branch_id || null;
+    const configRow = await selectActiveConfig(svc, ctx.tenantId, loadBranchId);
+    if (!configRow) {
+      const err = new Error('No active email configuration for this tenant');
+      err.code = 'NO_ACTIVE_CONFIG';
+      throw err;
+    }
 
     const fullConfig = await fetchFullConfiguration(svc, ctx.tenantId, configRow.id);
     if (!fullConfig) throw new Error('Sender configuration lookup failed');
 
     const { data: tenantRow } = await svc
       .from('tenants')
-      .select('id, name, email')
+      .select('id, name, contact_email')
       .eq('id', ctx.tenantId)
       .maybeSingle();
 
@@ -122,15 +136,6 @@ export default async function handler(req, res) {
     // as `preRendered` to archiveInvoicePdf so the same bytes land in Storage
     // and in the attachment — no double-render.
     stage = STAGE.render;
-
-    // Fetch minimal invoice data needed for the filename.
-    const { data: invoices, error: invErr } = await svc
-      .from('invoices')
-      .select('id, invoice_number, customer_id, customers:customer_id(name)')
-      .eq('tenant_id', ctx.tenantId)
-      .is('deleted_at', null)
-      .in('id', claimedIds);
-    if (invErr) throw new Error(`invoice load: ${invErr.message}`);
 
     // Cross-customer isolation (defense-in-depth): the claim RPC enforces
     // tenant boundary but NOT customer homogeneity. resolveBulkBillingRecipients
@@ -147,10 +152,79 @@ export default async function handler(req, res) {
     }
 
     const invoiceMap = Object.fromEntries((invoices ?? []).map((inv) => [inv.id, inv]));
-    const primaryInvoice = invoices?.[0] ?? null;
+
+    // ── Distance gate: skip invoices whose charge sets have unresolved distance ─
+    // Look up all invoice→charge_set links in one query, then gate each invoice.
+    // Invoices with unresolved charges are released from the claim and collected
+    // in distanceSkipped so the caller knows which ones were excluded.
+    const { data: allIcsRows } = await svc
+      .from('invoice_charge_sets')
+      .select('invoice_id, charge_set_id')
+      .eq('tenant_id', ctx.tenantId)
+      .in('invoice_id', claimedIds);
+
+    // Group charge_set_ids by invoice_id for efficient per-invoice gating.
+    const chargeSetsByInvoice = {};
+    for (const { invoice_id, charge_set_id } of (allIcsRows ?? [])) {
+      if (!chargeSetsByInvoice[invoice_id]) chargeSetsByInvoice[invoice_id] = [];
+      chargeSetsByInvoice[invoice_id].push(charge_set_id);
+    }
+
+    const distanceSkipped = [];
+    const sendableInvoiceIds = [];
+    for (const invoiceId of claimedIds) {
+      const chargeSetIds = chargeSetsByInvoice[invoiceId] ?? [];
+      let blocked = false;
+      let blockReason = null;
+      let blockNames = [];
+      let blockDbError = null;
+      for (const csId of chargeSetIds) {
+        const gate = await checkChargeSetDistanceGate(svc, ctx.tenantId, csId);
+        if (!gate.ok) {
+          // Block both real unresolved-distance hits AND DB errors.
+          // Treating dbError as "OK to send" defeats the safety net (CR found).
+          blocked = true;
+          blockReason = gate.dbError ? 'distance_check_failed' : 'unresolved_distance';
+          blockNames = blockNames.concat(gate.unresolvedNames ?? []);
+          blockDbError = gate.dbError || null;
+        }
+      }
+      if (blocked) {
+        distanceSkipped.push({
+          invoice_id: invoiceId,
+          reason: blockReason,
+          unresolved_names: blockNames,
+          db_error: blockDbError,
+        });
+      } else {
+        sendableInvoiceIds.push(invoiceId);
+      }
+    }
+
+    // Release claims on distance-blocked invoices so they can be retried.
+    if (distanceSkipped.length > 0) {
+      const blockedIds = distanceSkipped.map(s => s.invoice_id);
+      await svc
+        .from('invoices')
+        .update({ send_claimed_at: null })
+        .eq('tenant_id', ctx.tenantId)
+        .in('id', blockedIds);
+    }
+
+    // If everything is blocked by distance, return early with a 400.
+    if (sendableInvoiceIds.length === 0) {
+      return res.status(400).json({
+        error: 'charge_set_has_unresolved_distance_charges',
+        message: `Cannot send — all invoices in this group have unresolved distance charges. Open each load's Routing tab and save a route, or set the amounts manually.`,
+        skipped: distanceSkipped,
+        skipped_count: distanceSkipped.length,
+      });
+    }
+
+    const primaryInvoice = invoices?.find(inv => sendableInvoiceIds.includes(inv.id)) ?? invoices?.[0] ?? null;
 
     const attachments = [];
-    for (const invoiceId of claimedIds) {
+    for (const invoiceId of sendableInvoiceIds) {
       const inv = invoiceMap[invoiceId];
       // renderInvoicePdf(svc, invoiceId, tenantId) → Buffer
       const buffer = await renderInvoicePdf(svc, invoiceId, ctx.tenantId);
@@ -192,8 +266,12 @@ export default async function handler(req, res) {
       templateId: null,
       configurationId: fullConfig.id,
       sentByUserId: ctx.userId,
-      relatedEntity: { type: 'invoice_bulk', id: claimedIds.join(',') },
+      relatedEntity: { type: 'invoice_bulk', id: sendableInvoiceIds.join(',') },
       eventName: 'manual:invoice_bulk_send',
+      // Task 7 precedence helpers: supply objects so dispatcher resolves
+      // display name + reply-to via the unified helper path.
+      config: fullConfig,
+      tenant: tenantRow,
     });
 
     // ── STAGE: postdispatch ───────────────────────────────────────────────────
@@ -211,13 +289,13 @@ export default async function handler(req, res) {
       .from('invoices')
       .update({ sent_at: sentAt, send_claimed_at: null, status: 'sent' })
       .eq('tenant_id', ctx.tenantId)
-      .in('id', claimedIds);
+      .in('id', sendableInvoiceIds);
     if (updErr) throw new Error(`sent_at update: ${updErr.message}`);
 
     // Single bulk audit-log row.
     await logManualBulkSend(svc, {
       tenantId: ctx.tenantId,
-      invoiceIds: claimedIds,
+      invoiceIds: sendableInvoiceIds,
       userId: ctx.userId,
       groupingKind,
       groupLabel: groupLabel ?? primaryInvoice?.customers?.name ?? primaryInvoice?.customer_id ?? '(group)',
@@ -228,8 +306,10 @@ export default async function handler(req, res) {
     });
 
     return res.status(200).json({
-      sent: claimedIds,
+      sent: sendableInvoiceIds,
       skipped: skippedIds,
+      skipped_distance: distanceSkipped,
+      skipped_distance_count: distanceSkipped.length,
       message_id: dispatchResult?.messageId ?? null,
     });
 
@@ -263,6 +343,13 @@ export default async function handler(req, res) {
     } catch (_) { /* audit-log failure is not fatal */ }
 
     console.error(`[bulk-send] ${stage} failure:`, err);
+
+    if (err.code === 'NO_ACTIVE_CONFIG') {
+      return res.status(400).json({
+        error: 'no_active_email_configuration',
+        message: err.message,
+      });
+    }
 
     const status =
       err.code === 'ALL_CLAIMED' ? 409

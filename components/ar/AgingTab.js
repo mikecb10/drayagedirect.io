@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import Alert from '../ui/Alert';
-import StatsCards from '../ui/StatsCards';
 import { formatCents } from '../../lib/ar-utils';
 
-export default function AgingTab() {
+export default function AgingTab({ filters = {} }) {
   const [data, setData] = useState({ customers: [], totals: {} });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -13,7 +12,14 @@ export default function AgingTab() {
   async function load() {
     setLoading(true);
     try {
-      const res = await fetch('/api/tenant/ar/aging');
+      const params = new URLSearchParams();
+      if (filters.customer_ids?.length)         params.set('customer_ids', filters.customer_ids.join(','));
+      if (filters.customer_ids_exclude?.length) params.set('customer_ids_exclude', filters.customer_ids_exclude.join(','));
+      if (filters.invoiced_from) params.set('invoiced_from', filters.invoiced_from);
+      if (filters.invoiced_to)   params.set('invoiced_to',   filters.invoiced_to);
+
+      const qs = params.toString();
+      const res = await fetch(`/api/tenant/ar/aging${qs ? `?${qs}` : ''}`);
       if (!res.ok) throw new Error('Failed to load aging data');
       const d = await res.json();
       setData(d);
@@ -21,7 +27,7 @@ export default function AgingTab() {
     finally { setLoading(false); }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [filters]);
 
   function toggleExpand(customerId) {
     setExpanded((prev) => {
@@ -39,13 +45,14 @@ export default function AgingTab() {
       {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
-          { label: 'Total Outstanding', value: totals.total, color: 'text-gray-900 dark:text-slate-100' },
-          { label: 'Current (0-30)', value: totals.current, color: 'text-emerald-600 dark:text-emerald-400' },
-          { label: '31-60 Days', value: totals['1_30'], color: 'text-amber-600 dark:text-amber-400' },
-          { label: '61-90 Days', value: totals['31_60'], color: 'text-orange-600 dark:text-orange-400' },
-          { label: '90+ Days', value: totals['90_plus'], color: 'text-red-600 dark:text-red-400' },
+          { label: 'Total Outstanding', value: totals.total,      color: 'text-gray-900 dark:text-slate-100' },
+          { label: 'Current',           value: totals.current,    color: 'text-emerald-600 dark:text-emerald-400' },
+          { label: '1-30 Days',         value: totals['1_30'],    color: 'text-amber-600 dark:text-amber-400' },
+          { label: '31-60 Days',        value: totals['31_60'],   color: 'text-orange-600 dark:text-orange-400' },
+          { label: '61-90 Days',        value: totals['61_90'],   color: 'text-rose-600 dark:text-rose-400' },
+          { label: '90+ Days',          value: totals['90_plus'], color: 'text-red-600 dark:text-red-400' },
         ].map((s) => (
           <div key={s.label} className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">
             <div className="text-[10px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">{s.label}</div>

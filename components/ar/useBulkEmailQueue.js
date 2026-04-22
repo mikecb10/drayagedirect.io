@@ -14,7 +14,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * @param {Array} groups  - from BulkGroupingModal.onContinue
  * @param {'customer'|'reference'|'charge_set'} groupingKind
  */
-export function useBulkEmailQueue(groups, groupingKind) {
+export function useBulkEmailQueue(groups, groupingKind, docType = 'invoice') {
   const [rows, setRows] = useState(() => groups.map((g) => ({
     groupKey: g.key,
     group: g,
@@ -28,11 +28,96 @@ export function useBulkEmailQueue(groups, groupingKind) {
     body_format: 'html',
     attachments: [],
     error: null,
+    message_id: null,
+    delivery_status: null,
   })));
+
+  // docType routing table: which endpoints + request-body field names
+  // apply for this bulk flow. All doc-type differences live here — nowhere
+  // else. 'invoice' is the default so 2a.4 callers behave identically.
+  const cfg = docType === 'rate_con' ? {
+    defaultsUrl: '/api/tenant/ar/charge-sets/email-defaults-bulk-rate-con',
+    sendUrl:     '/api/tenant/ar/charge-sets/bulk-send-rate-con',
+    idField:     'charge_set_ids',
+    defaultsBody: (g) => ({
+      // computeGroups writes row-level ids to `invoice_ids` regardless of
+      // docType (it's the generic "items in this group" field). Rate-con
+      // callers populate that field with charge_set ids, so passing it
+      // through as charge_set_ids here is correct.
+      charge_set_ids: g.invoice_ids,
+      customer_id:    g.customer_id,
+    }),
+  } : {
+    defaultsUrl: '/api/tenant/ar/invoices/email-defaults-bulk',
+    sendUrl:     '/api/tenant/ar/invoices/bulk-send',
+    idField:     'invoice_ids',
+    defaultsBody: (g) => ({
+      invoice_ids: g.invoice_ids,
+      customer_id: g.customer_id,
+    }),
+  };
+
   const initialized = useRef(false);
   // Mirror rows in a ref so async flows can read current state without stale closures.
   const rowsRef = useRef(rows);
   useEffect(() => { rowsRef.current = rows; }, [rows]);
+
+  // Poll /api/tenant/emails/deliveries every 5s while any row has been sent
+  // but hasn't heard back from SendGrid's webhook yet. Stops automatically
+  // when all rows are terminal (delivered / bounced / dropped / spam_reported)
+  // or 60s have elapsed with no progress.
+  //
+  // Terminal states (NOT deferred — deferred is transient, SendGrid may retry
+  // and emit delivered/bounced later):
+  const TERMINAL = ['delivered', 'bounced', 'dropped', 'spam_reported'];
+  const POLL_INTERVAL_MS = 5000;
+  const MAX_POLL_DURATION_MS = 60000;
+
+  useEffect(() => {
+    // Collect message_ids of rows that are awaiting delivery confirmation.
+    const pendingIds = rows
+      .filter((r) => r.status === 'sent' && r.message_id && !TERMINAL.includes(r.delivery_status))
+      .map((r) => r.message_id);
+
+    if (pendingIds.length === 0) return;
+
+    let cancelled = false;
+    const startedAt = Date.now();
+
+    const tick = async () => {
+      if (cancelled) return;
+      if (Date.now() - startedAt > MAX_POLL_DURATION_MS) return;
+
+      try {
+        const qs = encodeURIComponent(pendingIds.join(','));
+        const res = await fetch(`/api/tenant/emails/deliveries?message_ids=${qs}`);
+        if (!res.ok) return; // Soft-fail; next tick tries again.
+        const map = await res.json();
+        if (cancelled) return;
+
+        setRows((prev) => prev.map((r) => {
+          if (!r.message_id) return r;
+          const entry = map[r.message_id];
+          if (!entry) return r;
+          if (entry.delivery_status === r.delivery_status) return r;
+          return { ...r, delivery_status: entry.delivery_status };
+        }));
+      } catch (_) {
+        // Swallow — the next tick will retry.
+      }
+    };
+
+    // Kick off first poll immediately, then every 5s.
+    tick();
+    const interval = setInterval(tick, POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+    // Re-run when the set of pending message_ids changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows.map((r) => `${r.message_id}:${r.delivery_status}`).join('|')]);
 
   // On mount: fetch email-defaults for each group in parallel.
   useEffect(() => {
@@ -42,13 +127,10 @@ export function useBulkEmailQueue(groups, groupingKind) {
     (async () => {
       const results = await Promise.allSettled(
         groups.map((g) =>
-          fetch('/api/tenant/ar/invoices/email-defaults-bulk', {
+          fetch(cfg.defaultsUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              invoice_ids: g.invoice_ids,
-              customer_id: g.customer_id,
-            }),
+            body: JSON.stringify(cfg.defaultsBody(g)),
           }).then(async (res) => {
             if (!res.ok) {
               const body = await res.json().catch(() => ({}));
@@ -122,12 +204,18 @@ export function useBulkEmailQueue(groups, groupingKind) {
 
     const results = await Promise.allSettled(
       targetRows.map((r) =>
-        fetch('/api/tenant/ar/invoices/bulk-send', {
+        fetch(cfg.sendUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             group: {
-              invoice_ids: r.attachments.map((a) => a.invoice_id),
+              // Attachments carry the row-level id. For invoices,
+              // email-defaults-bulk writes `invoice_id` per attachment;
+              // for rate-cons, email-defaults-bulk-rate-con writes
+              // `item_id` (aliased as `charge_set_id`). Accept either
+              // via the fallback chain so both flows work without touching
+              // existing invoice-side attachment shapes.
+              [cfg.idField]: r.attachments.map((a) => a.item_id ?? a.invoice_id ?? a.charge_set_id),
               recipients: { to: r.to, cc: r.cc, bcc: r.bcc },
               subject: r.subject,
               body_text: r.body_text,
@@ -155,13 +243,22 @@ export function useBulkEmailQueue(groups, groupingKind) {
     setRows((prev) => prev.map((r) => {
       const result = resultByKey.get(r.groupKey);
       if (!result) return r;
-      return result.status === 'fulfilled'
-        ? { ...r, status: 'sent', error: null }
-        : { ...r, status: 'failed', error: result.reason?.message ?? 'Send failed' };
+      if (result.status === 'fulfilled') {
+        return {
+          ...r,
+          status: 'sent',
+          // message_id comes from /bulk-send's response (email_messages.id UUID).
+          // Used by the polling effect below to query delivery status.
+          message_id: result.value?.message_id ?? null,
+          delivery_status: null,
+          error: null,
+        };
+      }
+      return { ...r, status: 'failed', error: result.reason?.message ?? 'Send failed' };
     }));
 
     return results;
-  }, [groupingKind]);
+  }, [groupingKind, cfg.sendUrl, cfg.idField]);
 
   const sendReady   = useCallback(() => sendRowsByStatus('ready'),  [sendRowsByStatus]);
   const retryFailed = useCallback(() => sendRowsByStatus('failed'), [sendRowsByStatus]);

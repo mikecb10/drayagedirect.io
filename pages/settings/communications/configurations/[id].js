@@ -22,6 +22,9 @@ import Button from '../../../../components/ui/Button';
 import Input from '../../../../components/ui/Input';
 import Select from '../../../../components/ui/Select';
 import Alert from '../../../../components/ui/Alert';
+import SenderIdentityFields from '../../../../components/settings/communications/SenderIdentityFields';
+import { parseReplyTo } from '../../../../lib/email-dispatch/parse-reply-to';
+import { PLATFORM_SENDER_DOMAIN } from '../../../../lib/email-dispatch/constants';
 
 /**
  * Settings → Communications → Configurations → Editor
@@ -47,6 +50,10 @@ const BLANK_CONFIG = {
   shared_account_id: null,
   use_user_gmail: false,
   umbrellas: [],
+  from_display_name: '',
+  reply_to_email: null,
+  reply_to_name: null,
+  branch_id: null,
 };
 
 export default function ConfigurationEditor() {
@@ -64,6 +71,13 @@ export default function ConfigurationEditor() {
   const [config, setConfig] = useState(BLANK_CONFIG);
   const [original, setOriginal] = useState(BLANK_CONFIG);
 
+  // Tenant + branches
+  const [tenant, setTenant] = useState(null);
+  const [branches, setBranches] = useState([]);
+
+  // Field-level validation errors
+  const [fieldErrors, setFieldErrors] = useState({});
+
   // Reference data
   const [senderAddresses, setSenderAddresses] = useState([]);
   const [sharedAccounts, setSharedAccounts] = useState([]);
@@ -73,7 +87,7 @@ export default function ConfigurationEditor() {
   // Load reference data
   useEffect(() => {
     (async () => {
-      const [shared, umbrellasResp, addrsResp] = await Promise.all([
+      const [shared, umbrellasResp, addrsResp, tenantResp, branchesResp] = await Promise.all([
         fetch('/api/tenant/emails/shared-accounts').then((r) =>
           r.ok ? r.json() : { shared_accounts: [] }
         ),
@@ -83,10 +97,18 @@ export default function ConfigurationEditor() {
         fetch('/api/tenant/emails/sender-addresses').then((r) =>
           r.ok ? r.json() : { addresses: [] }
         ),
+        fetch('/api/tenant/settings').then((r) =>
+          r.ok ? r.json() : { tenant: null }
+        ),
+        fetch('/api/tenant/branches?status=active').then((r) =>
+          r.ok ? r.json() : { branches: [] }
+        ),
       ]);
       setSharedAccounts(shared.shared_accounts || []);
       setAllUmbrellas(umbrellasResp.umbrellas || []);
       setSenderAddresses(addrsResp.addresses || []);
+      setTenant(tenantResp.tenant || null);
+      setBranches(branchesResp.branches || []);
     })();
   }, []);
 
@@ -128,10 +150,15 @@ export default function ConfigurationEditor() {
     setConfig(original);
     setSaveError(null);
     setSaveSuccess(null);
+    setFieldErrors({});
   }
 
   async function handleSave(e) {
     e?.preventDefault?.();
+    // Block submit if Reply-To has a format error.
+    if (fieldErrors.reply_to) {
+      return;
+    }
     setSaving(true);
     setSaveError(null);
     setSaveSuccess(null);
@@ -145,6 +172,10 @@ export default function ConfigurationEditor() {
         sender_kind: config.sender_kind,
         sender_address_id: config.sender_address_id,
         shared_account_id: config.shared_account_id,
+        from_display_name: config.from_display_name || null,
+        reply_to_email:    config.reply_to_email || null,
+        reply_to_name:     config.reply_to_name || null,
+        branch_id:         config.branch_id || null,
       };
 
       const url = isNew
@@ -258,6 +289,10 @@ export default function ConfigurationEditor() {
       'sender_kind',
       'sender_address_id',
       'shared_account_id',
+      'from_display_name',
+      'reply_to_email',
+      'reply_to_name',
+      'branch_id',
     ];
     for (const k of keys) {
       if ((config[k] ?? null) !== (original[k] ?? null)) return true;
@@ -449,6 +484,62 @@ export default function ConfigurationEditor() {
                       When this configuration fires, it uses the personal Gmail/Outlook account of whichever user&apos;s action triggered the send. Each user must connect their own mailbox in their profile.
                     </div>
                   )}
+                </SidebarSection>
+
+                {/* Sender Display Name + Reply-To */}
+                {tenant && (
+                  <SidebarSection title="Display Name &amp; Reply-To">
+                    <SenderIdentityFields
+                      value={{
+                        from_display_name: config.from_display_name || '',
+                        reply_to_email:    config.reply_to_email || null,
+                        reply_to_name:     config.reply_to_name || null,
+                      }}
+                      onChange={(patch) => {
+                        if ('_reply_to_raw' in patch) {
+                          const parsed = parseReplyTo(patch._reply_to_raw);
+                          if (parsed.ok) {
+                            setConfig((c) => ({ ...c, reply_to_email: parsed.email, reply_to_name: parsed.name }));
+                            setFieldErrors((e) => ({ ...e, reply_to: null }));
+                          } else {
+                            setFieldErrors((e) => ({ ...e, reply_to: parsed.error }));
+                          }
+                        } else {
+                          setConfig((c) => ({ ...c, ...patch }));
+                        }
+                      }}
+                      tenant={tenant}
+                      platformDomain={PLATFORM_SENDER_DOMAIN}
+                      errors={fieldErrors}
+                    />
+                  </SidebarSection>
+                )}
+
+                {/* Branch Scope */}
+                <SidebarSection title="Branch Scope">
+                  <div>
+                    <label
+                      htmlFor="config-branch-scope"
+                      className="block text-sm font-medium text-gray-700 dark:text-slate-300"
+                    >
+                      Branch Scope
+                    </label>
+                    <select
+                      id="config-branch-scope"
+                      value={config.branch_id || ''}
+                      onChange={(e) => setConfig((c) => ({ ...c, branch_id: e.target.value || null }))}
+                      className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                    >
+                      <option value="">All branches (tenant-wide default)</option>
+                      {branches.map((b) => (
+                        <option key={b.id} value={b.id}>{b.name}</option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+                      Tenant-wide configurations apply to all sends. Branch-scoped configurations
+                      take priority over tenant-wide ones when the load belongs to the selected branch.
+                    </p>
+                  </div>
                 </SidebarSection>
 
                 {/* Behavior */}

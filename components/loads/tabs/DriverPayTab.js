@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, Trash2, Wallet, User, DollarSign, RefreshCw, CheckCircle2, XCircle, ChevronDown, Sparkles, Hand, ExternalLink } from 'lucide-react';
 import DriverChargeProfileViewer from '../DriverChargeProfileViewer';
+import DryRunSlideOver from '../routing/DryRunSlideOver';
 import Alert from '../../ui/Alert';
 import Button from '../../ui/Button';
 import Input from '../../ui/Input';
@@ -55,6 +56,8 @@ export default function DriverPayTab({ load }) {
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [dryRunEdit, setDryRunEdit] = useState(null);
+  const [dryRunDrivers, setDryRunDrivers] = useState([]);
   const [draft, setDraft] = useState({
     driver_id: load?.driver_id || null,
     line_type: 'line_haul',
@@ -89,6 +92,15 @@ export default function DriverPayTab({ load }) {
     fetchLines();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/tenant/drivers')
+      .then((r) => r.json())
+      .then((data) => { if (!cancelled) setDryRunDrivers(data?.drivers || []); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   async function handleCreate() {
     if (!draft.amount_cents && draft.amount_cents !== 0) {
@@ -176,6 +188,15 @@ export default function DriverPayTab({ load }) {
     } catch (e) {
       setError(e.message);
     }
+  }
+
+  async function openDryRunEdit(line) {
+    try {
+      const res = await fetch(`/api/tenant/loads/${load.id}/dry-runs`);
+      const data = await res.json();
+      const match = (data.dry_runs || []).find((r) => r.id === line.dry_run_attempt_id);
+      if (match) setDryRunEdit(match);
+    } catch {}
   }
 
   // Manual driver-pay recalculation. Fires the same engine as the auto hook
@@ -491,6 +512,7 @@ export default function DriverPayTab({ load }) {
                       onDelete={() => deleteLine(l.id)}
                       formatCents={formatCents}
                       onOpenSource={openSourceProfile}
+                      onOpenDryRun={openDryRunEdit}
                     />
                   );
                 })
@@ -499,6 +521,26 @@ export default function DriverPayTab({ load }) {
           </table>
         </div>
       </div>
+
+      {dryRunEdit && (
+        <DryRunSlideOver
+          open={!!dryRunEdit}
+          onClose={() => setDryRunEdit(null)}
+          onSaved={() => {
+            setDryRunEdit(null);
+            fetchLines();
+          }}
+          orderId={load.id}
+          event={{
+            id: dryRunEdit.event_id,
+            event_type: 'DRY_RUN',
+            location_label: '',
+            distance_miles: dryRunEdit.miles,
+          }}
+          drivers={dryRunDrivers}
+          existing={dryRunEdit}
+        />
+      )}
     </div>
   );
 }
@@ -532,7 +574,7 @@ const STATUS_STYLES_ROW = {
   finalized: 'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300',
 };
 
-function EditablePayRow({ line, driverName, nextLabel, onUpdate, onAdvance, onDelete, formatCents, onOpenSource }) {
+function EditablePayRow({ line, driverName, nextLabel, onUpdate, onAdvance, onDelete, formatCents, onOpenSource, onOpenDryRun }) {
   // source_type comes from migration 073. Falls back to the old [auto-applied]
   // notes marker so rows created before the migration (no source_type column
   // populated) still show as auto.
@@ -551,7 +593,12 @@ function EditablePayRow({ line, driverName, nextLabel, onUpdate, onAdvance, onDe
   const [editField, setEditField] = useState(null);
   const [editValue, setEditValue] = useState('');
 
+  // Dry-run pay rows are edited via the slide-over only. Allowing inline cell
+  // editing causes a double-fire bug (cell onClick + row onClick both fire).
+  const isDryRun = line.line_type === 'dry_run';
+
   function startEdit(field, value) {
+    if (isDryRun) return;
     setEditField(field);
     setEditValue(value ?? '');
   }
@@ -587,7 +634,7 @@ function EditablePayRow({ line, driverName, nextLabel, onUpdate, onAdvance, onDe
     }
     return (
       <td
-        className={`px-4 py-2 ${align === 'right' ? 'text-right' : ''} ${cls} cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/40`}
+        className={`px-4 py-2 ${align === 'right' ? 'text-right' : ''} ${cls} ${isDryRun ? '' : 'cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/40'}`}
         onClick={() => startEdit(field, raw)}
       >
         {display}
@@ -596,7 +643,12 @@ function EditablePayRow({ line, driverName, nextLabel, onUpdate, onAdvance, onDe
   }
 
   return (
-    <tr className="hover:bg-gray-50 dark:hover:bg-slate-800 group">
+    <tr
+      className={`hover:bg-gray-50 dark:hover:bg-slate-800 group ${
+        line.line_type === 'dry_run' ? 'cursor-pointer bg-amber-50/40 dark:bg-amber-950/20 hover:bg-amber-100/60 dark:hover:bg-amber-950/30' : ''
+      }`}
+      onClick={() => line.line_type === 'dry_run' ? onOpenDryRun?.(line) : undefined}
+    >
       <td className="px-4 py-2 font-medium text-gray-900 dark:text-slate-100">
         <div className="flex items-center gap-2">
           {/* Source marker — auto (sparkles, clickable when profile id present)
@@ -638,7 +690,22 @@ function EditablePayRow({ line, driverName, nextLabel, onUpdate, onAdvance, onDe
           {line.to_location && <><span className="text-gray-400 dark:text-slate-500 mx-1">→</span>{line.to_location}</>}
         </span>
       )}
-      {renderCell('amount_cents', formatCents(line.amount_cents), 'right', 'font-semibold text-gray-900 dark:text-slate-100')}
+      {renderCell(
+        'amount_cents',
+        line.needs_distance && line.amount_cents == null ? (
+          <span
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded px-1.5 py-0.5"
+            title="Load needs a saved route. Open the Routing tab and save."
+          >
+            <span aria-hidden="true">⚠</span>
+            Distance missing
+          </span>
+        ) : (
+          formatCents(line.amount_cents)
+        ),
+        'right',
+        'font-semibold text-gray-900 dark:text-slate-100'
+      )}
       {renderCell('hours', line.hours ?? '—', 'right', 'text-xs text-gray-600 dark:text-slate-300')}
       {renderCell('miles', line.miles ?? '—', 'right', 'text-xs text-gray-600 dark:text-slate-300')}
       <td className="px-4 py-2">

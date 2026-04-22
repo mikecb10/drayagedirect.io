@@ -23,6 +23,8 @@ const EDITABLE = [
   'departed_at',
   'notes',
   'sequence',
+  'estimated_miles',
+  'distance_is_manual',
 ];
 
 export default async function handler(req, res) {
@@ -519,6 +521,95 @@ export default async function handler(req, res) {
       });
     }
 
+    // Dry-run pre-flight
+    const mode = req.query.mode; // undefined | 'detach' | 'delete_all'
+
+    const { data: runs } = await svc
+      .from('dry_run_attempts')
+      .select('id, ar_amount_cents, ap_amount_cents')
+      .eq('tenant_id', ctx.tenantId)
+      .eq('event_id', eventId)
+      .is('deleted_at', null);
+
+    const dryRuns = runs || [];
+
+    if (dryRuns.length > 0) {
+      const attemptIds = dryRuns.map((r) => r.id);
+
+      // Invoiced / settled gate
+      const [{ data: arLines }, { data: apLines }] = await Promise.all([
+        svc
+          .from('order_charge_set_line_items')
+          .select('id, charge_set:order_charge_sets!charge_set_id(status)')
+          .in('dry_run_attempt_id', attemptIds),
+        svc
+          .from('order_driver_pay_lines')
+          .select('id')
+          .in('dry_run_attempt_id', attemptIds),
+      ]);
+
+      // Must match INVOICED_STATUSES in pages/api/tenant/loads/[id]/dry-runs/[attemptId].js.
+      // 'approved' is pre-invoice and still editable — don't block. The real invoiced
+      // status set by /api/tenant/ar/invoices is 'invoiced'.
+      const blockedStatuses = ['invoiced', 'billed', 'rebilling'];
+      const hasInvoiced = (arLines || []).some(
+        (l) => l.charge_set && blockedStatuses.includes(l.charge_set.status)
+      );
+
+      let hasSettled = false;
+      if (!hasInvoiced && (apLines || []).length > 0) {
+        const payLineIds = apLines.map((l) => l.id);
+        const { data: settled } = await svc
+          .from('driver_settlement_lines')
+          .select('id')
+          .in('driver_pay_line_id', payLineIds);
+        hasSettled = (settled || []).length > 0;
+      }
+
+      if (hasInvoiced || hasSettled) {
+        return res.status(409).json({
+          error: `Leg has ${dryRuns.length} invoiced/settled dry run(s). Create a credit memo or pay adjustment first.`,
+          blocked: true,
+          dry_run_count: dryRuns.length,
+        });
+      }
+
+      if (!mode) {
+        return res.status(409).json({
+          needs_confirmation: true,
+          dry_runs: dryRuns,
+        });
+      }
+
+      if (mode === 'detach') {
+        const { error: detachErr } = await svc
+          .from('dry_run_attempts')
+          .update({ event_id: null, updated_at: new Date().toISOString() })
+          .in('id', attemptIds);
+        if (detachErr) return res.status(500).json({ error: detachErr.message });
+      } else if (mode === 'delete_all') {
+        const now = new Date().toISOString();
+        // Hard-delete derived lines first (FK cascade only fires on DELETE of
+        // parent; we're soft-deleting the parent, so we must explicitly delete
+        // children to avoid orphaned rows).
+        const { error: liErr } = await svc.from('order_charge_set_line_items').delete().in('dry_run_attempt_id', attemptIds);
+        if (liErr) return res.status(500).json({ error: liErr.message });
+        const { error: payLiErr } = await svc.from('order_driver_pay_lines').delete().in('dry_run_attempt_id', attemptIds);
+        if (payLiErr) return res.status(500).json({ error: payLiErr.message });
+        // CRITICAL: null out event_id alongside the soft-delete so the
+        // subsequent event DELETE doesn't violate the ON DELETE RESTRICT
+        // foreign-key constraint. (Soft-deleted parents still hold a live
+        // FK reference to the event row.)
+        const { error: pErr } = await svc
+          .from('dry_run_attempts')
+          .update({ deleted_at: now, event_id: null })
+          .in('id', attemptIds);
+        if (pErr) return res.status(500).json({ error: pErr.message });
+      } else {
+        return res.status(400).json({ error: `unknown mode: ${mode}` });
+      }
+    }
+
     const { error } = await svc
       .from('order_routing_events')
       .delete()
@@ -538,7 +629,7 @@ export default async function handler(req, res) {
       ipAddress: getClientIp(req),
     });
 
-    return res.status(200).json({ success: true });
+    return res.status(204).end();
   }
 
   return res.status(405).json({ error: 'Method not allowed' });

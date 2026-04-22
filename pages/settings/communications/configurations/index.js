@@ -16,6 +16,8 @@ import {
 import SettingsLayout from '../../../../components/settings/SettingsLayout';
 import Button from '../../../../components/ui/Button';
 import Alert from '../../../../components/ui/Alert';
+import MigrationBanner from '../../../../components/settings/communications/MigrationBanner';
+import { PLATFORM_SENDER_DOMAIN } from '../../../../lib/email-dispatch/constants';
 
 /**
  * Settings → Communications → Configurations (list view)
@@ -39,6 +41,7 @@ export default function ConfigurationsList() {
   const [actionError, setActionError] = useState(null);
   const [search, setSearch] = useState('');
   const [busyId, setBusyId] = useState(null);
+  const [tenant, setTenant] = useState(null);
 
   async function load() {
     setLoading(true);
@@ -62,6 +65,13 @@ export default function ConfigurationsList() {
     load();
   }, []);
 
+  useEffect(() => {
+    fetch('/api/tenant/settings')
+      .then((r) => (r.ok ? r.json() : { tenant: null }))
+      .then((d) => setTenant(d.tenant || null))
+      .catch(() => setTenant(null));
+  }, []);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return configurations;
@@ -70,6 +80,11 @@ export default function ConfigurationsList() {
       return hay.includes(q);
     });
   }, [configurations, search]);
+
+  const defaultConfig = useMemo(
+    () => configurations.find((c) => c.is_default) || configurations[0] || null,
+    [configurations]
+  );
 
   async function toggleActive(config) {
     setBusyId(config.id);
@@ -138,6 +153,15 @@ export default function ConfigurationsList() {
             New Configuration
           </Link>
         </div>
+
+        {tenant && (
+          <MigrationBanner
+            tenantId={tenant.id}
+            migratedAt={tenant.sender_migration_at}
+            fromAddress={`${tenant.slug}@${PLATFORM_SENDER_DOMAIN}`}
+            replyToEmail={defaultConfig?.reply_to_email || null}
+          />
+        )}
 
         {error && <Alert type="error" message={error} className="mb-4" />}
         {actionError && <Alert type="error" message={actionError} className="mb-4" />}

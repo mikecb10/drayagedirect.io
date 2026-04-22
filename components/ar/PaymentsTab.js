@@ -14,7 +14,7 @@ const METHOD_BADGES = {
   check: 'blue', ach: 'green', wire: 'purple', credit_card: 'amber', cash: 'gray', other: 'gray',
 };
 
-export default function PaymentsTab() {
+export default function PaymentsTab({ filters = {} }) {
   const [payments, setPayments] = useState([]);
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
@@ -29,7 +29,15 @@ export default function PaymentsTab() {
   async function load() {
     setLoading(true);
     try {
-      const res = await fetch('/api/tenant/ar/payments');
+      const params = new URLSearchParams();
+      if (filters.customer_ids?.length)         params.set('customer_ids', filters.customer_ids.join(','));
+      if (filters.customer_ids_exclude?.length) params.set('customer_ids_exclude', filters.customer_ids_exclude.join(','));
+      if (filters.from) params.set('from', filters.from);
+      if (filters.to)   params.set('to',   filters.to);
+      if (filters.reference_number) params.set('reference_number', filters.reference_number);
+
+      const qs = params.toString();
+      const res = await fetch(`/api/tenant/ar/payments${qs ? `?${qs}` : ''}`);
       if (!res.ok) throw new Error('Failed to load');
       const data = await res.json();
       setPayments(data.payments || []);
@@ -38,7 +46,7 @@ export default function PaymentsTab() {
     finally { setLoading(false); }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [filters]);
 
   async function handleSave(e) {
     e.preventDefault();
@@ -85,7 +93,7 @@ export default function PaymentsTab() {
         </div>
         <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">
           <div className="text-[10px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Payments</div>
-          <div className="text-xl font-bold text-blue-600 dark:text-blue-400 mt-0.5">{stats.total || 0}</div>
+          <div className="text-xl font-bold text-blue-600 dark:text-blue-400 mt-0.5">{stats.count || 0}</div>
         </div>
       </div>
 

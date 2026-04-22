@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   const svc = getServiceClient();
 
   if (req.method === 'GET') {
-    const { search, charge_name, tag, enabled } = req.query;
+    const { search, charge_name, tag, enabled, is_dry_run } = req.query;
 
     // Try with versions table first, fall back to tiers-only if migration 030 not applied
     let data, error;
@@ -57,6 +57,7 @@ export default async function handler(req, res) {
     if (charge_name) filtered = filtered.filter((p) => p.charge_name === charge_name);
     if (tag) filtered = filtered.filter((p) => (p.tags || []).includes(tag) || p.tag === tag);
     if (enabled === 'true') filtered = filtered.filter((p) => p.is_enabled !== false);
+    if (is_dry_run === 'true') filtered = filtered.filter((p) => p.is_dry_run === true);
 
     return res.status(200).json({ profiles: filtered });
   }
@@ -79,6 +80,7 @@ export default async function handler(req, res) {
       tag: (body.tags || [])[0] || body.tag || null,
       unit_of_measure: body.unit_of_measure || 'fixed',
       auto_add: body.auto_add ?? false,
+      is_dry_run: body.is_dry_run ?? false,
       effective_date_basis: body.effective_date_basis || 'CURRENT_DATE',
       calculation_mode: body.calculation_mode || 'by_lane',
       conditions: body.conditions || [],

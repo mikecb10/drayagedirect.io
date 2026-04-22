@@ -9,6 +9,7 @@ import { buildRoutingEventsForTemplate } from '../../../../lib/routing-template-
 import { computeKpiStats } from '../../../../lib/kpi-engine';
 import { findMatchingCharges, applyChargesToLoad } from '../../../../lib/tariff-engine';
 import { applyBranchFilter } from '../../../../lib/branch-filter';
+import { fetchLoadMarginInputs, computeLoadMargin } from '../../../../lib/load-margin';
 
 const VALID_LOAD_TYPES = ['import', 'inbound', 'export', 'outbound', 'road', 'bill_only'];
 const VALID_STATUSES = ['pending', 'available', 'dispatched', 'in_transit', 'dropped', 'delivered', 'completed', 'cancelled'];
@@ -189,8 +190,38 @@ export default async function handler(req, res) {
     const { data, error } = await query;
     if (error) return res.status(500).json({ error: error.message });
 
-    // Fetch all order_notes for these orders in one shot, then group into notes_by_audience per load
+    // Derive has_unresolved_distance: any AR charge line OR AP driver-pay line
+    // with needs_distance=true AND a null amount. Two flat queries + set lookup
+    // avoids bloating the main SELECT with more nested arrays.
     const orderIds = data.map((l) => l.id);
+    let unresolvedDistanceOrderIds = new Set();
+    if (orderIds.length > 0) {
+      const [{ data: arRows }, { data: apRows }] = await Promise.all([
+        svc
+          .from('order_charge_set_line_items')
+          .select('order_charge_sets!inner(order_id)')
+          .eq('tenant_id', ctx.tenantId)
+          .eq('needs_distance', true)
+          .is('total_cents', null)
+          .in('order_charge_sets.order_id', orderIds),
+        svc
+          .from('order_driver_pay_lines')
+          .select('order_id')
+          .eq('tenant_id', ctx.tenantId)
+          .eq('needs_distance', true)
+          .is('amount_cents', null)
+          .in('order_id', orderIds),
+      ]);
+      for (const r of arRows || []) {
+        const orderId = r.order_charge_sets?.order_id;
+        if (orderId) unresolvedDistanceOrderIds.add(orderId);
+      }
+      for (const r of apRows || []) {
+        if (r.order_id) unresolvedDistanceOrderIds.add(r.order_id);
+      }
+    }
+
+    // Fetch all order_notes for these orders in one shot, then group into notes_by_audience per load
     let notesByOrder = {};
     if (orderIds.length > 0) {
       const { data: notesData } = await svc
@@ -208,12 +239,13 @@ export default async function handler(req, res) {
       }
     }
 
-    // Post-process each load: derive current_event + attach notes_by_audience
+    // Post-process each load: derive current_event + attach notes_by_audience + distance flag
     for (const load of data) {
       // Sort routing_events by sequence, pick the first incomplete (no departed_at)
       const events = (load.routing_events || []).slice().sort((a, b) => a.sequence - b.sequence);
       load.current_event = events.find((e) => !e.departed_at) || null;
       load.notes_by_audience = notesByOrder[load.id] || {};
+      load.has_unresolved_distance = unresolvedDistanceOrderIds.has(load.id);
     }
 
     // KPI stats — computed by the engine using the universal date filter.
@@ -250,6 +282,46 @@ export default async function handler(req, res) {
       active_only === 'true'
         ? data.filter((l) => l.status !== 'completed' && l.status !== 'cancelled')
         : data;
+
+    // Attach margin per row for users with AR/reporting access.
+    // Uses the full `data` set (before active_only filter) so every row in
+    // visibleLoads already has .margin when it reaches the client.
+    if (
+      data.length > 0 &&
+      (
+        ctx.permissions.includes(PERMISSIONS.ACCOUNTS_RECEIVABLE) ||
+        ctx.permissions.includes(PERMISSIONS.REPORTING) ||
+        ctx.permissions.includes(PERMISSIONS.ALL)
+      )
+    ) {
+      try {
+        const { data: tenant, error: tErr } = await svc
+          .from('tenants')
+          .select('margin_red_threshold, margin_yellow_threshold, margin_include_dry_runs')
+          .eq('id', ctx.tenantId)
+          .single();
+        if (!tErr && tenant) {
+          const inputs = await fetchLoadMarginInputs(svc, {
+            tenantId: ctx.tenantId,
+            orderIds: data.map((r) => r.id),
+            includeDryRuns: tenant.margin_include_dry_runs,
+          });
+          for (const row of data) {
+            const { revenueCents, costCents } = inputs.get(row.id) ?? { revenueCents: 0, costCents: 0 };
+            row.margin = computeLoadMargin({
+              revenueCents,
+              costCents,
+              redThreshold:    Number(tenant.margin_red_threshold),
+              yellowThreshold: Number(tenant.margin_yellow_threshold),
+            });
+          }
+        }
+      } catch (err) {
+        // Non-fatal — if margin attach fails, log and continue. The loads
+        // list is still usable without the margin field.
+        console.error('loads list margin attach failed', err);
+      }
+    }
 
     return res.status(200).json({ loads: visibleLoads, stats, pendingDocOrderIds });
   }

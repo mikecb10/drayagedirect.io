@@ -31,7 +31,7 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     const { data: tenant, error: tenantErr } = await svc
       .from('tenants')
-      .select('id, name, slug, status, contact_email, contact_phone, address_line1, address_city, address_state, address_zip, mc_number, dot_number, logo_url, created_at')
+      .select('id, name, slug, status, contact_email, contact_phone, address_line1, address_city, address_state, address_zip, mc_number, dot_number, logo_url, created_at, sender_migration_at')
       .eq('id', ctx.tenantId)
       .single();
 

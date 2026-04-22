@@ -55,7 +55,7 @@ export default async function handler(req, res) {
     // Core fields that always exist
     const coreFields = [
       'name', 'charge_name', 'description', 'tag', 'unit_of_measure',
-      'auto_add', 'effective_date_basis', 'calculation_mode',
+      'auto_add', 'is_dry_run', 'effective_date_basis', 'calculation_mode',
       'conditions', 'match_resolution', 'is_enabled',
     ];
     for (const f of coreFields) {

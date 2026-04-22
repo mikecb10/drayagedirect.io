@@ -21,6 +21,7 @@ import {
 import DetailTabs from '../ui/DetailTabs';
 import LoadSidebar from './LoadSidebar';
 import LoadStatusBadge from '../ui/LoadStatusBadge';
+import MarginBadge from '../ui/MarginBadge';
 
 const TABS = [
   { id: 'info', label: 'Load Info', icon: FileText },
@@ -131,6 +132,18 @@ export default function LoadDetailLayout({ load, children, activeTab, onTabChang
             Load #: <span className="font-mono text-blue-600 dark:text-blue-400">{load?.order_number}</span>
           </h1>
           {load?.status && <LoadStatusBadge status={load.status} />}
+          {load?.margin && (
+            <MarginBadge
+              marginPct={load.margin.marginPct}
+              bucket={load.margin.bucket}
+              size="md"
+              tooltip={
+                load.margin.bucket === 'neutral'
+                  ? 'Not enough data to compute margin'
+                  : `Revenue $${(load.margin.revenueCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} − Cost $${(load.margin.costCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} = Margin $${(load.margin.marginCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              }
+            />
+          )}
         </div>
         <div className="flex items-center gap-1">
           <button

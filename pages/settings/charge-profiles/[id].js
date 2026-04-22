@@ -25,7 +25,7 @@ export default function ChargeProfileForm({ chargeProfileId: propId, onClose: on
 
   const [form, setForm] = useState({
     name: '', charge_name: '', description: '', tags: [],
-    unit_of_measure: 'fixed', auto_add: true,
+    unit_of_measure: 'fixed', auto_add: true, is_dry_run: false,
     effective_date_basis: 'CURRENT_DATE', calculation_mode: 'by_lane',
     match_resolution: 'first_match_wins', percentage_based_on: '', conditions: [],
   });
@@ -66,6 +66,7 @@ export default function ChargeProfileForm({ chargeProfileId: propId, onClose: on
           name: p.name || '', charge_name: p.charge_name || '',
           description: p.description || '', tags: p.tags || (p.tag ? [p.tag] : []),
           unit_of_measure: p.unit_of_measure || 'fixed', auto_add: p.auto_add || false,
+          is_dry_run: p.is_dry_run || false,
           effective_date_basis: p.effective_date_basis || 'CURRENT_DATE',
           calculation_mode: p.calculation_mode || 'by_lane',
           match_resolution: p.match_resolution || 'first_match_wins',

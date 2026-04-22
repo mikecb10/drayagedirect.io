@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   DndContext,
   PointerSensor,
@@ -19,8 +19,9 @@ import RouteMap from '../routing/RouteMap';
 import RoutingOptions from '../routing/RoutingOptions';
 import LoadStateBanner from '../routing/LoadStateBanner';
 import RailCheckInSlip from '../routing/RailCheckInSlip';
+import LegDeleteConfirmModal from '../routing/LegDeleteConfirmModal';
 import { getDistanceAndDuration } from '../../../utils/getDistanceMiles';
-import { getValidNextEvents, canAddEvent, canAddMove, checkAutoRestructure } from '../../../lib/routing-rules';
+import { getValidNextEvents, canAddMove, checkAutoRestructure } from '../../../lib/routing-rules';
 import { useTenantTimeFormat, useTenantSettings } from '../../../hooks/useTenantSettings';
 import { useTheme } from '../../../contexts/ThemeContext';
 
@@ -41,6 +42,7 @@ export default function RoutingTab({ load, onLoadRefresh }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [legDeleteConfirm, setLegDeleteConfirm] = useState(null); // { eventId, runs } | null
   const [templateId, setTemplateId] = useState(load?.routing_template_id || null);
   const [options, setOptions] = useState({});
   const [viewFilter, setViewFilter] = useState('all');
@@ -72,6 +74,39 @@ export default function RoutingTab({ load, onLoadRefresh }) {
     return confirm(message);
   }
   const [legMetrics, setLegMetrics] = useState({});
+  const [distanceWarning, setDistanceWarning] = useState(null);
+  const [drivers, setDrivers] = useState([]);
+  const [allDryRuns, setAllDryRuns] = useState([]);
+
+  // Refetch dry runs — exposed as a callback so EventRow can trigger a refresh
+  // after save/edit. Without this, localDryRuns in EventRow can drift from
+  // parent allDryRuns when the parent re-renders for unrelated reasons (the
+  // filter().map() creates a new array reference each render, triggering
+  // EventRow's sync-effect with stale parent data).
+  const refetchDryRuns = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/tenant/loads/${load.id}/dry-runs`);
+      const data = await res.json();
+      setAllDryRuns(data?.dry_runs || []);
+    } catch {}
+  }, [load.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [drvRes, drRes] = await Promise.all([
+          fetch('/api/tenant/drivers').then((r) => r.json()),
+          fetch(`/api/tenant/loads/${load.id}/dry-runs`).then((r) => r.json()),
+        ]);
+        if (cancelled) return;
+        setDrivers(drvRes?.drivers || []);
+        setAllDryRuns(drRes?.dry_runs || []);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [load.id]);
+
   const use24h = useTenantTimeFormat();
 
   // Tenant-level color overrides + dark mode for the state banner
@@ -151,6 +186,40 @@ export default function RoutingTab({ load, onLoadRefresh }) {
     // Time format now comes from useTenantTimeFormat() above (shared cached hook).
   }, [fetchRouting]);
 
+  // Back-fill effect: when Google Maps resolves a distance for an event
+  // whose server-persisted estimated_miles is still null AND is not
+  // manually flagged, PUT the resolved value. Prevents silent $0 when
+  // a user saves before Google-Maps finishes computing.
+  const backfillInFlight = useRef(new Set());
+  useEffect(() => {
+    if (!Array.isArray(events) || events.length === 0) return;
+    for (const ev of events) {
+      if (ev.distance_is_manual === true) continue;
+      if (ev.estimated_miles != null) continue;  // already persisted
+      const live = legMetrics[ev.id]?.distance_miles;
+      if (typeof live !== 'number' || Number.isNaN(live)) continue;
+      if (backfillInFlight.current.has(ev.id)) continue;
+      backfillInFlight.current.add(ev.id);
+      (async () => {
+        try {
+          await fetch(`/api/tenant/loads/${load.id}/routing/events/${ev.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ estimated_miles: live, distance_is_manual: false }),
+          });
+          // Update local events state so the next render sees the new value
+          // (avoids re-firing the backfill in a loop).
+          setEvents((prev) => prev.map((e) =>
+            e.id === ev.id ? { ...e, estimated_miles: live } : e
+          ));
+        } catch {
+          // Transient failure — drop the flag so a later render can retry.
+          backfillInFlight.current.delete(ev.id);
+        }
+      })();
+    }
+  }, [events, legMetrics, load.id]);
+
   // ===== Compute per-leg metrics when events change =============
   useEffect(() => {
     if (events.length < 2) return;
@@ -172,7 +241,10 @@ export default function RoutingTab({ load, onLoadRefresh }) {
               metrics[curr.id] = result;
             }
           } catch {
-            // Skip failed legs
+            // Mark this leg as failed so save handlers can surface a warning.
+            if (!cancelled) {
+              metrics[curr.id] = { failed: true };
+            }
           }
         }
       }
@@ -314,10 +386,31 @@ export default function RoutingTab({ load, onLoadRefresh }) {
     // Optimistic update — no flicker
     setEvents((evs) => evs.map((e) => (e.id === eventId ? { ...e, ...patch } : e)));
     try {
+      // Inject Google-computed distance into the PUT body, unless:
+      //   (a) the event is already manually-flagged (preserve manual override), or
+      //   (b) the patch itself carries distance_is_manual (Task 7 manual-edit path).
+      // When (b) is true, the Task 7 save handler owns the distance fields — skip.
+      const currentEvent = events.find((e) => e.id === eventId);
+      const isManual = currentEvent?.distance_is_manual === true;
+      const isPatchManualOverride = 'distance_is_manual' in patch;
+      // Only inject distance fields when we have a numeric value.
+      // Otherwise leave the PUT body untouched so the server preserves
+      // whatever's persisted (avoids clobbering with null during the
+      // Google-Maps-still-resolving race).
+      const liveDistance = legMetrics[eventId]?.distance_miles;
+      const hasLiveDistance = typeof liveDistance === 'number' && !Number.isNaN(liveDistance);
+      const distanceFields =
+        !isManual && !isPatchManualOverride && hasLiveDistance
+          ? {
+              estimated_miles: liveDistance,
+              distance_is_manual: false,
+            }
+          : {};
+
       const res = await fetch(`/api/tenant/loads/${load.id}/routing/events/${eventId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(patch),
+        body: JSON.stringify({ ...patch, ...distanceFields }),
       });
       if (!res.ok) throw new Error('Failed to update event');
       // ================================================================
@@ -354,6 +447,13 @@ export default function RoutingTab({ load, onLoadRefresh }) {
       // extra fetch is cheap and keeps load-level state consistent.
       if (typeof onLoadRefresh === 'function') {
         onLoadRefresh();
+      }
+      // Warn once if any leg's Google distance computation failed so the
+      // dispatcher knows some estimated_miles values are missing.
+      if (Object.values(legMetrics).some((m) => m?.failed)) {
+        setDistanceWarning(
+          "Distance couldn\u2019t be computed for some legs. Open them to retry or enter manually."
+        );
       }
     } catch (e) {
       setError(e.message);
@@ -423,8 +523,21 @@ export default function RoutingTab({ load, onLoadRefresh }) {
     // Normal delete (non-Drop or no merge needed)
     if (!routingConfirm('Delete this event?')) return;
     try {
-      await fetch(`/api/tenant/loads/${load.id}/routing/events/${eventId}`, { method: 'DELETE' });
-      await fetchRouting();
+      const res = await fetch(`/api/tenant/loads/${load.id}/routing/events/${eventId}`, { method: 'DELETE' });
+      if (res.status === 204) {
+        await fetchRouting();
+        return;
+      }
+      const body = await res.json().catch(() => ({}));
+      if (body.blocked) {
+        setError(body.error || 'Cannot delete: leg has invoiced/settled dry runs.');
+        return;
+      }
+      if (body.needs_confirmation) {
+        setLegDeleteConfirm({ eventId, runs: body.dry_runs || [] });
+        return;
+      }
+      setError(body.error || 'Delete failed');
     } catch (e) {
       setError(e.message);
     }
@@ -522,6 +635,8 @@ export default function RoutingTab({ load, onLoadRefresh }) {
             sequence: maxSeq + 99,
             move_id: newMove.id,
             event_type: 'hook',
+            estimated_miles: null,
+            distance_is_manual: false,
             ...dropLocation,
           }),
         });
@@ -535,6 +650,8 @@ export default function RoutingTab({ load, onLoadRefresh }) {
             sequence: maxSeq + 1,
             move_id: moveId,
             event_type: 'drop',
+            estimated_miles: null,
+            distance_is_manual: false,
             ...dropLocation,
           }),
         });
@@ -552,6 +669,8 @@ export default function RoutingTab({ load, onLoadRefresh }) {
             sequence: maxSeq + 1,
             move_id: moveId,
             event_type: eventType,
+            estimated_miles: null,
+            distance_is_manual: false,
             ...locationPayload,
           }),
         });
@@ -588,6 +707,8 @@ export default function RoutingTab({ load, onLoadRefresh }) {
             sequence: maxSeq + 1,
             move_id: moveId,
             event_type: 'drop',
+            estimated_miles: null,
+            distance_is_manual: false,
             ...dropLocation,
           }),
         });
@@ -615,6 +736,8 @@ export default function RoutingTab({ load, onLoadRefresh }) {
             sequence: maxSeq + 2,
             move_id: newMove.id,
             event_type: 'hook',
+            estimated_miles: null,
+            distance_is_manual: false,
             ...dropLocation,
           }),
         });
@@ -645,6 +768,8 @@ export default function RoutingTab({ load, onLoadRefresh }) {
             sequence: maxSeq + 1,
             move_id: moveId,
             event_type: eventType,
+            estimated_miles: null,
+            distance_is_manual: false,
             ...locationPayload,
           }),
         });
@@ -915,6 +1040,9 @@ export default function RoutingTab({ load, onLoadRefresh }) {
   return (
     <div className="space-y-4">
       {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
+      {distanceWarning && (
+        <Alert type="warning" message={distanceWarning} onClose={() => setDistanceWarning(null)} />
+      )}
 
       {/* Header */}
       <div className="flex items-end justify-between gap-4">
@@ -1021,6 +1149,11 @@ export default function RoutingTab({ load, onLoadRefresh }) {
                       load={load}
                       onDispatchLoad={idx === 0 ? handleDispatchLoad : null}
                       onRemoveLoadDriver={idx === 0 ? handleRemoveLoadDriver : null}
+                      orderId={load.id}
+                      drivers={drivers}
+                      allDryRuns={allDryRuns}
+                      onDryRunsChange={refetchDryRuns}
+                      onEventPatch={handleEventUpdate}
                     />
                   );
                 })}
@@ -1115,6 +1248,54 @@ export default function RoutingTab({ load, onLoadRefresh }) {
           </div>
         </div>
       </DndContext>
+
+      {legDeleteConfirm && (
+        <LegDeleteConfirmModal
+          open
+          onClose={() => setLegDeleteConfirm(null)}
+          onDetach={async () => {
+            try {
+              const res = await fetch(
+                `/api/tenant/loads/${load.id}/routing/events/${legDeleteConfirm.eventId}?mode=detach`,
+                { method: 'DELETE' }
+              );
+              if (res.status === 204) {
+                setLegDeleteConfirm(null);
+                // Refresh both routing AND dry runs — detach nulls event_id
+                // on attempts; delete_all soft-deletes them. Without this,
+                // allDryRuns stays stale until tab remount.
+                await Promise.all([fetchRouting(), refetchDryRuns()]);
+              } else {
+                const body = await res.json().catch(() => ({}));
+                setError(body.error || 'Detach failed');
+              }
+            } catch (e) {
+              setError(e.message);
+            }
+          }}
+          onDeleteAll={async () => {
+            try {
+              const res = await fetch(
+                `/api/tenant/loads/${load.id}/routing/events/${legDeleteConfirm.eventId}?mode=delete_all`,
+                { method: 'DELETE' }
+              );
+              if (res.status === 204) {
+                setLegDeleteConfirm(null);
+                // Refresh both routing AND dry runs — detach nulls event_id
+                // on attempts; delete_all soft-deletes them. Without this,
+                // allDryRuns stays stale until tab remount.
+                await Promise.all([fetchRouting(), refetchDryRuns()]);
+              } else {
+                const body = await res.json().catch(() => ({}));
+                setError(body.error || 'Delete failed');
+              }
+            } catch (e) {
+              setError(e.message);
+            }
+          }}
+          runs={legDeleteConfirm.runs}
+        />
+      )}
     </div>
   );
 }

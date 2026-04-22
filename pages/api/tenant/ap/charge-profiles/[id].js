@@ -5,7 +5,7 @@ import { PERMISSIONS } from '../../../../../lib/permissions';
 const EDITABLE_FIELDS = [
   'name', 'charge_name', 'description', 'driver_group_id',
   'unit_of_measure', 'percentage_based_on', 'percentage_charge_code', 'effective_date_basis',
-  'calculation_mode', 'auto_add', 'conditions', 'match_resolution', 'is_enabled',
+  'calculation_mode', 'auto_add', 'is_dry_run', 'conditions', 'match_resolution', 'is_enabled',
 ];
 
 export default async function handler(req, res) {

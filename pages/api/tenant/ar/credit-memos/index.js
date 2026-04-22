@@ -5,6 +5,7 @@ import {
 } from '../../../../../lib/tenant-api';
 import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
 import { PERMISSIONS } from '../../../../../lib/permissions';
+import { parseCsvParam } from '../../../../../lib/ar-filter-params';
 
 /**
  * /api/tenant/ar/credit-memos
@@ -20,7 +21,12 @@ export default async function handler(req, res) {
   const svc = getServiceClient();
 
   if (req.method === 'GET') {
-    const { customer_id, status } = req.query;
+    const { customer_id, status, from, to } = req.query;
+    const customerIdsRaw = parseCsvParam(req.query.customer_ids);
+    const customerIdsExclude = parseCsvParam(req.query.customer_ids_exclude);
+    const customerIds = customer_id
+      ? Array.from(new Set([...customerIdsRaw, customer_id]))
+      : customerIdsRaw;
 
     let query = svc
       .from('credit_memos')
@@ -34,8 +40,13 @@ export default async function handler(req, res) {
       .is('deleted_at', null)
       .order('created_at', { ascending: false });
 
-    if (customer_id) query = query.eq('customer_id', customer_id);
+    if (customerIds.length === 1) query = query.eq('customer_id', customerIds[0]);
+    else if (customerIds.length > 1) query = query.in('customer_id', customerIds);
+    if (customerIdsExclude.length === 1) query = query.neq('customer_id', customerIdsExclude[0]);
+    else if (customerIdsExclude.length > 1) query = query.not('customer_id', 'in', '(' + customerIdsExclude.join(',') + ')');
     if (status) query = query.eq('status', status);
+    if (from) query = query.gte('created_at', from);
+    if (to)   query = query.lte('created_at', to);
 
     const { data, error } = await query;
     if (error) return res.status(500).json({ error: error.message });

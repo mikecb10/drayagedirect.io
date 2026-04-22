@@ -8,7 +8,7 @@ import Modal from '../ui/Modal';
 import OrgPicker from '../ui/OrgPicker';
 import { formatCents } from '../../lib/ar-utils';
 
-export default function CreditMemosTab() {
+export default function CreditMemosTab({ filters = {} }) {
   const [memos, setMemos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -19,7 +19,14 @@ export default function CreditMemosTab() {
   async function load() {
     setLoading(true);
     try {
-      const res = await fetch('/api/tenant/ar/credit-memos');
+      const params = new URLSearchParams();
+      if (filters.customer_ids?.length)         params.set('customer_ids', filters.customer_ids.join(','));
+      if (filters.customer_ids_exclude?.length) params.set('customer_ids_exclude', filters.customer_ids_exclude.join(','));
+      if (filters.from) params.set('from', filters.from);
+      if (filters.to)   params.set('to',   filters.to);
+
+      const qs = params.toString();
+      const res = await fetch(`/api/tenant/ar/credit-memos${qs ? `?${qs}` : ''}`);
       if (!res.ok) throw new Error('Failed to load');
       const data = await res.json();
       setMemos(data.credit_memos || []);
@@ -27,7 +34,7 @@ export default function CreditMemosTab() {
     finally { setLoading(false); }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [filters]);
 
   async function handleCreate(e) {
     e.preventDefault();

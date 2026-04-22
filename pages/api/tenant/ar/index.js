@@ -1,10 +1,23 @@
 import { requireTenantUser, getServiceClient } from '../../../../lib/tenant-api';
+import { parseCsvParam } from '../../../../lib/ar-filter-params';
+import { fetchLoadMarginInputs, computeLoadMargin } from '../../../../lib/load-margin';
+import { PERMISSIONS } from '../../../../lib/permissions';
 
 /**
  * GET /api/tenant/ar
  *
  * Returns charge sets aggregated for the AR pipeline.
  * Includes load data, customer info, and status counts for the filter cards.
+ *
+ * Query params:
+ *   status         - single charge-set status
+ *   load_status    - 'uncompleted' | 'completed' (draft split)
+ *   search         - substring match (client-side) on charge_set_number /
+ *                    order_number / customer.name
+ *   customer_ids   - CSV of customer UUIDs (matches order.customer_id OR
+ *                    order_charge_sets.bill_to_customer_id)
+ *   branch_ids     - CSV of branch UUIDs (matches order.branch_id)
+ *   from, to       - ISO dates; filters order_charge_sets.created_at
  */
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
@@ -13,59 +26,354 @@ export default async function handler(req, res) {
   if (!ctx) return;
 
   const svc = getServiceClient();
-  const { status, load_status, search } = req.query;
+  const { status, load_status, search, from, to } = req.query;
+  const customerIds = parseCsvParam(req.query.customer_ids);
+  const branchIds   = parseCsvParam(req.query.branch_ids);
+  const { reference_number } = req.query;
+  const loadTypes       = parseCsvParam(req.query.load_types);
+  const containerTypes  = parseCsvParam(req.query.container_types);
+  const containerSizes  = parseCsvParam(req.query.container_sizes);
+  const flagKeys        = parseCsvParam(req.query.flags);
+  const sslCodes        = parseCsvParam(req.query.ssl_codes);
+  const driverIds       = parseCsvParam(req.query.driver_ids);
+  // Exclude variants
+  const customerIdsExclude    = parseCsvParam(req.query.customer_ids_exclude);
+  const branchIdsExclude      = parseCsvParam(req.query.branch_ids_exclude);
+  const loadTypesExclude      = parseCsvParam(req.query.load_types_exclude);
+  const containerTypesExclude = parseCsvParam(req.query.container_types_exclude);
+  const containerSizesExclude = parseCsvParam(req.query.container_sizes_exclude);
+  const flagKeysExclude       = parseCsvParam(req.query.flags_exclude);
+  const sslCodesExclude       = parseCsvParam(req.query.ssl_codes_exclude);
+  const driverIdsExclude      = parseCsvParam(req.query.driver_ids_exclude);
+  // New dimensions
+  const { invoiced_from, invoiced_to } = req.query;
+  const pickupLocationIds   = parseCsvParam(req.query.pickup_location_ids);
+  const deliveryLocationIds = parseCsvParam(req.query.delivery_location_ids);
+  const returnLocationIds   = parseCsvParam(req.query.return_location_ids);
 
-  // Fetch all charge sets with load + customer data.
-  // We include `deleted_at` on the joined order so we can filter out
-  // charge sets whose parent load has been soft-deleted.
+  // Phase B4: bill-to primary / additional + factor company
+  const billToPrimaryCustomerIds        = parseCsvParam(req.query.bill_to_primary_customer_ids);
+  const billToPrimaryCustomerIdsExclude = parseCsvParam(req.query.bill_to_primary_customer_ids_exclude);
+  const billToAdditionalCustomerIds     = parseCsvParam(req.query.bill_to_additional_customer_ids);
+  const billToAdditionalCustomerIdsExclude = parseCsvParam(req.query.bill_to_additional_customer_ids_exclude);
+  const { factor_company } = req.query;
+
+  // Phase C: rate-con-sent Y/N
+  const { rate_con_sent_y } = req.query;
+
   let query = svc
     .from('order_charge_sets')
     .select(`
       *,
-      order:orders(id, order_number, status, load_type, customer_id, created_at, deleted_at,
+      order:orders(id, order_number, status, load_type, customer_id, customer_reference, branch_id, driver_id, container_type, container_size, steamship_line_scac, is_hazmat, is_overweight, is_overheight, is_liquor, is_hot, is_genset, is_scale, is_ev, is_street_turn, is_oog, is_bonded, is_double, is_tanker, pickup_location_id, delivery_location_id, return_location_id, created_at, deleted_at,
         customer:customers!orders_customer_id_fkey(id, name)
       ),
-      bill_to:customers!order_charge_sets_bill_to_customer_id_fkey(id, name),
+      bill_to:customers!order_charge_sets_bill_to_customer_id_fkey(id, name, pay_type),
       line_items:order_charge_set_line_items(id, name, total_cents, is_auto)
     `)
     .eq('tenant_id', ctx.tenantId)
     .order('created_at', { ascending: false });
 
   if (status) query = query.eq('status', status);
+  if (from)   query = query.gte('created_at', from);
+  if (to)     query = query.lte('created_at', to);
 
   const { data: chargeSets, error } = await query;
   if (error) return res.status(500).json({ error: error.message });
 
-  // Exclude charge sets belonging to deleted loads.
-  // (Supabase can't filter joined foreign tables in the main query, so we
-  // filter client-side here.)
   const sets = (chargeSets || []).filter((cs) => !cs.order || cs.order.deleted_at == null);
 
-  // Compute pipeline counts + sums per bucket.
-  // Shape: { <bucket>: { count, total_cents } } with `total`/`total_cents`
-  // at the top level preserving grand totals for backwards-compat display.
+  // Customer filter — match on order.customer_id OR bill_to_customer_id.
+  // Bill-to override is common in 3PL flows, so either column counts.
+  let scopedSets = sets;
+  if (customerIds.length > 0) {
+    const ids = new Set(customerIds);
+    scopedSets = scopedSets.filter((cs) =>
+      (cs.order?.customer_id && ids.has(cs.order.customer_id)) ||
+      (cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id))
+    );
+  }
+  if (branchIds.length > 0) {
+    const ids = new Set(branchIds);
+    scopedSets = scopedSets.filter((cs) => cs.order?.branch_id && ids.has(cs.order.branch_id));
+  }
+
+  // Reference number — substring match on orders.customer_reference (case-insensitive).
+  if (reference_number && typeof reference_number === 'string' && reference_number.trim().length > 0) {
+    const q = reference_number.trim().toLowerCase();
+    scopedSets = scopedSets.filter((cs) =>
+      cs.order?.customer_reference?.toLowerCase().includes(q)
+    );
+  }
+
+  // Load type — multi-select on orders.load_type.
+  if (loadTypes.length > 0) {
+    const types = new Set(loadTypes);
+    scopedSets = scopedSets.filter((cs) => cs.order?.load_type && types.has(cs.order.load_type));
+  }
+
+  // Container type + size — multi-select on orders.container_type / .container_size.
+  if (containerTypes.length > 0) {
+    const types = new Set(containerTypes);
+    scopedSets = scopedSets.filter((cs) => cs.order?.container_type && types.has(cs.order.container_type));
+  }
+  if (containerSizes.length > 0) {
+    const sizes = new Set(containerSizes);
+    scopedSets = scopedSets.filter((cs) => cs.order?.container_size && sizes.has(cs.order.container_size));
+  }
+
+  // Load flags — AND semantics (row must have EVERY selected flag set true).
+  // flag keys are bare labels (e.g. "hazmat"); the DB columns are is_<key>.
+  if (flagKeys.length > 0) {
+    scopedSets = scopedSets.filter((cs) =>
+      flagKeys.every((key) => cs.order?.[`is_${key}`] === true)
+    );
+  }
+
+  // SSL multi-select on orders.steamship_line_scac (uppercased SCAC code).
+  if (sslCodes.length > 0) {
+    const codes = new Set(sslCodes.map((c) => c.toUpperCase()));
+    scopedSets = scopedSets.filter((cs) =>
+      cs.order?.steamship_line_scac && codes.has(cs.order.steamship_line_scac.toUpperCase())
+    );
+  }
+
+  // Driver multi-select on orders.driver_id.
+  if (driverIds.length > 0) {
+    const ids = new Set(driverIds);
+    scopedSets = scopedSets.filter((cs) => cs.order?.driver_id && ids.has(cs.order.driver_id));
+  }
+
+  // ── Phase B2: exclude variants ─────────────────────────────────────
+  if (customerIdsExclude.length > 0) {
+    const ids = new Set(customerIdsExclude);
+    scopedSets = scopedSets.filter((cs) =>
+      !(cs.order?.customer_id && ids.has(cs.order.customer_id)) &&
+      !(cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id))
+    );
+  }
+  if (branchIdsExclude.length > 0) {
+    const ids = new Set(branchIdsExclude);
+    scopedSets = scopedSets.filter((cs) => !(cs.order?.branch_id && ids.has(cs.order.branch_id)));
+  }
+  if (loadTypesExclude.length > 0) {
+    const types = new Set(loadTypesExclude);
+    scopedSets = scopedSets.filter((cs) => !(cs.order?.load_type && types.has(cs.order.load_type)));
+  }
+  if (containerTypesExclude.length > 0) {
+    const types = new Set(containerTypesExclude);
+    scopedSets = scopedSets.filter((cs) => !(cs.order?.container_type && types.has(cs.order.container_type)));
+  }
+  if (containerSizesExclude.length > 0) {
+    const sizes = new Set(containerSizesExclude);
+    scopedSets = scopedSets.filter((cs) => !(cs.order?.container_size && sizes.has(cs.order.container_size)));
+  }
+  // Flags exclude: row must have NONE of the selected flags set true (every flag is_<key> !== true).
+  if (flagKeysExclude.length > 0) {
+    scopedSets = scopedSets.filter((cs) =>
+      flagKeysExclude.every((key) => cs.order?.[`is_${key}`] !== true)
+    );
+  }
+  if (sslCodesExclude.length > 0) {
+    const codes = new Set(sslCodesExclude.map((c) => c.toUpperCase()));
+    scopedSets = scopedSets.filter((cs) =>
+      !(cs.order?.steamship_line_scac && codes.has(cs.order.steamship_line_scac.toUpperCase()))
+    );
+  }
+  if (driverIdsExclude.length > 0) {
+    const ids = new Set(driverIdsExclude);
+    scopedSets = scopedSets.filter((cs) => !(cs.order?.driver_id && ids.has(cs.order.driver_id)));
+  }
+
+  // ── Phase B2: invoiced date range (order_charge_sets.invoiced_at) ──
+  if (invoiced_from && typeof invoiced_from === 'string') {
+    scopedSets = scopedSets.filter((cs) => cs.invoiced_at && cs.invoiced_at >= invoiced_from);
+  }
+  if (invoiced_to && typeof invoiced_to === 'string') {
+    scopedSets = scopedSets.filter((cs) => cs.invoiced_at && cs.invoiced_at <= invoiced_to);
+  }
+
+  // ── Phase B2: location filters (include only) ──────────────────────
+  if (pickupLocationIds.length > 0) {
+    const ids = new Set(pickupLocationIds);
+    scopedSets = scopedSets.filter((cs) => cs.order?.pickup_location_id && ids.has(cs.order.pickup_location_id));
+  }
+  if (deliveryLocationIds.length > 0) {
+    const ids = new Set(deliveryLocationIds);
+    scopedSets = scopedSets.filter((cs) => cs.order?.delivery_location_id && ids.has(cs.order.delivery_location_id));
+  }
+  if (returnLocationIds.length > 0) {
+    const ids = new Set(returnLocationIds);
+    scopedSets = scopedSets.filter((cs) => cs.order?.return_location_id && ids.has(cs.order.return_location_id));
+  }
+
+  // ── Phase B4: bill-to primary / additional ─────────────────────────
+  // Primary = charge_set_number does NOT match /_\d+$/ (no _N suffix).
+  // Secondary/additional = matches /_\d+$/.
+  // Each filter passes through rows it doesn't apply to — primary filter
+  // skips additional rows, and vice versa. This way a user combining both
+  // filters gets the union: primary matches of list A + additional matches
+  // of list B, not the impossible intersection.
+  const SECONDARY_PATTERN = /_\d+$/;
+  const isPrimaryCs = (cs) => !SECONDARY_PATTERN.test(cs.charge_set_number || '');
+
+  if (billToPrimaryCustomerIds.length > 0) {
+    const ids = new Set(billToPrimaryCustomerIds);
+    scopedSets = scopedSets.filter((cs) =>
+      !isPrimaryCs(cs) || (cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id))
+    );
+  }
+  if (billToPrimaryCustomerIdsExclude.length > 0) {
+    const ids = new Set(billToPrimaryCustomerIdsExclude);
+    scopedSets = scopedSets.filter((cs) =>
+      !isPrimaryCs(cs) || !(cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id))
+    );
+  }
+  if (billToAdditionalCustomerIds.length > 0) {
+    const ids = new Set(billToAdditionalCustomerIds);
+    scopedSets = scopedSets.filter((cs) =>
+      isPrimaryCs(cs) || (cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id))
+    );
+  }
+  if (billToAdditionalCustomerIdsExclude.length > 0) {
+    const ids = new Set(billToAdditionalCustomerIdsExclude);
+    scopedSets = scopedSets.filter((cs) =>
+      isPrimaryCs(cs) || !(cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id))
+    );
+  }
+
+  // ── Phase B4: factor company Y/N ───────────────────────────────────
+  if (factor_company === 'yes') {
+    scopedSets = scopedSets.filter((cs) => cs.bill_to?.pay_type === 'factoring');
+  } else if (factor_company === 'no') {
+    // NULL pay_type defaults to direct-pay (most customers), so include them.
+    scopedSets = scopedSets.filter((cs) => cs.bill_to?.pay_type !== 'factoring');
+  }
+
+  // ── Phase C: rate-con-sent Y/N ─────────────────────────────────────
+  // Signal comes from email_trigger_log rows with event_name in the
+  // manual rate_con_send events. Single sends stash the charge_set ID
+  // at umbrella_decisions[0].related_entity.id; bulk sends stash
+  // comma-joined IDs in the same field and/or an array at charge_set_ids.
+  if (rate_con_sent_y === 'yes' || rate_con_sent_y === 'no') {
+    const { data: logRows } = await svc
+      .from('email_trigger_log')
+      .select('event_name, umbrella_decisions, outcome')
+      .eq('tenant_id', ctx.tenantId)
+      .in('event_name', ['manual:rate_con_send', 'manual:rate_con_bulk_send'])
+      .eq('outcome', 'fired');
+
+    const sentChargeSetIds = new Set();
+    for (const row of logRows || []) {
+      const decisions = Array.isArray(row.umbrella_decisions) ? row.umbrella_decisions : [];
+      for (const d of decisions) {
+        if (d?.related_entity?.type?.startsWith('charge_set') && d.related_entity.id) {
+          // related_entity.id may be a single UUID OR a comma-joined list (bulk send).
+          for (const id of String(d.related_entity.id).split(',')) {
+            const trimmed = id.trim();
+            if (trimmed) sentChargeSetIds.add(trimmed);
+          }
+        }
+        if (Array.isArray(d?.charge_set_ids)) {
+          for (const id of d.charge_set_ids) {
+            if (id) sentChargeSetIds.add(id);
+          }
+        }
+      }
+    }
+
+    if (rate_con_sent_y === 'yes') {
+      scopedSets = scopedSets.filter((cs) => sentChargeSetIds.has(cs.id));
+    } else {
+      scopedSets = scopedSets.filter((cs) => !sentChargeSetIds.has(cs.id));
+    }
+  }
+
+  // ── Load Margin: attach margin object per row ─────────────────────────
+  // Gated on ACCOUNTS_RECEIVABLE | REPORTING | ALL — users without the
+  // permission receive rows without a margin object, and the margin filter
+  // is treated as a no-op so they don't accidentally see empty results.
+  const canSeeMargin =
+    ctx.permissions.includes(PERMISSIONS.ACCOUNTS_RECEIVABLE) ||
+    ctx.permissions.includes(PERMISSIONS.REPORTING) ||
+    ctx.permissions.includes(PERMISSIONS.ALL);
+
+  if (canSeeMargin && scopedSets.length > 0) {
+    try {
+      const { data: tenant, error: tErr } = await svc
+        .from('tenants')
+        .select('margin_red_threshold, margin_yellow_threshold, margin_include_dry_runs')
+        .eq('id', ctx.tenantId)
+        .single();
+      if (!tErr && tenant) {
+        const distinctOrderIds = [...new Set(scopedSets.map((r) => r.order_id).filter(Boolean))];
+        if (distinctOrderIds.length > 0) {
+          const inputs = await fetchLoadMarginInputs(svc, {
+            tenantId: ctx.tenantId,
+            orderIds: distinctOrderIds,
+            includeDryRuns: tenant.margin_include_dry_runs,
+          });
+          const marginByOrder = new Map();
+          for (const id of distinctOrderIds) {
+            const { revenueCents, costCents } = inputs.get(id) ?? { revenueCents: 0, costCents: 0 };
+            marginByOrder.set(id, computeLoadMargin({
+              revenueCents,
+              costCents,
+              redThreshold:    Number(tenant.margin_red_threshold),
+              yellowThreshold: Number(tenant.margin_yellow_threshold),
+            }));
+          }
+          for (const row of scopedSets) {
+            if (row.order_id) row.margin = marginByOrder.get(row.order_id) ?? null;
+          }
+        }
+      }
+    } catch (err) {
+      console.error('AR margin attach failed', err);
+    }
+  }
+
+  // ── Margin range filter ───────────────────────────────────────────────
+  // Runs after the margin-attach block so row.margin is populated.
+  // Neutral-bucket rows (no revenue or no cost) are excluded from numeric ranges.
+  // Skip entirely when the caller lacks the margin-view permission — no rows
+  // have .margin attached, so filtering would produce an empty result set.
+  const { margin_from, margin_to } = req.query;
+  const marginFrom = margin_from !== '' && margin_from != null
+    ? Number(margin_from) : null;
+  const marginTo   = margin_to   !== '' && margin_to   != null
+    ? Number(margin_to)   : null;
+
+  if (canSeeMargin && (Number.isFinite(marginFrom) || Number.isFinite(marginTo))) {
+    scopedSets = scopedSets.filter((r) => {
+      const m = r.margin;
+      if (!m || m.bucket === 'neutral') return false;
+      if (Number.isFinite(marginFrom) && m.marginPct < marginFrom) return false;
+      if (Number.isFinite(marginTo)   && m.marginPct > marginTo)   return false;
+      return true;
+    });
+  }
+
+  // Compute counts over the SCOPED set — filter cards reflect the current
+  // customer/branch/date scope, not the unfiltered universe.
   const emptyBucket = () => ({ count: 0, total_cents: 0 });
   const counts = {
-    // Pre-Invoice Pipeline
     uncompleted_loads: emptyBucket(),
-    completed_loads: emptyBucket(),
-    rate_con_sent: emptyBucket(),
-    unapproved: emptyBucket(),
-    approved: emptyBucket(),
-    // Invoice Pipeline
-    invoiced: emptyBucket(),
-    rebilling: emptyBucket(),
-    // Other
-    void: emptyBucket(),
-    total: sets.length,
-    total_cents: 0,
+    completed_loads:   emptyBucket(),
+    rate_con_sent:     emptyBucket(),
+    unapproved:        emptyBucket(),
+    approved:          emptyBucket(),
+    invoiced:          emptyBucket(),
+    rebilling:         emptyBucket(),
+    void:              emptyBucket(),
+    total:             scopedSets.length,
+    total_cents:       0,
   };
 
-  for (const cs of sets) {
+  for (const cs of scopedSets) {
     const loadStatus = cs.order?.status;
-    const csStatus = cs.status;
-    const cents = cs.total_cents || 0;
-
+    const csStatus   = cs.status;
+    const cents      = cs.total_cents || 0;
     counts.total_cents += cents;
 
     const addTo = (bucket) => {
@@ -73,14 +381,13 @@ export default async function handler(req, res) {
       counts[bucket].total_cents += cents;
     };
 
-    if (csStatus === 'void') { addTo('void'); continue; }
+    if (csStatus === 'void')         { addTo('void'); continue; }
     if (csStatus === 'invoiced' || csStatus === 'billed') { addTo('invoiced'); continue; }
-    if (csStatus === 'rebilling') { addTo('rebilling'); continue; }
-    if (csStatus === 'rate_con_sent') { addTo('rate_con_sent'); continue; }
-    if (csStatus === 'unapproved') { addTo('unapproved'); continue; }
-    if (csStatus === 'approved') { addTo('approved'); continue; }
+    if (csStatus === 'rebilling')    { addTo('rebilling'); continue; }
+    if (csStatus === 'rate_con_sent'){ addTo('rate_con_sent'); continue; }
+    if (csStatus === 'unapproved')   { addTo('unapproved'); continue; }
+    if (csStatus === 'approved')     { addTo('approved'); continue; }
 
-    // Draft — split by load completion status
     if (loadStatus === 'completed' || loadStatus === 'delivered') {
       addTo('completed_loads');
     } else {
@@ -88,8 +395,10 @@ export default async function handler(req, res) {
     }
   }
 
-  // Apply client-side filters for search
-  let filtered = sets;
+  // Stage card (status + load_status) and search filters apply AFTER counts —
+  // counts show "pipeline totals for the current scope", list shows "rows in
+  // this bucket within the current scope".
+  let filtered = scopedSets;
   if (search) {
     const q = search.toLowerCase();
     filtered = filtered.filter((cs) =>
@@ -99,7 +408,6 @@ export default async function handler(req, res) {
     );
   }
 
-  // Apply load_status filter
   if (load_status === 'uncompleted') {
     filtered = filtered.filter((cs) =>
       (cs.status === 'draft') &&

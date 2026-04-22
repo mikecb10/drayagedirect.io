@@ -40,7 +40,7 @@ export default function ChargeProfileHeader({ form, update, availableTags }) {
         </div>
       </div>
 
-      {/* Row 2: Tag | Auto Add */}
+      {/* Row 2: Tag | Auto Add | Dry Run */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <TagInput tags={form.tags} onChange={(tags) => update('tags', tags)} availableTags={availableTags} />
         <div>
@@ -53,6 +53,20 @@ export default function ChargeProfileHeader({ form, update, availableTags }) {
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input type="radio" checked={form.auto_add} onChange={() => update('auto_add', true)} className="text-blue-600 w-4 h-4" />
               Yes
+            </label>
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 dark:text-slate-300 mb-1">Available for Dry Runs</label>
+          <div className="flex items-center gap-2 h-[36px]">
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!form.is_dry_run}
+                onChange={(e) => update('is_dry_run', e.target.checked)}
+                className="rounded border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-950 text-blue-600 focus:ring-blue-500 w-4 h-4"
+              />
+              <span className="text-gray-700 dark:text-slate-300">Yes — show in Routing-tab dry-run picker</span>
             </label>
           </div>
         </div>

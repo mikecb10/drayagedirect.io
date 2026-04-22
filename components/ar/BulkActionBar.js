@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, AlertCircle, Mail, Download, X, RefreshCw } from 'lucide-react';
+import { Check, AlertCircle, Mail, Download, X, RefreshCw, FileText } from 'lucide-react';
 
 function formatCents(cents) {
   if (cents == null) return '$0.00';
@@ -16,10 +16,11 @@ function formatCents(cents) {
 export default function BulkActionBar({
   count,
   totalCents,
-  bulkAction,         // 'approve' | 'unapprove' | 'approve_invoice' | null
+  bulkAction,         // 'approve' | 'unapprove' | 'approve_invoice' | 'send_rate_con' | null
   onApprove,
   onUnapprove,
   onApproveAndInvoice,
+  onSendRateCons,
   onExport,
   onClear,
 }) {
@@ -54,6 +55,11 @@ export default function BulkActionBar({
       <button type="button" onClick={onApproveAndInvoice} disabled={busy} className={primaryBtn}>
         {bulkAction === 'approve_invoice' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
         Approve & Invoice
+      </button>
+
+      <button type="button" onClick={onSendRateCons} disabled={busy} className={ghostBtn}>
+        {bulkAction === 'send_rate_con' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
+        Send Rate Cons
       </button>
 
       <button type="button" onClick={onExport} disabled={busy} className={ghostBtn}>

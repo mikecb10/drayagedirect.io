@@ -8,16 +8,37 @@ function formatCents(cents) {
   return `$${(cents / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 }
 
-function StatusPill({ status }) {
+// When row.status === 'sent', the pill reflects delivery_status (if known).
+// Null delivery_status means SendGrid's 202 came back but no webhook yet —
+// show amber "Sent" to signal the outcome is still unknown.
+function resolvePillKey(status, deliveryStatus) {
+  if (status !== 'sent') return status;
+  switch (deliveryStatus) {
+    case 'delivered':     return 'delivered';
+    case 'bounced':       return 'bounced';
+    case 'dropped':       return 'dropped';
+    case 'spam_reported': return 'spam_reported';
+    case 'deferred':      return 'deferred';
+    default:              return 'sent'; // null or unknown
+  }
+}
+
+function StatusPill({ status, deliveryStatus }) {
   const map = {
-    pending:    { cls: 'bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-slate-400', label: 'Loading…', icon: RefreshCw, spin: true },
-    ready:      { cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300', label: 'Ready', icon: Check },
-    needs_edit: { cls: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300', label: 'Needs edit', icon: AlertCircle },
-    sending:    { cls: 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300', label: 'Sending…', icon: RefreshCw, spin: true },
-    sent:       { cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300', label: 'Sent', icon: Check },
-    failed:     { cls: 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300', label: 'Failed', icon: AlertCircle },
+    pending:       { cls: 'bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-slate-400', label: 'Loading…', icon: RefreshCw, spin: true },
+    ready:         { cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300', label: 'Ready', icon: Check },
+    needs_edit:    { cls: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300', label: 'Needs edit', icon: AlertCircle },
+    sending:       { cls: 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300', label: 'Sending…', icon: RefreshCw, spin: true },
+    sent:          { cls: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300', label: 'Sent', icon: Mail },
+    delivered:     { cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300', label: 'Delivered', icon: Check },
+    bounced:       { cls: 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300', label: 'Bounced', icon: AlertCircle },
+    dropped:       { cls: 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300', label: 'Dropped', icon: AlertCircle },
+    spam_reported: { cls: 'bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300', label: 'Spam', icon: AlertCircle },
+    deferred:      { cls: 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300', label: 'Deferred', icon: RefreshCw },
+    failed:        { cls: 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300', label: 'Failed', icon: AlertCircle },
   };
-  const m = map[status] ?? map.pending;
+  const key = resolvePillKey(status, deliveryStatus);
+  const m = map[key] ?? map.pending;
   const Icon = m.icon;
   return (
     <span className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full ${m.cls}`}>
@@ -27,23 +48,39 @@ function StatusPill({ status }) {
   );
 }
 
-export default function BulkEmailQueue({ groups, groupingKind, onClose, onAllSent }) {
+export default function BulkEmailQueue({ groups, groupingKind, docType = 'invoice', onClose, onAllSent }) {
   const {
     rows, updateRow, sendReady, retryFailed,
     readyCount, failedCount, sentCount, needsEditCount, allSent,
-  } = useBulkEmailQueue(groups, groupingKind);
+  } = useBulkEmailQueue(groups, groupingKind, docType);
 
   const [editingKey, setEditingKey] = useState(null);
   const editingRow = editingKey ? rows.find((r) => r.groupKey === editingKey) : null;
 
-  // Hybrid close: auto-close on all-green after a 1s beat
+  // Hybrid close: wait for every row to reach a terminal delivery state
+  // before dismissing. A row with status='sent' but delivery_status in
+  // {bounced, dropped, spam_reported} is a delivery failure surfaced
+  // post-send — the operator needs visibility on it, so we do NOT
+  // auto-dismiss in that case. Rows with delivery_status=null/deferred
+  // keep the modal open so polling has time to land a 'delivered' event
+  // and the operator sees the pill flip from amber → emerald.
+  const hasBadDelivery = rows.some(
+    (r) => r.status === 'sent'
+      && ['bounced', 'dropped', 'spam_reported'].includes(r.delivery_status)
+  );
+  const allTerminalDelivery = rows.length > 0 && rows.every(
+    (r) => r.status === 'sent'
+      && ['delivered', 'bounced', 'dropped', 'spam_reported'].includes(r.delivery_status)
+  );
   useEffect(() => {
     if (!allSent) return;
+    if (hasBadDelivery) return;
+    if (!allTerminalDelivery) return;
     const t = setTimeout(() => {
       onAllSent?.();
     }, 1000);
     return () => clearTimeout(t);
-  }, [allSent, onAllSent]);
+  }, [allSent, hasBadDelivery, allTerminalDelivery, onAllSent]);
 
   const totalCents = rows.reduce((a, r) => a + (r.group.total_cents || 0), 0);
 
@@ -103,19 +140,22 @@ export default function BulkEmailQueue({ groups, groupingKind, onClose, onAllSen
           {rows.map((r) => {
             const isSent = r.status === 'sent';
             const isFailed = r.status === 'failed';
+            const isBadDelivery = isSent && ['bounced', 'dropped', 'spam_reported'].includes(r.delivery_status);
             return (
               <div
                 key={r.groupKey}
                 className={`px-5 py-3 flex items-center justify-between text-sm ${
-                  isSent ? 'opacity-60'
-                  : isFailed ? 'bg-red-50 dark:bg-red-950/20 border-l-4 border-red-400 dark:border-red-800'
-                  : ''
+                  isFailed || isBadDelivery
+                    ? 'bg-red-50 dark:bg-red-950/20 border-l-4 border-red-400 dark:border-red-800'
+                    : isSent
+                    ? 'opacity-60'
+                    : ''
                 }`}
               >
                 <div className="flex-1 min-w-0">
                   <div className="text-gray-900 dark:text-slate-100 font-medium truncate">{r.group.label}</div>
                   <div className="text-xs text-gray-500 dark:text-slate-400 truncate">
-                    {r.group.invoice_ids.length} invoice{r.group.invoice_ids.length !== 1 ? 's' : ''} · {formatCents(r.group.total_cents)}
+                    {r.group.invoice_ids.length} {docType === 'rate_con' ? 'rate con' : 'invoice'}{r.group.invoice_ids.length !== 1 ? 's' : ''} · {formatCents(r.group.total_cents)}
                     {Array.isArray(r.to) && r.to.length > 0 ? ` · To: ${r.to.join(', ')}` : ' · (no recipient)'}
                   </div>
                   {r.error && (
@@ -123,7 +163,7 @@ export default function BulkEmailQueue({ groups, groupingKind, onClose, onAllSen
                   )}
                 </div>
                 <div className="flex items-center gap-3 ml-3">
-                  <StatusPill status={r.status} />
+                  <StatusPill status={r.status} deliveryStatus={r.delivery_status} />
                   {!isSent && (
                     <button
                       onClick={() => setEditingKey(r.groupKey)}

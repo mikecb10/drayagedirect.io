@@ -9,6 +9,7 @@ import { formatInvoiceNumber } from '../../lib/invoice-utils';
 import BulkActionBar from './BulkActionBar';
 import BulkGroupingModal from './BulkGroupingModal';
 import BulkEmailQueue from './BulkEmailQueue';
+import MarginBadge from '../ui/MarginBadge';
 
 const STATUS_BADGES = {
   draft: { label: 'Draft', cls: 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300' },
@@ -26,7 +27,7 @@ function formatCents(cents) {
   return `$${(cents / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 }
 
-export default function BillingPipelineTab() {
+export default function BillingPipelineTab({ filters = {} }) {
   const { openOverlay } = useOverlay();
   const [chargeSets, setChargeSets] = useState([]);
   const [counts, setCounts] = useState({});
@@ -40,6 +41,10 @@ export default function BillingPipelineTab() {
   const [toast, setToast] = useState(null); // { type, message } | null
   const [groupingModalInvoices, setGroupingModalInvoices] = useState(null); // Array | null
   const [queueState, setQueueState] = useState(null); // { kind, groups } | null
+  // 2a.4b rate-con bulk state. Kept separate from groupingModalInvoices +
+  // queueState so the invoice and rate-con flows coexist cleanly.
+  const [groupingModalRateCons, setGroupingModalRateCons] = useState(null);
+  const [rateConQueueState, setRateConQueueState] = useState(null);
 
   async function fetchAR({ silent = false } = {}) {
     if (!silent) setLoading(true);
@@ -52,6 +57,40 @@ export default function BillingPipelineTab() {
         params.set('load_status', activeFilter === 'uncompleted_loads' ? 'uncompleted' : 'completed');
       }
       if (search) params.set('search', search);
+      if (filters.customer_ids?.length) params.set('customer_ids', filters.customer_ids.join(','));
+      if (filters.branch_ids?.length)   params.set('branch_ids',   filters.branch_ids.join(','));
+      if (filters.from)                 params.set('from',         filters.from);
+      if (filters.to)                   params.set('to',           filters.to);
+      if (filters.invoiced_from)        params.set('invoiced_from', filters.invoiced_from);
+      if (filters.invoiced_to)          params.set('invoiced_to',   filters.invoiced_to);
+      if (filters.reference_number)     params.set('reference_number', filters.reference_number);
+      if (filters.load_types?.length)       params.set('load_types',       filters.load_types.join(','));
+      if (filters.container_types?.length) params.set('container_types', filters.container_types.join(','));
+      if (filters.container_sizes?.length) params.set('container_sizes', filters.container_sizes.join(','));
+      if (filters.flags?.length) params.set('flags', filters.flags.join(','));
+      if (filters.ssl_codes?.length) params.set('ssl_codes', filters.ssl_codes.join(','));
+      if (filters.driver_ids?.length) params.set('driver_ids', filters.driver_ids.join(','));
+      if (filters.customer_ids_exclude?.length)    params.set('customer_ids_exclude',    filters.customer_ids_exclude.join(','));
+      if (filters.branch_ids_exclude?.length)      params.set('branch_ids_exclude',      filters.branch_ids_exclude.join(','));
+      if (filters.load_types_exclude?.length)      params.set('load_types_exclude',      filters.load_types_exclude.join(','));
+      if (filters.container_types_exclude?.length) params.set('container_types_exclude', filters.container_types_exclude.join(','));
+      if (filters.container_sizes_exclude?.length) params.set('container_sizes_exclude', filters.container_sizes_exclude.join(','));
+      if (filters.flags_exclude?.length)           params.set('flags_exclude',           filters.flags_exclude.join(','));
+      if (filters.ssl_codes_exclude?.length)       params.set('ssl_codes_exclude',       filters.ssl_codes_exclude.join(','));
+      if (filters.driver_ids_exclude?.length)      params.set('driver_ids_exclude',      filters.driver_ids_exclude.join(','));
+      if (filters.pickup_location_ids?.length)   params.set('pickup_location_ids',   filters.pickup_location_ids.join(','));
+      if (filters.delivery_location_ids?.length) params.set('delivery_location_ids', filters.delivery_location_ids.join(','));
+      if (filters.return_location_ids?.length)   params.set('return_location_ids',   filters.return_location_ids.join(','));
+      if (filters.bill_to_primary_customer_ids?.length)    params.set('bill_to_primary_customer_ids',    filters.bill_to_primary_customer_ids.join(','));
+      if (filters.bill_to_primary_customer_ids_exclude?.length) params.set('bill_to_primary_customer_ids_exclude', filters.bill_to_primary_customer_ids_exclude.join(','));
+      if (filters.bill_to_additional_customer_ids?.length) params.set('bill_to_additional_customer_ids', filters.bill_to_additional_customer_ids.join(','));
+      if (filters.bill_to_additional_customer_ids_exclude?.length) params.set('bill_to_additional_customer_ids_exclude', filters.bill_to_additional_customer_ids_exclude.join(','));
+      if (filters.factor_company === 'yes' || filters.factor_company === 'no') params.set('factor_company', filters.factor_company);
+      if (filters.rate_con_sent_y === 'yes' || filters.rate_con_sent_y === 'no') params.set('rate_con_sent_y', filters.rate_con_sent_y);
+      if (filters.margin_from && String(filters.margin_from).trim())
+        params.set('margin_from', filters.margin_from);
+      if (filters.margin_to && String(filters.margin_to).trim())
+        params.set('margin_to', filters.margin_to);
       const res = await fetch(`/api/tenant/ar?${params}`);
       if (!res.ok) throw new Error('Failed to load');
       const data = await res.json();
@@ -69,7 +108,7 @@ export default function BillingPipelineTab() {
     finally { setLoading(false); }
   }
 
-  useEffect(() => { fetchAR(); }, [activeFilter]);
+  useEffect(() => { fetchAR(); }, [activeFilter, filters]);
 
   // Selection is meaningful only within the currently displayed list.
   // When the filter or search changes, the list changes, so clear selection.
@@ -245,7 +284,7 @@ export default function BillingPipelineTab() {
           invoice_number: inv.invoice_number,
           customer_id: inv.customer_id,
           customer_name: cs.order?.customer?.name ?? 'Unknown',
-          reference_number: cs.order?.reference_number ?? null,
+          reference_number: cs.order?.customer_reference ?? null,
           charge_set_id: cs.id,
           total_cents: inv.total_amount_cents ?? cs.total_cents ?? 0,
         });
@@ -283,6 +322,36 @@ export default function BillingPipelineTab() {
     setToast({ type: kind, message: firstError ? `${base} — ${firstError}` : base });
 
     setGroupingModalInvoices(created);
+  }
+
+  async function handleBulkSendRateCons() {
+    const selected = chargeSets.filter((cs) => selectedIds.has(cs.id));
+    if (selected.length === 0) return;
+
+    // Build items in the shape BulkGroupingModal.computeGroups expects.
+    // computeGroups keys on customer_id for the 'customer' grouping, on
+    // customer_id + reference_number for 'reference', and on
+    // (charge_set_id ?? invoice_id) for 'charge_set'. Fill invoice_id with
+    // the charge-set's own id so the charge_set grouping works uniformly
+    // with the shape existing invoice callers use.
+    //
+    // Field paths mirror handleBulkApproveAndInvoice: customer info comes
+    // from cs.order.customer (nested join), reference_number from
+    // cs.order.customer_reference (the customer's own PO/correlation; the
+    // `reference_number` field name on orders doesn't exist in schema).
+    const items = selected.map((cs) => ({
+      id: cs.id,
+      invoice_id: cs.id,
+      charge_set_id: cs.id,
+      customer_id: cs.order?.customer?.id ?? cs.order?.customer_id ?? null,
+      customer_name: cs.order?.customer?.name ?? '(unknown customer)',
+      reference_number: cs.order?.customer_reference ?? null,
+      invoice_number: cs.charge_set_number ?? cs.id,
+      charge_set_number: cs.charge_set_number ?? cs.id,
+      total_cents: cs.total_cents ?? 0,
+    }));
+
+    setGroupingModalRateCons(items);
   }
 
   function handleExportCsv() {
@@ -430,15 +499,16 @@ export default function BillingPipelineTab() {
                 <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Status</th>
                 <th className="text-center px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Items</th>
                 <th className="text-right px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Total</th>
+                <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Margin</th>
                 <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Created</th>
                 <th className="w-10"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-slate-800">
               {loading ? (
-                <tr><td colSpan={10} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">Loading...</td></tr>
+                <tr><td colSpan={11} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">Loading...</td></tr>
               ) : chargeSets.length === 0 ? (
-                <tr><td colSpan={10} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">
+                <tr><td colSpan={11} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">
                   {activeFilter ? 'No charge sets match this filter.' : 'No charge sets found.'}
                 </td></tr>
               ) : (
@@ -504,6 +574,11 @@ export default function BillingPipelineTab() {
                       </td>
                       <td className="px-4 py-2.5 text-center text-xs text-gray-600 dark:text-slate-300">{(cs.line_items || []).length}</td>
                       <td className="px-4 py-2.5 text-right font-semibold text-gray-900 dark:text-slate-100">{formatCents(cs.total_cents)}</td>
+                      <td className="px-4 py-2.5">
+                        {cs.margin
+                          ? <MarginBadge marginPct={cs.margin.marginPct} bucket={cs.margin.bucket} size="sm" />
+                          : null}
+                      </td>
                       <td className="px-4 py-2.5 text-xs text-gray-500 dark:text-slate-400">
                         {cs.created_at ? new Date(cs.created_at).toLocaleDateString() : '—'}
                       </td>
@@ -526,6 +601,7 @@ export default function BillingPipelineTab() {
         onApprove={handleBulkApprove}
         onUnapprove={handleBulkUnapprove}
         onApproveAndInvoice={handleBulkApproveAndInvoice}
+        onSendRateCons={handleBulkSendRateCons}
         onExport={handleExportCsv}
         onClear={() => {
           setSelectedIds(new Set());
@@ -554,6 +630,34 @@ export default function BillingPipelineTab() {
           }}
           onAllSent={() => {
             setQueueState(null);
+            fetchAR({ silent: true });
+          }}
+        />
+      )}
+
+      {groupingModalRateCons && (
+        <BulkGroupingModal
+          items={groupingModalRateCons}
+          docType="rate_con"
+          onCancel={() => setGroupingModalRateCons(null)}
+          onContinue={({ kind, groups }) => {
+            setGroupingModalRateCons(null);
+            setRateConQueueState({ kind, groups });
+          }}
+        />
+      )}
+
+      {rateConQueueState && (
+        <BulkEmailQueue
+          groups={rateConQueueState.groups}
+          groupingKind={rateConQueueState.kind}
+          docType="rate_con"
+          onClose={() => {
+            setRateConQueueState(null);
+            fetchAR({ silent: true });
+          }}
+          onAllSent={() => {
+            setRateConQueueState(null);
             fetchAR({ silent: true });
           }}
         />

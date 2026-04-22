@@ -126,6 +126,13 @@ function validateCreate(body) {
     body_format,
   });
 
+  if ('from_display_name' in body) {
+    const v = typeof body.from_display_name === 'string'
+      ? body.from_display_name.trim().slice(0, 100) || null
+      : null;
+    body.from_display_name = v;
+  }
+
   return {
     ok: true,
     updates: {
@@ -142,6 +149,7 @@ function validateCreate(body) {
         ? body.attachment_document_types
         : [],
       suppress_default_signature: !!body.suppress_default_signature,
+      from_display_name: body.from_display_name || null,
     },
   };
 }
