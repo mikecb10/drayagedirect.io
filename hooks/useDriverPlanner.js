@@ -173,6 +173,40 @@ export default function useDriverPlanner({ date, driverSearch = '', branchId = n
     };
   }, [supabase, tenantId, date, scheduleRefetch]);
 
+  // ── Periodic refetch (60s) while the page is visible ────────────────
+  useEffect(() => {
+    if (!date) return;
+    let intervalId = null;
+
+    function start() {
+      if (intervalId != null) return;
+      intervalId = setInterval(() => {
+        if (document.visibilityState === 'visible') fetchPlanner();
+      }, 60_000);
+    }
+    function stop() {
+      if (intervalId != null) clearInterval(intervalId);
+      intervalId = null;
+    }
+
+    function onVis() {
+      if (document.visibilityState === 'visible') {
+        // Refetch immediately + ensure the timer runs
+        fetchPlanner();
+        start();
+      } else {
+        stop();
+      }
+    }
+
+    start();
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [date, fetchPlanner]);
+
   // Mutation helpers — each is optimistic, rolls back on failure.
   const mutations = {
     async assign({ move, driverId, index, truckId = null, chassisId = null }) {
