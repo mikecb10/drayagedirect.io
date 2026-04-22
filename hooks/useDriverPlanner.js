@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { getBucket } from '../lib/dispatcher/moveBuckets';
 
 const initial = {
   date: null,
@@ -99,7 +100,6 @@ function renumberSortOrder(arr) {
 export default function useDriverPlanner({ date, driverSearch = '', branchId = null, includeInactive = false }) {
   const { supabase, tenantId } = useAuth();
   const [state, dispatch] = useReducer(reducer, initial);
-  const lastSnapshotRef = useRef(null);
 
   const fetchPlanner = useCallback(async () => {
     if (!date) return;
@@ -215,9 +215,15 @@ export default function useDriverPlanner({ date, driverSearch = '', branchId = n
   }, [date, fetchPlanner]);
 
   // Mutation helpers — each is optimistic, rolls back on failure.
+  //
+  // Concurrency note: each mutation captures `snapshot` as a per-invocation
+  // local const (not a shared ref). This keeps concurrent mutations from
+  // clobbering each other's rollback targets. On failure we ALSO refetch so
+  // that any Realtime-driven state change that landed between the optimistic
+  // update and the failure isn't reverted by the rollback snapshot.
   const mutations = {
     async assign({ move, driverId, index, truckId = null, chassisId = null }) {
-      lastSnapshotRef.current = state;
+      const snapshot = state;
       dispatch({ type: 'OPTIMISTIC_ASSIGN', move, driverId, index });
       try {
         const r = await fetch('/api/tenant/dispatcher/planner/assign', {
@@ -226,12 +232,23 @@ export default function useDriverPlanner({ date, driverSearch = '', branchId = n
         });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
       } catch (e) {
-        dispatch({ type: 'ROLLBACK', snapshot: lastSnapshotRef.current });
+        dispatch({ type: 'ROLLBACK', snapshot });
+        fetchPlanner();
         throw e;
       }
     },
-    async unassign({ move, bucket }) {
-      lastSnapshotRef.current = state;
+    async unassign({ move }) {
+      const snapshot = state;
+      // Compute the correct right-rail bucket for the now-unassigned move so
+      // it lands in the right place optimistically — refetch will confirm.
+      const orderFlags = move.order
+        ? {
+            lfd: move.order.last_free_day,
+            container_at_port: move.order.container_at_port,
+            empty_ready_for_return_at: move.order.empty_ready_for_return_at,
+          }
+        : {};
+      const bucket = getBucket({ ...move, driver_id: null }, orderFlags) || 'other';
       dispatch({ type: 'OPTIMISTIC_UNASSIGN', move, bucket });
       try {
         const r = await fetch('/api/tenant/dispatcher/planner/unassign', {
@@ -240,12 +257,13 @@ export default function useDriverPlanner({ date, driverSearch = '', branchId = n
         });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
       } catch (e) {
-        dispatch({ type: 'ROLLBACK', snapshot: lastSnapshotRef.current });
+        dispatch({ type: 'ROLLBACK', snapshot });
+        fetchPlanner();
         throw e;
       }
     },
     async dispatch({ moveId }) {
-      lastSnapshotRef.current = state;
+      const snapshot = state;
       dispatch({ type: 'OPTIMISTIC_DISPATCH', moveId });
       try {
         const r = await fetch('/api/tenant/dispatcher/planner/dispatch', {
@@ -254,12 +272,13 @@ export default function useDriverPlanner({ date, driverSearch = '', branchId = n
         });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
       } catch (e) {
-        dispatch({ type: 'ROLLBACK', snapshot: lastSnapshotRef.current });
+        dispatch({ type: 'ROLLBACK', snapshot });
+        fetchPlanner();
         throw e;
       }
     },
     async reorder({ driverId, orderedMoveIds }) {
-      lastSnapshotRef.current = state;
+      const snapshot = state;
       dispatch({ type: 'OPTIMISTIC_REORDER', driverId, orderedMoveIds });
       try {
         const r = await fetch('/api/tenant/dispatcher/planner/reorder', {
@@ -268,7 +287,8 @@ export default function useDriverPlanner({ date, driverSearch = '', branchId = n
         });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
       } catch (e) {
-        dispatch({ type: 'ROLLBACK', snapshot: lastSnapshotRef.current });
+        dispatch({ type: 'ROLLBACK', snapshot });
+        fetchPlanner();
         throw e;
       }
     },

@@ -120,7 +120,7 @@ export default function DriverPlannerView() {
                 onClickPreview={(m) => setPreviewMove(m)}
                 onOpenLoad={handleOpenLoad}
                 onDispatch={(m) => mutations.dispatch({ moveId: m.id }).catch((e) => showToast(`Dispatch failed: ${e.message}`))}
-                onUnassign={(m) => mutations.unassign({ move: m, bucket: 'other' }).catch((e) => showToast(`Unassign failed: ${e.message}`))}
+                onUnassign={(m) => mutations.unassign({ move: m }).catch((e) => showToast(`Unassign failed: ${e.message}`))}
               />
             )}
           </div>
