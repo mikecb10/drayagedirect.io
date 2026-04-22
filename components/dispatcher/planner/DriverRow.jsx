@@ -15,6 +15,8 @@ export default function DriverRow({ driver, moves, onClickPreview, onDispatch, o
         {Array.from({ length: slotCount }).map((_, i) => (
           <MoveSlot
             key={i}
+            driverId={driver.id}
+            index={i}
             move={moves[i]}
             onClickPreview={onClickPreview}
             onDispatch={onDispatch}

@@ -1,3 +1,4 @@
+import { useDraggable } from '@dnd-kit/core';
 import { Check, X } from 'lucide-react';
 
 const STATUS_BG = {
@@ -36,12 +37,26 @@ function fmtApt(iso) {
 }
 
 export default function MoveCell({ move, onClickPreview, onDispatch, onUnassign }) {
+  const draggable = useDraggable({
+    id: `assigned:${move.id}`,
+    data: { type: 'assigned-move', move },
+    disabled: ['in_progress', 'completed', 'cancelled'].includes(move.status),
+  });
+
   const order = move.order || {};
   const bg = STATUS_BG[move.status] || STATUS_BG.pending;
 
   return (
     <div
-      className={`flex flex-col h-full rounded border border-gray-200 dark:border-gray-700 ${bg} cursor-pointer hover:shadow-sm`}
+      ref={draggable.setNodeRef}
+      {...draggable.attributes}
+      {...draggable.listeners}
+      className={[
+        'flex flex-col h-full rounded border border-gray-200 dark:border-gray-700',
+        bg,
+        'cursor-grab active:cursor-grabbing hover:shadow-sm',
+        draggable.isDragging && 'opacity-50',
+      ].filter(Boolean).join(' ')}
       onClick={onClickPreview}
       data-move-id={move.id}
     >
