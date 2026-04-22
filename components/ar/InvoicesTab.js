@@ -193,6 +193,28 @@ export default function InvoicesTab({ filters = {} }) {
     setLastClickedId(invId);
   }
 
+  function handleBulkResend() {
+    const selected = invoices.filter((inv) => selectedIds.has(inv.id));
+    if (selected.length === 0) return;
+
+    // Items shape for BulkGroupingModal (docType='invoice' path). Field paths
+    // mirror the Pipeline tab's handleBulkApproveAndInvoice at
+    // BillingPipelineTab.js:277-285. reference_number comes from
+    // customer_reference on the order (aliased per convention); the invoices
+    // list endpoint exposes it at inv.charge_sets[0].charge_set.order.customer_reference.
+    const items = selected.map((inv) => ({
+      id: inv.id,
+      invoice_id: inv.id,
+      customer_id: inv.customer?.id ?? inv.customer_id ?? null,
+      customer_name: inv.customer?.name ?? '(unknown customer)',
+      reference_number: inv.charge_sets?.[0]?.charge_set?.order?.customer_reference ?? null,
+      invoice_number: inv.invoice_number,
+      total_cents: inv.total_amount_cents ?? 0,
+    }));
+
+    setGroupingModalInvoices(items);
+  }
+
   function toggleSet(id) {
     setSelectedSets((prev) =>
       prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
@@ -358,6 +380,48 @@ export default function InvoicesTab({ filters = {} }) {
           </table>
         </div>
       </div>
+
+      <InvoicesBulkBar
+        count={selectedIds.size}
+        totalCents={selectedTotalCents}
+        bulkAction={bulkAction}
+        onResend={handleBulkResend}
+        onClear={() => {
+          setSelectedIds(new Set());
+          setLastClickedId(null);
+        }}
+      />
+
+      {groupingModalInvoices && (
+        <BulkGroupingModal
+          invoices={groupingModalInvoices}
+          onCancel={() => setGroupingModalInvoices(null)}
+          onContinue={({ kind, groups }) => {
+            setGroupingModalInvoices(null);
+            setQueueState({ kind, groups });
+          }}
+        />
+      )}
+
+      {queueState && (
+        <BulkEmailQueue
+          groups={queueState.groups}
+          groupingKind={queueState.kind}
+          mode="resend"
+          onClose={() => {
+            setQueueState(null);
+            setSelectedIds(new Set());
+            setLastClickedId(null);
+            load();
+          }}
+          onAllSent={() => {
+            setQueueState(null);
+            setSelectedIds(new Set());
+            setLastClickedId(null);
+            load();
+          }}
+        />
+      )}
 
       <EmailComposeSlideOver
         open={emailCompose.isOpen}
