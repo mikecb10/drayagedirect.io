@@ -277,6 +277,10 @@ export default function useDriverPlanner({ date, driverSearch = '', branchId = n
         throw e;
       }
     },
+    // Not currently wired to any UI — DnD drops fire `assign` for every
+    // slot target (including same-driver-same-date), and `assign.js`
+    // handles in-row resequencing correctly. Kept as a clean API surface
+    // for future bulk-reorder / keyboard-reorder flows.
     async reorder({ driverId, orderedMoveIds }) {
       const snapshot = state;
       dispatch({ type: 'OPTIMISTIC_REORDER', driverId, orderedMoveIds });

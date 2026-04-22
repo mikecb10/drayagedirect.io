@@ -15,15 +15,24 @@ export default function UnassignedRightRail({ buckets }) {
   };
 
   const items = useMemo(() => {
+    // Tag each item with its source bucket so UnassignedMoveCard can colour
+    // the left accent. When `active === 'all'`, the bucket is per-item; when
+    // a single bucket is selected, every item shares the active bucket.
+    const tag = (arr, b) => arr.map((m) => ({ move: m, bucket: b }));
     const source =
       active === 'all'
-        ? [...buckets.atPort, ...buckets.deliveries, ...buckets.return, ...buckets.other]
-        : buckets[active] || [];
+        ? [
+            ...tag(buckets.atPort, 'atPort'),
+            ...tag(buckets.deliveries, 'deliveries'),
+            ...tag(buckets.return, 'return'),
+            ...tag(buckets.other, 'other'),
+          ]
+        : tag(buckets[active] || [], active);
     const q = search.trim().toLowerCase();
     if (!q) return source;
-    return source.filter((m) => {
-      const order = m.order || {};
-      const firstEvent = (m.events || [])[0];
+    return source.filter(({ move }) => {
+      const order = move.order || {};
+      const firstEvent = (move.events || [])[0];
       return (
         (order.order_number || '').toLowerCase().includes(q) ||
         (order.container_number || '').toLowerCase().includes(q) ||
@@ -63,8 +72,8 @@ export default function UnassignedRightRail({ buckets }) {
               : 'No unassigned moves.'}
           </div>
         )}
-        {items.map((m) => (
-          <UnassignedMoveCard key={m.id} move={m} />
+        {items.map(({ move, bucket }) => (
+          <UnassignedMoveCard key={move.id} move={move} bucket={bucket} />
         ))}
       </div>
     </div>

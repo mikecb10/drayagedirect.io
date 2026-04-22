@@ -18,8 +18,11 @@ export default function MoveSlot({ driverId, index, move, onClickPreview, onOpen
       {move ? (
         <MoveCell move={move} onClickPreview={onClickPreview} onOpenLoad={onOpenLoad} onDispatch={onDispatch} onUnassign={onUnassign} />
       ) : (
-        <div className="h-full rounded border border-dashed border-gray-300 dark:border-gray-700 text-xs text-gray-400 dark:text-gray-500 flex items-center justify-center">
-          + Drop a move here
+        // Soft at rest (just a "+"), full "Drop a move here" on hover. Keeps
+        // the grid from feeling busy across 8+ slots × N drivers.
+        <div className="group h-full rounded border border-dashed border-gray-200 dark:border-gray-800 text-xs text-gray-400 dark:text-gray-600 flex items-center justify-center transition-colors hover:border-gray-300 dark:hover:border-gray-700 hover:text-gray-600 dark:hover:text-gray-400">
+          <span className="group-hover:hidden">+</span>
+          <span className="hidden group-hover:inline">+ Drop a move here</span>
         </div>
       )}
     </div>

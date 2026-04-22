@@ -40,10 +40,20 @@ export default async function handler(req, res) {
     driverQuery = driverQuery.eq('status', 'active');
   }
   if (driver_search && driver_search.trim()) {
-    const q = driver_search.trim();
-    driverQuery = driverQuery.or(
-      `name.ilike.%${q}%,truck_number.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`
-    );
+    // Escape SQL wildcards (%, _) so user-typed literal "%" doesn't turn
+    // into a wildcard; strip PostgREST delimiters (,()) which would break
+    // the `.or()` parser. A trailing backslash would escape our closing %,
+    // so normalize it first.
+    const q = driver_search
+      .trim()
+      .replace(/\\/g, '\\\\')
+      .replace(/([%_])/g, '\\$1')
+      .replace(/[,()]/g, ' ');
+    if (q) {
+      driverQuery = driverQuery.or(
+        `name.ilike.%${q}%,truck_number.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`
+      );
+    }
   }
 
   const { data: drivers, error: driversErr } = await driverQuery;
@@ -74,14 +84,25 @@ export default async function handler(req, res) {
     .eq('tenant_id', ctx.tenantId);
 
   // Either: scheduled on this date (assigned moves shown on grid)
-  // OR: unassigned (right-rail pool — shown regardless of scheduled_date)
+  // OR: unassigned AND created in the last 30 days (right-rail pool).
   //
-  // Safety limit: cap at 500 rows to protect against runaway payload on
-  // high-volume tenants (per-date assigned rows + tenant-wide unassigned
-  // pool). If a real tenant hits this, the correct answer is a bounded
-  // unassigned-pool query (e.g. recency filter) rather than a bigger limit.
+  // The 30-day recency window keeps the unassigned pool bounded for tenants
+  // who accumulate ancient never-assigned moves. Real-world drayage moves
+  // almost always get scheduled within days of container arrival — a move
+  // that's been unassigned for 30+ days is either abandoned or a data bug,
+  // and should be resolved via Load Detail rather than the planner pool.
+  // Adjust the window (or remove entirely) if a tenant has a legitimate
+  // long-dwell workflow.
+  const UNASSIGNED_WINDOW_DAYS = 30;
+  const unassignedCutoff = new Date(
+    Date.now() - UNASSIGNED_WINDOW_DAYS * 24 * 60 * 60 * 1000
+  ).toISOString();
+  // Safety limit: cap at 500 rows to protect against runaway payload even
+  // with the recency filter in place (sudden backlog spikes, etc).
   moveQuery = moveQuery
-    .or(`scheduled_date.eq.${date},driver_id.is.null`)
+    .or(
+      `scheduled_date.eq.${date},and(driver_id.is.null,created_at.gte.${unassignedCutoff})`
+    )
     .order('sort_order', { ascending: true })
     .limit(500);
 
