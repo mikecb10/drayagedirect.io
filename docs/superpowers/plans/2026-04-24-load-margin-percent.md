@@ -701,7 +701,7 @@ import Head from 'next/head';
 import SettingsLayout from '../../../components/settings/SettingsLayout';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
-import MarginBadge from '../../../components/shared/MarginBadge';
+import MarginBadge from '../../../components/ui/MarginBadge';
 import { computeLoadMargin } from '../../../lib/load-margin';
 
 export default function MarginThresholdsPage() {
@@ -911,13 +911,13 @@ git commit -m "feat(load-margin): Settings → Accounting → Margin Thresholds 
 ### Task 8: `<MarginBadge />` shared component
 
 **Files:**
-- Create: `components/shared/MarginBadge.jsx`
+- Create: `components/ui/MarginBadge.js`
 
 > **EXECUTE BEFORE TASK 7** if working in strict order — Task 7 imports MarginBadge.
 
 - [ ] **Step 1: Implement the component**
 
-Create `components/shared/MarginBadge.jsx`:
+Create `components/ui/MarginBadge.js`:
 
 ```jsx
 /**
@@ -963,7 +963,7 @@ In a temp file (or via the Settings page once Task 7 is done), render all four b
 - [ ] **Step 3: Commit**
 
 ```bash
-git add components/shared/MarginBadge.jsx
+git add components/ui/MarginBadge.js
 git commit -m "feat(load-margin): shared MarginBadge component (red/yellow/green/neutral, sm/md)"
 ```
 
@@ -1039,7 +1039,7 @@ Find the line that renders the load's status chip (search for status usage). The
 Import at top:
 
 ```jsx
-import MarginBadge from '../shared/MarginBadge';
+import MarginBadge from '../ui/MarginBadge';
 ```
 
 In the header strip, after the status chip:
@@ -1082,7 +1082,7 @@ Read the file to find where the tab's main content starts (after loading/error s
 Insert at the top of the main render block:
 
 ```jsx
-import MarginBadge from '../../shared/MarginBadge';
+import MarginBadge from '../../ui/MarginBadge';
 
 // ... (inside the component's return, above the charge-set cards render):
 {load?.margin && (
@@ -1690,7 +1690,7 @@ EOF
 - `tests/load-margin-fetch.test.mjs`
 - `pages/api/tenant/me/margin-thresholds.js`
 - `pages/settings/accounting/margin.js`
-- `components/shared/MarginBadge.jsx`
+- `components/ui/MarginBadge.js`
 
 **Files modified:** 10+
 - `.gitignore` (already done pre-plan)
