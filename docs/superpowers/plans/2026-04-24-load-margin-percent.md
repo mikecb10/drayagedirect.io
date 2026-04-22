@@ -195,11 +195,11 @@ console.log('computeLoadMargin');
   check('T13 15.5% → yellow', r.bucket === 'yellow');
 }
 
-// T14: No overflow with very large values
+// T14: No overflow with very large values — use (5,10) thresholds so 30% lands firmly in green
+// (with default (15,30) thresholds, 30% would be yellow by the ≤ rule, colliding with T4's boundary case)
 {
-  const r = computeLoadMargin({ revenueCents: 1_000_000_000, costCents: 700_000_000, redThreshold: 15, yellowThreshold: 30 });
-  check('T14 $10M revenue → green 30%', r.bucket === 'green' && r.marginPct === 30.000000000000004 || r.marginPct === 30);
-  // floating-point — accept either the exact 30 or the IEEE754 neighbor
+  const r = computeLoadMargin({ revenueCents: 1_000_000_000, costCents: 700_000_000, redThreshold: 5, yellowThreshold: 10 });
+  check('T14 $10M revenue 30% with (5,10) → green', r.bucket === 'green' && r.marginPct === 30);
 }
 
 // T15: Bucket is always one of four strings
