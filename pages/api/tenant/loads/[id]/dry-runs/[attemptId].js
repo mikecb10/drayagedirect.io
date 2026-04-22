@@ -104,11 +104,15 @@ async function loadApProfileAndTier(svc, tenantId, profileId) {
 // ---------------------------------------------------------------------------
 // Guard: is this dry run still editable?
 // ---------------------------------------------------------------------------
-async function assertEditable(svc, attemptId) {
-  // Fetch the AR line item and its charge set status
+async function assertEditable(svc, tenantId, attemptId) {
+  // Fetch the AR line item and its charge set status. tenant_id filter is
+  // defense-in-depth — caller already verified attempt ownership, but every
+  // service-role query in this codebase scopes by tenant_id (see
+  // memory/session_2026_04_15_recap.md "Supabase service-role bypass").
   const { data: liRow } = await svc
     .from('order_charge_set_line_items')
     .select('id, charge_set:order_charge_sets!charge_set_id(status)')
+    .eq('tenant_id', tenantId)
     .eq('dry_run_attempt_id', attemptId)
     .maybeSingle();
 
@@ -123,6 +127,7 @@ async function assertEditable(svc, attemptId) {
   const { data: payRow } = await svc
     .from('order_driver_pay_lines')
     .select('id')
+    .eq('tenant_id', tenantId)
     .eq('dry_run_attempt_id', attemptId)
     .maybeSingle();
 
@@ -171,7 +176,7 @@ export default async function handler(req, res) {
   // ---- PATCH --------------------------------------------------------------
   if (req.method === 'PATCH') {
     // Guard: invoiced / settled?
-    const guard = await assertEditable(svc, attemptId);
+    const guard = await assertEditable(svc, ctx.tenantId, attemptId);
     if (!guard.ok) return res.status(409).json({ error: guard.reason });
 
     // Merge incoming body over existing row
@@ -293,10 +298,14 @@ export default async function handler(req, res) {
     const dateLabel = occurredAtIso.slice(0, 10);
     const description = `${driverName} · ${milesLabel}${dateLabel}`;
 
-    // Update AR line item
+    // Update AR line item. Reset unit_count to 1 so an inline-edit on the
+    // billing tab (which can change unit_count even on dry-run rows in some
+    // pre-i1 codepaths) doesn't leave per_unit_price * unit_count != total.
+    // Dry-run AR lines are always 1-unit by construction.
     const { error: liErr } = await svc
       .from('order_charge_set_line_items')
       .update({
+        unit_count: 1,
         per_unit_price_cents: arAmount,
         total_cents: arAmount,
         description,
@@ -339,7 +348,7 @@ export default async function handler(req, res) {
   // ---- DELETE -------------------------------------------------------------
   if (req.method === 'DELETE') {
     // Guard: invoiced / settled?
-    const guard = await assertEditable(svc, attemptId);
+    const guard = await assertEditable(svc, ctx.tenantId, attemptId);
     if (!guard.ok) return res.status(409).json({ error: guard.reason });
 
     const now = new Date().toISOString();

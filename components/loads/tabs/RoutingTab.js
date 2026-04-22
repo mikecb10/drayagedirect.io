@@ -21,7 +21,7 @@ import LoadStateBanner from '../routing/LoadStateBanner';
 import RailCheckInSlip from '../routing/RailCheckInSlip';
 import LegDeleteConfirmModal from '../routing/LegDeleteConfirmModal';
 import { getDistanceAndDuration } from '../../../utils/getDistanceMiles';
-import { getValidNextEvents, canAddEvent, canAddMove, checkAutoRestructure } from '../../../lib/routing-rules';
+import { getValidNextEvents, canAddMove, checkAutoRestructure } from '../../../lib/routing-rules';
 import { useTenantTimeFormat, useTenantSettings } from '../../../hooks/useTenantSettings';
 import { useTheme } from '../../../contexts/ThemeContext';
 
