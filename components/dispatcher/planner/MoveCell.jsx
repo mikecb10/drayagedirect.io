@@ -57,7 +57,7 @@ export default function MoveCell({ move, onClickPreview, onDispatch, onUnassign 
         'cursor-grab active:cursor-grabbing hover:shadow-sm',
         draggable.isDragging && 'opacity-50',
       ].filter(Boolean).join(' ')}
-      onClick={onClickPreview}
+      onClick={() => onClickPreview?.(move)}
       data-move-id={move.id}
     >
       <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-200 dark:border-gray-700">
