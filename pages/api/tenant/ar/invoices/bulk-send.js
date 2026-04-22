@@ -13,6 +13,7 @@ import { fetchFullConfiguration } from '../../../../../lib/email-configuration-h
 import { selectActiveConfig } from '../../../../../lib/email-dispatch/select-config.js';
 import { renderInvoicePdf } from '../../../../../lib/pdf/render-invoice';
 import { archiveInvoicePdf } from '../../../../../lib/pdf/archive';
+import { checkChargeSetDistanceGate } from '../../../../../lib/charge-set-distance-gate';
 
 export const config = { runtime: 'nodejs' };
 
@@ -151,10 +152,72 @@ export default async function handler(req, res) {
     }
 
     const invoiceMap = Object.fromEntries((invoices ?? []).map((inv) => [inv.id, inv]));
-    const primaryInvoice = invoices?.[0] ?? null;
+
+    // ── Distance gate: skip invoices whose charge sets have unresolved distance ─
+    // Look up all invoice→charge_set links in one query, then gate each invoice.
+    // Invoices with unresolved charges are released from the claim and collected
+    // in distanceSkipped so the caller knows which ones were excluded.
+    const { data: allIcsRows } = await svc
+      .from('invoice_charge_sets')
+      .select('invoice_id, charge_set_id')
+      .eq('tenant_id', ctx.tenantId)
+      .in('invoice_id', claimedIds);
+
+    // Group charge_set_ids by invoice_id for efficient per-invoice gating.
+    const chargeSetsByInvoice = {};
+    for (const { invoice_id, charge_set_id } of (allIcsRows ?? [])) {
+      if (!chargeSetsByInvoice[invoice_id]) chargeSetsByInvoice[invoice_id] = [];
+      chargeSetsByInvoice[invoice_id].push(charge_set_id);
+    }
+
+    const distanceSkipped = [];
+    const sendableInvoiceIds = [];
+    for (const invoiceId of claimedIds) {
+      const chargeSetIds = chargeSetsByInvoice[invoiceId] ?? [];
+      let blocked = false;
+      let blockNames = [];
+      for (const csId of chargeSetIds) {
+        const gate = await checkChargeSetDistanceGate(svc, ctx.tenantId, csId);
+        if (!gate.ok && !gate.dbError) {
+          blocked = true;
+          blockNames = blockNames.concat(gate.unresolvedNames ?? []);
+        }
+      }
+      if (blocked) {
+        distanceSkipped.push({
+          invoice_id: invoiceId,
+          reason: 'unresolved_distance',
+          unresolved_names: blockNames,
+        });
+      } else {
+        sendableInvoiceIds.push(invoiceId);
+      }
+    }
+
+    // Release claims on distance-blocked invoices so they can be retried.
+    if (distanceSkipped.length > 0) {
+      const blockedIds = distanceSkipped.map(s => s.invoice_id);
+      await svc
+        .from('invoices')
+        .update({ send_claimed_at: null })
+        .eq('tenant_id', ctx.tenantId)
+        .in('id', blockedIds);
+    }
+
+    // If everything is blocked by distance, return early with a 400.
+    if (sendableInvoiceIds.length === 0) {
+      return res.status(400).json({
+        error: 'charge_set_has_unresolved_distance_charges',
+        message: `Cannot send — all invoices in this group have unresolved distance charges. Open each load's Routing tab and save a route, or set the amounts manually.`,
+        skipped: distanceSkipped,
+        skipped_count: distanceSkipped.length,
+      });
+    }
+
+    const primaryInvoice = invoices?.find(inv => sendableInvoiceIds.includes(inv.id)) ?? invoices?.[0] ?? null;
 
     const attachments = [];
-    for (const invoiceId of claimedIds) {
+    for (const invoiceId of sendableInvoiceIds) {
       const inv = invoiceMap[invoiceId];
       // renderInvoicePdf(svc, invoiceId, tenantId) → Buffer
       const buffer = await renderInvoicePdf(svc, invoiceId, ctx.tenantId);
@@ -196,7 +259,7 @@ export default async function handler(req, res) {
       templateId: null,
       configurationId: fullConfig.id,
       sentByUserId: ctx.userId,
-      relatedEntity: { type: 'invoice_bulk', id: claimedIds.join(',') },
+      relatedEntity: { type: 'invoice_bulk', id: sendableInvoiceIds.join(',') },
       eventName: 'manual:invoice_bulk_send',
       // Task 7 precedence helpers: supply objects so dispatcher resolves
       // display name + reply-to via the unified helper path.
@@ -219,13 +282,13 @@ export default async function handler(req, res) {
       .from('invoices')
       .update({ sent_at: sentAt, send_claimed_at: null, status: 'sent' })
       .eq('tenant_id', ctx.tenantId)
-      .in('id', claimedIds);
+      .in('id', sendableInvoiceIds);
     if (updErr) throw new Error(`sent_at update: ${updErr.message}`);
 
     // Single bulk audit-log row.
     await logManualBulkSend(svc, {
       tenantId: ctx.tenantId,
-      invoiceIds: claimedIds,
+      invoiceIds: sendableInvoiceIds,
       userId: ctx.userId,
       groupingKind,
       groupLabel: groupLabel ?? primaryInvoice?.customers?.name ?? primaryInvoice?.customer_id ?? '(group)',
@@ -236,8 +299,10 @@ export default async function handler(req, res) {
     });
 
     return res.status(200).json({
-      sent: claimedIds,
+      sent: sendableInvoiceIds,
       skipped: skippedIds,
+      skipped_distance: distanceSkipped,
+      skipped_distance_count: distanceSkipped.length,
       message_id: dispatchResult?.messageId ?? null,
     });
 

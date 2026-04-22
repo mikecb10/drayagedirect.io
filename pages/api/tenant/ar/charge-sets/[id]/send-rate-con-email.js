@@ -10,6 +10,7 @@ import { fetchFullConfiguration } from '../../../../../../lib/email-configuratio
 import { selectActiveConfig } from '../../../../../../lib/email-dispatch/select-config.js';
 import { archiveRateConPdf } from '../../../../../../lib/pdf/archive';
 import { renderRateConPdf } from '../../../../../../lib/pdf/render-rate-con';
+import { checkChargeSetDistanceGate } from '../../../../../../lib/charge-set-distance-gate';
 
 export const config = { runtime: 'nodejs' };
 
@@ -47,6 +48,21 @@ export default async function handler(req, res) {
     .maybeSingle();
   if (fetchErr) return res.status(500).json({ error: fetchErr.message });
   if (!cs) return res.status(404).json({ error: 'Charge set not found' });
+
+  // Distance gate: block send if any line items have unresolved distance
+  // (needs_distance=true + total_cents IS NULL). No claim to release for rate-con.
+  const gate = await checkChargeSetDistanceGate(svc, ctx.tenantId, id);
+  if (!gate.ok) {
+    if (gate.dbError) {
+      return res.status(500).json({ error: `Distance gate query failed: ${gate.dbError}` });
+    }
+    return res.status(400).json({
+      error: 'charge_set_has_unresolved_distance_charges',
+      message: `Cannot send — ${gate.unresolvedIds?.length || 0} charge(s) have unresolved distance. Open the load's Routing tab and save a route, or set the amount manually.`,
+      unresolved_ids: gate.unresolvedIds,
+      unresolved_names: gate.unresolvedNames,
+    });
+  }
 
   const loadBranchId = cs.order?.branch_id || null;
 

@@ -12,6 +12,7 @@ import { fetchFullConfiguration } from '../../../../../lib/email-configuration-h
 import { selectActiveConfig } from '../../../../../lib/email-dispatch/select-config.js';
 import { renderRateConPdf } from '../../../../../lib/pdf/render-rate-con';
 import { archiveRateConPdf } from '../../../../../lib/pdf/archive';
+import { checkChargeSetDistanceGate } from '../../../../../lib/charge-set-distance-gate';
 
 export const config = { runtime: 'nodejs' };
 
@@ -164,8 +165,47 @@ export default async function handler(req, res) {
 
     const csMap = Object.fromEntries((chargeSets ?? []).map((cs) => [cs.id, cs]));
 
-    const attachments = [];
+    // ── Distance gate: skip charge sets with unresolved distance ─────────────
+    // Gate each claimed charge set. Blocked ones are released from the claim
+    // and collected in distanceSkipped so the caller knows which were excluded.
+    const distanceSkipped = [];
+    const sendableCsIds = [];
     for (const csId of claimedIds) {
+      const gate = await checkChargeSetDistanceGate(svc, ctx.tenantId, csId);
+      if (!gate.ok && !gate.dbError) {
+        const cs = csMap[csId];
+        distanceSkipped.push({
+          charge_set_id: csId,
+          reason: 'unresolved_distance',
+          unresolved_names: gate.unresolvedNames ?? [],
+        });
+      } else {
+        sendableCsIds.push(csId);
+      }
+    }
+
+    // Release claims on distance-blocked charge sets so they can be retried.
+    if (distanceSkipped.length > 0) {
+      const blockedIds = distanceSkipped.map(s => s.charge_set_id);
+      await svc
+        .from('order_charge_sets')
+        .update({ send_claimed_at: null })
+        .eq('tenant_id', ctx.tenantId)
+        .in('id', blockedIds);
+    }
+
+    // If everything is blocked by distance, return early with a 400.
+    if (sendableCsIds.length === 0) {
+      return res.status(400).json({
+        error: 'charge_set_has_unresolved_distance_charges',
+        message: `Cannot send — all charge sets in this group have unresolved distance charges. Open each load's Routing tab and save a route, or set the amounts manually.`,
+        skipped: distanceSkipped,
+        skipped_count: distanceSkipped.length,
+      });
+    }
+
+    const attachments = [];
+    for (const csId of sendableCsIds) {
       const cs = csMap[csId];
       const buffer = await renderRateConPdf(svc, csId, ctx.tenantId);
       await archiveRateConPdf(svc, csId, ctx.tenantId, buffer);
@@ -200,7 +240,7 @@ export default async function handler(req, res) {
       templateId: null,
       configurationId: fullConfig.id,
       sentByUserId: ctx.userId,
-      relatedEntity: { type: 'charge_set_rate_con_bulk', id: claimedIds.join(',') },
+      relatedEntity: { type: 'charge_set_rate_con_bulk', id: sendableCsIds.join(',') },
       eventName: 'manual:rate_con_bulk_send',
       // 2a.5 precedence helpers: supply objects so dispatcher resolves
       // display name + reply-to via the unified helper path.
@@ -223,13 +263,13 @@ export default async function handler(req, res) {
       .from('order_charge_sets')
       .update({ status: 'rate_con_sent', send_claimed_at: null })
       .eq('tenant_id', ctx.tenantId)
-      .in('id', claimedIds);
+      .in('id', sendableCsIds);
     if (updErr) throw new Error(`status update: ${updErr.message}`);
 
     // Bulk audit log entry.
     await logManualBulkRateConSend(svc, {
       tenantId: ctx.tenantId,
-      chargeSetIds: claimedIds,
+      chargeSetIds: sendableCsIds,
       userId: ctx.userId,
       groupingKind,
       groupLabel: groupLabel ?? primaryCustomerId ?? '(group)',
@@ -240,8 +280,10 @@ export default async function handler(req, res) {
     });
 
     return res.status(200).json({
-      sent: claimedIds,
+      sent: sendableCsIds,
       skipped: skippedIds,
+      skipped_distance: distanceSkipped,
+      skipped_distance_count: distanceSkipped.length,
       message_id: dispatchResult?.messageId ?? null,
     });
 

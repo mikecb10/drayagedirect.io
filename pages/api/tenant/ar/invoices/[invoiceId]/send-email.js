@@ -10,6 +10,7 @@ import { fetchFullConfiguration } from '../../../../../../lib/email-configuratio
 import { selectActiveConfig } from '../../../../../../lib/email-dispatch/select-config.js';
 import { archiveInvoicePdf } from '../../../../../../lib/pdf/archive';
 import { renderInvoicePdf } from '../../../../../../lib/pdf/render-invoice';
+import { checkChargeSetDistanceGate } from '../../../../../../lib/charge-set-distance-gate';
 
 export const config = { runtime: 'nodejs' };
 
@@ -80,6 +81,38 @@ export default async function handler(req, res) {
       );
     }
   };
+
+  // Distance gate: block send if any charge line items have unresolved distance
+  // (needs_distance=true + total_cents IS NULL). Invoices link to charge sets via
+  // the invoice_charge_sets join table — look up all charge_set_ids for this invoice,
+  // then gate each one. Release the claim before returning 400 so the invoice can be
+  // retried after the dispatcher resolves distance via the Routing tab.
+  {
+    const { data: icsRows, error: icsErr } = await svc
+      .from('invoice_charge_sets')
+      .select('charge_set_id')
+      .eq('invoice_id', invoiceId)
+      .eq('tenant_id', ctx.tenantId);
+    if (icsErr) {
+      await releaseClaim();
+      return res.status(500).json({ error: `invoice_charge_sets lookup failed: ${icsErr.message}` });
+    }
+    for (const { charge_set_id } of (icsRows ?? [])) {
+      const gate = await checkChargeSetDistanceGate(svc, ctx.tenantId, charge_set_id);
+      if (!gate.ok) {
+        await releaseClaim();
+        if (gate.dbError) {
+          return res.status(500).json({ error: `Distance gate query failed: ${gate.dbError}` });
+        }
+        return res.status(400).json({
+          error: 'charge_set_has_unresolved_distance_charges',
+          message: `Cannot send — ${gate.unresolvedIds?.length || 0} charge(s) have unresolved distance. Open the load's Routing tab and save a route, or set the amount manually.`,
+          unresolved_ids: gate.unresolvedIds,
+          unresolved_names: gate.unresolvedNames,
+        });
+      }
+    }
+  }
 
   // Fetch branch_id for branch-aware config selection. The claim RPC only
   // returns core invoice fields, so we do a single-column lookup here.
