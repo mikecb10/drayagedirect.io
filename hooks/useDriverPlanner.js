@@ -35,8 +35,8 @@ function reducer(state, action) {
       const { move } = action;
       const next = cloneState(state);
       removeMoveEverywhere(next, move.id);
-      // Re-bucket the now-unassigned move (use the client-side util). Caller
-      // supplies the fresh orderFlags via action.orderFlags.
+      // Re-bucket the now-unassigned move. Caller pre-computes the bucket
+      // string (via getBucket) and passes it on the action.
       const b = action.bucket; // 'atPort' | 'deliveries' | 'return' | 'other'
       if (b) next.unassignedBuckets[b].push({ ...move, driver_id: null, status: 'unassigned' });
       return next;
@@ -161,14 +161,13 @@ export default function useDriverPlanner({ date, driverSearch = '', branchId = n
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'orders', filter: `tenant_id=eq.${tenantId}` },
         (payload) => {
-          // Only refetch if bucket-relevant columns changed
+          // Only refetch if last_free_day changed — the LFD badge in
+          // MoveCell / MovePreviewPanel reads this field. Bucket
+          // classification itself is event-driven and doesn't depend on
+          // order-level flags anymore.
           const old = payload.old || {};
           const nw = payload.new || {};
-          if (
-            old.container_at_port !== nw.container_at_port ||
-            old.empty_ready_for_return_at !== nw.empty_ready_for_return_at ||
-            old.last_free_day !== nw.last_free_day
-          ) {
+          if (old.last_free_day !== nw.last_free_day) {
             scheduleRefetch();
           }
         }
