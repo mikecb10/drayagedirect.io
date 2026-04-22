@@ -2,7 +2,7 @@
 // Runnable smoke test for lib/dispatcher/moveBuckets.js — exits 0 on all pass,
 // 1 on any fail. No test framework required.
 
-import { getBucket } from '../lib/dispatcher/moveBuckets.js';
+import { getBucket, bucketize } from '../lib/dispatcher/moveBuckets.js';
 
 let passed = 0;
 let failed = 0;
@@ -151,6 +151,54 @@ try {
   passed++;
   console.log('  PASS  null move throws');
 }
+
+// 14 (M4). pickup + LFD but container_at_port=false → other
+check(
+  'pickup + LFD but container_at_port=false → other',
+  getBucket(
+    { driver_id: null, move_type: 'pickup', events: [] },
+    { lfd: '2026-04-14', container_at_port: false, empty_ready_for_return_at: null }
+  ),
+  'other'
+);
+
+// 15-18 (I1). Non-canonical move_type values must throw
+for (const [label, badType] of [
+  ["'PICKUP' (uppercase) → throws",     'PICKUP'],
+  ["' pickup ' (whitespace) → throws",  ' pickup '],
+  ['null move_type → throws',            null],
+  ['undefined move_type → throws',       undefined],
+]) {
+  try {
+    getBucket({ driver_id: null, move_type: badType, events: [] }, {});
+    failed++;
+    console.log(`  FAIL  ${label}  — did not throw`);
+  } catch (e) {
+    passed++;
+    console.log(`  PASS  ${label}`);
+  }
+}
+
+// 19 (I2-A). bucketize: mixed array across all 4 buckets + 1 assigned (skipped)
+const bA = bucketize([
+  { move: { driver_id: null, move_type: 'pickup', events: [] }, orderFlags: { lfd: '2026-04-14', container_at_port: true } },
+  { move: { driver_id: null, move_type: 'delivery', events: [{ event_type: 'deliver', scheduled_at: '2026-04-14T14:00:00Z' }] }, orderFlags: {} },
+  { move: { driver_id: null, move_type: 'return', events: [] }, orderFlags: { empty_ready_for_return_at: '2026-04-14T18:00:00Z' } },
+  { move: { driver_id: null, move_type: 'chassis_reposition', events: [] }, orderFlags: {} },
+  { move: { driver_id: 'driver-1', move_type: 'pickup', events: [] }, orderFlags: { lfd: '2026-04-14', container_at_port: true } }, // assigned — skipped
+]);
+check('bucketize: atPort has 1',     bA.atPort.length,     1);
+check('bucketize: deliveries has 1', bA.deliveries.length, 1);
+check('bucketize: return has 1',     bA.return.length,     1);
+check('bucketize: other has 1',      bA.other.length,      1); // chassis_reposition
+
+// 20 (I2-B). bucketize: empty array → all 4 buckets empty
+const bB = bucketize([]);
+check(
+  'bucketize: empty input → all 4 buckets empty',
+  bB.atPort.length === 0 && bB.deliveries.length === 0 && bB.return.length === 0 && bB.other.length === 0,
+  true
+);
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);
