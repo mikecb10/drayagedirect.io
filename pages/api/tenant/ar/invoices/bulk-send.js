@@ -175,19 +175,26 @@ export default async function handler(req, res) {
     for (const invoiceId of claimedIds) {
       const chargeSetIds = chargeSetsByInvoice[invoiceId] ?? [];
       let blocked = false;
+      let blockReason = null;
       let blockNames = [];
+      let blockDbError = null;
       for (const csId of chargeSetIds) {
         const gate = await checkChargeSetDistanceGate(svc, ctx.tenantId, csId);
-        if (!gate.ok && !gate.dbError) {
+        if (!gate.ok) {
+          // Block both real unresolved-distance hits AND DB errors.
+          // Treating dbError as "OK to send" defeats the safety net (CR found).
           blocked = true;
+          blockReason = gate.dbError ? 'distance_check_failed' : 'unresolved_distance';
           blockNames = blockNames.concat(gate.unresolvedNames ?? []);
+          blockDbError = gate.dbError || null;
         }
       }
       if (blocked) {
         distanceSkipped.push({
           invoice_id: invoiceId,
-          reason: 'unresolved_distance',
+          reason: blockReason,
           unresolved_names: blockNames,
+          db_error: blockDbError,
         });
       } else {
         sendableInvoiceIds.push(invoiceId);
