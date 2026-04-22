@@ -201,13 +201,15 @@ export default async function handler(req, res) {
           .select('order_charge_sets!inner(order_id)')
           .eq('tenant_id', ctx.tenantId)
           .eq('needs_distance', true)
-          .is('total_cents', null),
+          .is('total_cents', null)
+          .in('order_charge_sets.order_id', orderIds),
         svc
           .from('order_driver_pay_lines')
           .select('order_id')
           .eq('tenant_id', ctx.tenantId)
           .eq('needs_distance', true)
-          .is('amount_cents', null),
+          .is('amount_cents', null)
+          .in('order_id', orderIds),
       ]);
       for (const r of arRows || []) {
         const orderId = r.order_charge_sets?.order_id;
