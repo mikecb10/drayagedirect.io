@@ -10,6 +10,82 @@ import DryRunSlideOver from './DryRunSlideOver';
 
 const DRY_RUN_ELIGIBLE_EVENTS = new Set(['pull', 'pickup', 'deliver', 'return', 'drop', 'hook']);
 
+function DistanceDisplay({ event, legMetrics, onOverride, onResetToAuto }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftValue, setDraftValue] = useState('');
+
+  // Source of truth for display:
+  //   1. persisted event.estimated_miles if present
+  //   2. live legMetrics.distance_miles (Google-computed) if present
+  //   3. "—" otherwise
+  const persisted = event?.estimated_miles;
+  const live = legMetrics?.distance_miles;
+  const isManual = event?.distance_is_manual === true;
+  const displayMiles = persisted != null ? persisted : (live ?? null);
+  const displayText = displayMiles != null ? `${Number(displayMiles).toFixed(1)} mi` : '—';
+
+  if (isEditing) {
+    return (
+      <span className="flex items-center gap-1">
+        <input
+          type="number"
+          step="0.1"
+          min="0"
+          className="w-16 px-1 py-0.5 text-[11px] border border-gray-300 dark:border-slate-700 rounded bg-white dark:bg-slate-900"
+          value={draftValue}
+          onChange={(e) => setDraftValue(e.target.value)}
+          autoFocus
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              const n = parseFloat(draftValue);
+              if (!Number.isNaN(n) && n >= 0) {
+                onOverride(n);
+                setIsEditing(false);
+              }
+            } else if (e.key === 'Escape') {
+              setIsEditing(false);
+            }
+          }}
+        />
+        <button
+          type="button"
+          className="text-[11px] text-gray-500 hover:text-gray-900"
+          onClick={() => setIsEditing(false)}
+        >cancel</button>
+      </span>
+    );
+  }
+
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className="font-semibold text-gray-900 dark:text-slate-100">{displayText}</span>
+      {isManual && (
+        <span className="text-[10px] text-amber-600 dark:text-amber-400">(manual)</span>
+      )}
+      <button
+        type="button"
+        className="text-[11px] text-gray-400 hover:text-gray-900 dark:hover:text-slate-100"
+        title="Override distance"
+        onClick={() => {
+          setDraftValue(displayMiles != null ? String(displayMiles) : '');
+          setIsEditing(true);
+        }}
+      >
+        ✎
+      </button>
+      {isManual && (
+        <button
+          type="button"
+          className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline"
+          onClick={onResetToAuto}
+        >
+          reset
+        </button>
+      )}
+    </span>
+  );
+}
+
 function labelFor(eventType) {
   return EVENT_LABELS[eventType] || (eventType || '').replace(/^./, (c) => c.toUpperCase());
 }
@@ -49,6 +125,8 @@ export default function EventRow({
                      // localDryRuns with stale data on a subsequent re-render
   defaultDriverId,   // move's currently-assigned driver, used as the create-mode
                      // default in the slide-over
+  onEventPatch,      // (eventId, patch) => Promise — used by DistanceDisplay for
+                     // manual-override and reset-to-auto saves
 }) {
   const [editingLocation, setEditingLocation] = useState(false);
   const [dryRunSlideOpen, setDryRunSlideOpen] = useState(false);
@@ -265,9 +343,25 @@ export default function EventRow({
             <span>Travel</span>
             <span className="font-semibold text-gray-900 dark:text-slate-100">{legMetrics?.duration_text || '—'}</span>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between items-center gap-2">
             <span>Distance</span>
-            <span className="font-semibold text-gray-900 dark:text-slate-100">{legMetrics?.distance_text || '—'}</span>
+            <DistanceDisplay
+              event={event}
+              legMetrics={legMetrics}
+              onOverride={async (manualMiles) => {
+                await onEventPatch?.(event.id, {
+                  estimated_miles: manualMiles,
+                  distance_is_manual: true,
+                });
+              }}
+              onResetToAuto={async () => {
+                const autoMiles = legMetrics?.distance_miles ?? null;
+                await onEventPatch?.(event.id, {
+                  estimated_miles: autoMiles,
+                  distance_is_manual: false,
+                });
+              }}
+            />
           </div>
         </div>
       </div>

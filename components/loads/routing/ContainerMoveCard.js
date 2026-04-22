@@ -77,6 +77,8 @@ export default function ContainerMoveCard({
   drivers = [],
   allDryRuns = [],
   onDryRunsChange,
+  onEventPatch,      // (eventId, patch) => Promise — forwarded to EventRow for
+                     // DistanceDisplay manual-override and reset-to-auto
 }) {
   // Also register the whole card as a droppable fallback
   const { setNodeRef: setCardRef, isOver: isCardOver } = useDroppable({
@@ -367,6 +369,7 @@ export default function ContainerMoveCard({
                     dryRuns={allDryRuns.filter((r) => r.event_id === ev.id)}
                     onDryRunsChange={onDryRunsChange}
                     defaultDriverId={move.driver_id || null}
+                    onEventPatch={onEventPatch}
                   />
                   {/* Drop zone after each event — only shown if the
                       insertion position is > lastTouchedIdx (can't

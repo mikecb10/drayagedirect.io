@@ -1113,6 +1113,7 @@ export default function RoutingTab({ load, onLoadRefresh }) {
                       drivers={drivers}
                       allDryRuns={allDryRuns}
                       onDryRunsChange={refetchDryRuns}
+                      onEventPatch={handleEventUpdate}
                     />
                   );
                 })}
