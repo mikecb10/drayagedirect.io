@@ -10,7 +10,11 @@ const ALLOWED = [
   PERMISSIONS.ALL,
 ];
 
-const INVOICED_STATUSES = ['approved', 'billed', 'rebilling'];
+// Real invoiced statuses set by the AR flow: 'invoiced' (set by /ar/invoices POST
+// when a charge set is converted to an invoice), 'billed' (alt/legacy value used
+// in BillingTab filters), 'rebilling' (charge set being re-billed after credit
+// memo). 'approved' is pre-invoice and still editable — do not block on it.
+const INVOICED_STATUSES = ['invoiced', 'billed', 'rebilling'];
 
 // ---------------------------------------------------------------------------
 // Shared: load AR + AP profiles and tiers (same logic as index.js)
@@ -182,7 +186,9 @@ export default async function handler(req, res) {
     };
 
     // Validate merged payload
-    const validation = validatePayload(merged);
+    // isEdit=true — detached dry runs (event_id=null after two-tier leg delete)
+    // should remain editable from Billing / Driver Pay tabs.
+    const validation = validatePayload(merged, { isEdit: true });
     if (!validation.ok) return res.status(400).json({ error: validation.reason });
 
     // Recompute amounts
@@ -263,11 +269,19 @@ export default async function handler(req, res) {
 
     if (updateErr) return res.status(500).json({ error: updateErr.message });
 
-    // Build description for derived rows
+    // Build description for derived rows. Includes the driver name so
+    // multi-driver invoices stay defensible.
+    const { data: driverRow } = await svc
+      .from('drivers')
+      .select('name')
+      .eq('id', merged.driver_id)
+      .eq('tenant_id', ctx.tenantId)
+      .maybeSingle();
+    const driverName = driverRow?.name || 'Driver';
     const milesLabel =
       merged.rate_method === 'per_mile' && merged.miles ? `${merged.miles} mi · ` : '';
     const dateLabel = occurredAtIso.slice(0, 10);
-    const description = `Driver · ${milesLabel}${dateLabel}`;
+    const description = `${driverName} · ${milesLabel}${dateLabel}`;
 
     // Update AR line item
     const { error: liErr } = await svc

@@ -593,7 +593,12 @@ function EditablePayRow({ line, driverName, nextLabel, onUpdate, onAdvance, onDe
   const [editField, setEditField] = useState(null);
   const [editValue, setEditValue] = useState('');
 
+  // Dry-run pay rows are edited via the slide-over only. Allowing inline cell
+  // editing causes a double-fire bug (cell onClick + row onClick both fire).
+  const isDryRun = line.line_type === 'dry_run';
+
   function startEdit(field, value) {
+    if (isDryRun) return;
     setEditField(field);
     setEditValue(value ?? '');
   }
@@ -629,7 +634,7 @@ function EditablePayRow({ line, driverName, nextLabel, onUpdate, onAdvance, onDe
     }
     return (
       <td
-        className={`px-4 py-2 ${align === 'right' ? 'text-right' : ''} ${cls} cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/40`}
+        className={`px-4 py-2 ${align === 'right' ? 'text-right' : ''} ${cls} ${isDryRun ? '' : 'cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/40'}`}
         onClick={() => startEdit(field, raw)}
       >
         {display}

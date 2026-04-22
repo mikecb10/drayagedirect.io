@@ -283,11 +283,19 @@ export default async function handler(req, res) {
       .replace(/_/g, ' ')
       .replace(/\b\w/g, (c) => c.toUpperCase());
 
-    // 7. Description string shared by both derived rows
+    // 7. Description string shared by both derived rows. Includes the driver
+    // name so multi-driver invoices can be defended in disputes.
+    const { data: driverRow } = await svc
+      .from('drivers')
+      .select('name')
+      .eq('id', body.driver_id)
+      .eq('tenant_id', ctx.tenantId)
+      .maybeSingle();
+    const driverName = driverRow?.name || 'Driver';
     const milesLabel =
       body.rate_method === 'per_mile' && body.miles ? `${body.miles} mi · ` : '';
     const dateLabel = occurredAt.slice(0, 10);
-    const description = `Driver · ${milesLabel}${dateLabel}`;
+    const description = `${driverName} · ${milesLabel}${dateLabel}`;
 
     // 8. Insert AR charge set line item
     const { error: liErr } = await svc.from('order_charge_set_line_items').insert({
@@ -328,6 +336,13 @@ export default async function handler(req, res) {
     });
 
     if (payErr) {
+      // CRITICAL: the AR line already landed. order_charge_set_line_items has
+      // no deleted_at, and FK CASCADE only fires on hard parent DELETE — so
+      // soft-deleting the parent would orphan the AR line (user sees a ghost
+      // "Dry Run" row in Billing that can't be edited or deleted via the
+      // slide-over because PATCH filters deleted_at IS NULL).
+      // Hard-delete the AR line first, THEN soft-delete the parent.
+      await svc.from('order_charge_set_line_items').delete().eq('dry_run_attempt_id', attempt.id);
       await svc
         .from('dry_run_attempts')
         .update({ deleted_at: new Date().toISOString() })

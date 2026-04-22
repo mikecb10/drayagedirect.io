@@ -52,7 +52,8 @@ check('preset rejects missing charge_profile', validatePayload({ ...validPreset,
 check('preset rejects missing driver_charge_profile', validatePayload({ ...validPreset, driver_charge_profile_id: null }).ok === false);
 check('per_mile rejects null miles', validatePayload({ ...validPreset, miles: null }).ok === false);
 check('per_mile rejects zero miles', validatePayload({ ...validPreset, miles: 0 }).ok === false);
-check('rejects missing event_id', validatePayload({ ...validManual, event_id: null }).ok === false);
+check('rejects missing event_id on create', validatePayload({ ...validManual, event_id: null }).ok === false);
+check('accepts null event_id on edit (detached)', validatePayload({ ...validManual, event_id: null }, { isEdit: true }).ok === true);
 check('rejects missing driver_id', validatePayload({ ...validManual, driver_id: null }).ok === false);
 check('rejects invalid rate_source', validatePayload({ ...validManual, rate_source: 'wild' }).ok === false);
 check('rejects invalid rate_method', validatePayload({ ...validManual, rate_method: 'wild' }).ok === false);

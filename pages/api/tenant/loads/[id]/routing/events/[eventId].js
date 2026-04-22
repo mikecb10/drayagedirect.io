@@ -546,7 +546,10 @@ export default async function handler(req, res) {
           .in('dry_run_attempt_id', attemptIds),
       ]);
 
-      const blockedStatuses = ['approved', 'billed', 'rebilling'];
+      // Must match INVOICED_STATUSES in pages/api/tenant/loads/[id]/dry-runs/[attemptId].js.
+      // 'approved' is pre-invoice and still editable — don't block. The real invoiced
+      // status set by /api/tenant/ar/invoices is 'invoiced'.
+      const blockedStatuses = ['invoiced', 'billed', 'rebilling'];
       const hasInvoiced = (arLines || []).some(
         (l) => l.charge_set && blockedStatuses.includes(l.charge_set.status)
       );
@@ -587,11 +590,17 @@ export default async function handler(req, res) {
         // Hard-delete derived lines first (FK cascade only fires on DELETE of
         // parent; we're soft-deleting the parent, so we must explicitly delete
         // children to avoid orphaned rows).
-        await svc.from('order_charge_set_line_items').delete().in('dry_run_attempt_id', attemptIds);
-        await svc.from('order_driver_pay_lines').delete().in('dry_run_attempt_id', attemptIds);
+        const { error: liErr } = await svc.from('order_charge_set_line_items').delete().in('dry_run_attempt_id', attemptIds);
+        if (liErr) return res.status(500).json({ error: liErr.message });
+        const { error: payLiErr } = await svc.from('order_driver_pay_lines').delete().in('dry_run_attempt_id', attemptIds);
+        if (payLiErr) return res.status(500).json({ error: payLiErr.message });
+        // CRITICAL: null out event_id alongside the soft-delete so the
+        // subsequent event DELETE doesn't violate the ON DELETE RESTRICT
+        // foreign-key constraint. (Soft-deleted parents still hold a live
+        // FK reference to the event row.)
         const { error: pErr } = await svc
           .from('dry_run_attempts')
-          .update({ deleted_at: now })
+          .update({ deleted_at: now, event_id: null })
           .in('id', attemptIds);
         if (pErr) return res.status(500).json({ error: pErr.message });
       } else {

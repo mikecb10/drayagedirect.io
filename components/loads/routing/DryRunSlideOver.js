@@ -38,8 +38,18 @@ export default function DryRunSlideOver({
   const [miles, setMiles] = useState(existing?.miles ?? event?.distance_miles ?? '');
   const [arAmount, setArAmount] = useState(existing ? existing.ar_amount_cents / 100 : '');
   const [apAmount, setApAmount] = useState(existing ? existing.ap_amount_cents / 100 : '');
-  const [arRate, setArRate] = useState('');
-  const [apRate, setApRate] = useState('');
+  // Per-mile rate isn't persisted separately (we only store amount + miles on the
+  // parent), so reconstruct it on edit. Without this, opening an existing
+  // per-mile manual dry run and clicking Save would submit rate=0, which
+  // computeManualAmount rejects.
+  const initialArRate = (existing && existing.rate_method === 'per_mile' && existing.miles)
+    ? (existing.ar_amount_cents / 100 / existing.miles).toFixed(2)
+    : '';
+  const initialApRate = (existing && existing.rate_method === 'per_mile' && existing.miles)
+    ? (existing.ap_amount_cents / 100 / existing.miles).toFixed(2)
+    : '';
+  const [arRate, setArRate] = useState(initialArRate);
+  const [apRate, setApRate] = useState(initialApRate);
   const [notes, setNotes] = useState(existing?.notes || '');
 
   const [arProfiles, setArProfiles] = useState([]);

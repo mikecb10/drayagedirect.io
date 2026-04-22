@@ -919,8 +919,14 @@ function EditableLineRow({ li, isEditable, onUpdate, onDelete, formatCents, open
   const [editField, setEditField] = useState(null);
   const [editValue, setEditValue] = useState('');
 
+  // Dry-run rows are edited exclusively via the slide-over. Allowing inline
+  // cell editing causes a double-fire bug: clicking a cell triggers both
+  // startEdit AND the row-level onClick (which opens the slide-over).
+  // Disable inline editing for dry-run rows.
+  const rowIsEditable = isEditable && !li.dry_run_attempt_id;
+
   function startEdit(field, value) {
-    if (!isEditable) return;
+    if (!rowIsEditable) return;
     setEditField(field);
     setEditValue(value ?? '');
   }
@@ -965,7 +971,7 @@ function EditableLineRow({ li, isEditable, onUpdate, onDelete, formatCents, open
     }
     return (
       <td
-        className={`px-4 py-2 ${align === 'right' ? 'text-right' : ''} ${cls} ${isEditable ? 'cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/40' : ''}`}
+        className={`px-4 py-2 ${align === 'right' ? 'text-right' : ''} ${cls} ${rowIsEditable ? 'cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/40' : ''}`}
         onClick={() => startEdit(field, field === 'per_unit_price_cents' ? ((value || 0) / 100).toFixed(2) : value)}
       >
         {display}
@@ -1006,7 +1012,7 @@ function EditableLineRow({ li, isEditable, onUpdate, onDelete, formatCents, open
             {li.name}
             <ExternalLink className="w-2.5 h-2.5 opacity-50" />
           </button>
-        ) : isEditable ? (
+        ) : rowIsEditable ? (
           <span className="cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => startEdit('name', li.name)}>{li.name}</span>
         ) : (
           li.name
@@ -1023,7 +1029,7 @@ function EditableLineRow({ li, isEditable, onUpdate, onDelete, formatCents, open
             </button>
           </span>
         ) : (
-          <span className={isEditable ? 'cursor-pointer hover:text-blue-600 dark:hover:text-blue-400' : ''} onClick={() => startEdit('description', li.description)}>
+          <span className={rowIsEditable ? 'cursor-pointer hover:text-blue-600 dark:hover:text-blue-400' : ''} onClick={() => startEdit('description', li.description)}>
             {li.description || '—'}
           </span>
         )}
@@ -1038,7 +1044,7 @@ function EditableLineRow({ li, isEditable, onUpdate, onDelete, formatCents, open
         {formatCents(li.total_cents)}
       </td>
       <td className="px-2 py-2">
-        {isEditable && (
+        {rowIsEditable && (
           <button
             onClick={onDelete}
             className="text-gray-300 dark:text-slate-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
