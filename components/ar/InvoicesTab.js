@@ -8,6 +8,9 @@ import Select from '../ui/Select';
 import { formatCents } from '../../lib/ar-utils';
 import EmailComposeSlideOver from './EmailComposeSlideOver';
 import { useEmailCompose } from '../../hooks/useEmailCompose';
+import InvoicesBulkBar from './InvoicesBulkBar';
+import BulkGroupingModal from './BulkGroupingModal';
+import BulkEmailQueue from './BulkEmailQueue';
 
 const STATUS_BADGES = {
   draft: { variant: 'gray', label: 'Draft' },
@@ -31,6 +34,14 @@ export default function InvoicesTab({ filters = {} }) {
   const [approvedSets, setApprovedSets] = useState([]);
   const [selectedSets, setSelectedSets] = useState([]);
   const [creating, setCreating] = useState(false);
+
+  // 2a.4c: bulk resend selection state. Only sent/overdue invoices are
+  // selectable. Mirrors BillingPipelineTab's pattern.
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [lastClickedId, setLastClickedId] = useState(null);
+  const [bulkAction, setBulkAction] = useState(null); // 'resend' | null
+  const [groupingModalInvoices, setGroupingModalInvoices] = useState(null);
+  const [queueState, setQueueState] = useState(null);
 
   async function load() {
     setLoading(true);
@@ -78,6 +89,13 @@ export default function InvoicesTab({ filters = {} }) {
   }
 
   useEffect(() => { load(); }, [statusFilter, filters]);
+
+  // Selection is meaningful only within the currently displayed list — when
+  // filter/search changes, rows change, so clear selection.
+  useEffect(() => {
+    setSelectedIds(new Set());
+    setLastClickedId(null);
+  }, [statusFilter, search, filters]);
 
   async function openCreate() {
     setCreateOpen(true);
@@ -127,6 +145,52 @@ export default function InvoicesTab({ filters = {} }) {
       }
       load();
     } catch (e) { setError(e.message); }
+  }
+
+  // 2a.4c: resendable rows are sent or overdue. Drafts have the per-row Send
+  // button already; paid/void are never resent.
+  const resendableInvoices = invoices.filter(
+    (inv) => inv.status === 'sent' || inv.status === 'overdue'
+  );
+  const visibleResendableIds = resendableInvoices.map((inv) => inv.id);
+  const allSelected = visibleResendableIds.length > 0
+    && visibleResendableIds.every((id) => selectedIds.has(id));
+  const someSelected = visibleResendableIds.some((id) => selectedIds.has(id)) && !allSelected;
+  const selectedTotalCents = invoices
+    .filter((inv) => selectedIds.has(inv.id))
+    .reduce((a, inv) => a + (inv.total_amount_cents || 0), 0);
+
+  function toggleAllResendable() {
+    if (allSelected || someSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(visibleResendableIds));
+    }
+  }
+
+  function toggleResendableRow(invId, event) {
+    event.stopPropagation();
+    if (event.shiftKey && lastClickedId) {
+      const startIdx = visibleResendableIds.indexOf(lastClickedId);
+      const endIdx = visibleResendableIds.indexOf(invId);
+      if (startIdx >= 0 && endIdx >= 0) {
+        const [a, b] = [Math.min(startIdx, endIdx), Math.max(startIdx, endIdx)];
+        const rangeIds = visibleResendableIds.slice(a, b + 1);
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          for (const id of rangeIds) next.add(id);
+          return next;
+        });
+      }
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(invId)) next.delete(invId);
+        else next.add(invId);
+        return next;
+      });
+    }
+    setLastClickedId(invId);
   }
 
   function toggleSet(id) {
