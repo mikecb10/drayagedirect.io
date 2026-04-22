@@ -326,6 +326,25 @@ export default async function handler(req, res) {
     }
   }
 
+  // ── Margin range filter ───────────────────────────────────────────────
+  // Runs after the margin-attach block so row.margin is populated.
+  // Neutral-bucket rows (no revenue or no cost) are excluded from numeric ranges.
+  const { margin_from, margin_to } = req.query;
+  const marginFrom = margin_from !== '' && margin_from != null
+    ? Number(margin_from) : null;
+  const marginTo   = margin_to   !== '' && margin_to   != null
+    ? Number(margin_to)   : null;
+
+  if (Number.isFinite(marginFrom) || Number.isFinite(marginTo)) {
+    scopedSets = scopedSets.filter((r) => {
+      const m = r.margin;
+      if (!m || m.bucket === 'neutral') return false;
+      if (Number.isFinite(marginFrom) && m.marginPct < marginFrom) return false;
+      if (Number.isFinite(marginTo)   && m.marginPct > marginTo)   return false;
+      return true;
+    });
+  }
+
   // Compute counts over the SCOPED set — filter cards reflect the current
   // customer/branch/date scope, not the unfiltered universe.
   const emptyBucket = () => ({ count: 0, total_cents: 0 });

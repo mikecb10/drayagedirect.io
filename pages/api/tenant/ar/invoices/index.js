@@ -316,6 +316,25 @@ export default async function handler(req, res) {
       }
     }
 
+    // ── Margin range filter ─────────────────────────────────────────────
+    // Runs after the margin-attach block so inv.margin is populated.
+    // Neutral-bucket rows (no revenue or no cost) are excluded from numeric ranges.
+    const { margin_from, margin_to } = req.query;
+    const marginFrom = margin_from !== '' && margin_from != null
+      ? Number(margin_from) : null;
+    const marginTo   = margin_to   !== '' && margin_to   != null
+      ? Number(margin_to)   : null;
+
+    if (Number.isFinite(marginFrom) || Number.isFinite(marginTo)) {
+      filtered = filtered.filter((inv) => {
+        const m = inv.margin;
+        if (!m || m.bucket === 'neutral') return false;
+        if (Number.isFinite(marginFrom) && m.marginPct < marginFrom) return false;
+        if (Number.isFinite(marginTo)   && m.marginPct > marginTo)   return false;
+        return true;
+      });
+    }
+
     const stats = {
       total:    filtered.length,
       draft:    filtered.filter((i) => i.status === 'draft').length,
