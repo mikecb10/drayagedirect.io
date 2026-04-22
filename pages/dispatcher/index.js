@@ -16,6 +16,7 @@ import LiveIndicator from '../../components/dispatcher/LiveIndicator';
 import PresenceAvatars from '../../components/dispatcher/PresenceAvatars';
 import LiveCursorLayer from '../../components/dispatcher/LiveCursorLayer';
 import DispatcherTabs from '../../components/dispatcher/DispatcherTabs';
+import DriverPlannerView from '../../components/dispatcher/planner/DriverPlannerView';
 import useRealtimePresence from '../../hooks/useRealtimePresence';
 import useLiveCursors from '../../hooks/useLiveCursors';
 import { PERMISSIONS } from '../../lib/permissions';
@@ -656,11 +657,7 @@ export default function DispatcherIndex() {
           </>
         )}
 
-        {activeTab === 'planner' && (
-          <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-            Driver Planner — coming online in subsequent tasks.
-          </div>
-        )}
+        {activeTab === 'planner' && <DriverPlannerView />}
       </div>
 
       <NewLoadModal
