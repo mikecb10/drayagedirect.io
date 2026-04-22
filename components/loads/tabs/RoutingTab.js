@@ -74,6 +74,7 @@ export default function RoutingTab({ load, onLoadRefresh }) {
     return confirm(message);
   }
   const [legMetrics, setLegMetrics] = useState({});
+  const [distanceWarning, setDistanceWarning] = useState(null);
   const [drivers, setDrivers] = useState([]);
   const [allDryRuns, setAllDryRuns] = useState([]);
 
@@ -206,7 +207,10 @@ export default function RoutingTab({ load, onLoadRefresh }) {
               metrics[curr.id] = result;
             }
           } catch {
-            // Skip failed legs
+            // Mark this leg as failed so save handlers can surface a warning.
+            if (!cancelled) {
+              metrics[curr.id] = { failed: true };
+            }
           }
         }
       }
@@ -348,10 +352,25 @@ export default function RoutingTab({ load, onLoadRefresh }) {
     // Optimistic update — no flicker
     setEvents((evs) => evs.map((e) => (e.id === eventId ? { ...e, ...patch } : e)));
     try {
+      // Inject Google-computed distance into the PUT body, unless:
+      //   (a) the event is already manually-flagged (preserve manual override), or
+      //   (b) the patch itself carries distance_is_manual (Task 7 manual-edit path).
+      // When (b) is true, the Task 7 save handler owns the distance fields — skip.
+      const currentEvent = events.find((e) => e.id === eventId);
+      const isManual = currentEvent?.distance_is_manual === true;
+      const isPatchManualOverride = 'distance_is_manual' in patch;
+      const distanceFields =
+        !isManual && !isPatchManualOverride
+          ? {
+              estimated_miles: legMetrics[eventId]?.distance_miles ?? null,
+              distance_is_manual: false,
+            }
+          : {};
+
       const res = await fetch(`/api/tenant/loads/${load.id}/routing/events/${eventId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(patch),
+        body: JSON.stringify({ ...patch, ...distanceFields }),
       });
       if (!res.ok) throw new Error('Failed to update event');
       // ================================================================
@@ -388,6 +407,13 @@ export default function RoutingTab({ load, onLoadRefresh }) {
       // extra fetch is cheap and keeps load-level state consistent.
       if (typeof onLoadRefresh === 'function') {
         onLoadRefresh();
+      }
+      // Warn once if any leg's Google distance computation failed so the
+      // dispatcher knows some estimated_miles values are missing.
+      if (Object.values(legMetrics).some((m) => m?.failed)) {
+        setDistanceWarning(
+          "Distance couldn\u2019t be computed for some legs. Open them to retry or enter manually."
+        );
       }
     } catch (e) {
       setError(e.message);
@@ -569,6 +595,8 @@ export default function RoutingTab({ load, onLoadRefresh }) {
             sequence: maxSeq + 99,
             move_id: newMove.id,
             event_type: 'hook',
+            estimated_miles: null,
+            distance_is_manual: false,
             ...dropLocation,
           }),
         });
@@ -582,6 +610,8 @@ export default function RoutingTab({ load, onLoadRefresh }) {
             sequence: maxSeq + 1,
             move_id: moveId,
             event_type: 'drop',
+            estimated_miles: null,
+            distance_is_manual: false,
             ...dropLocation,
           }),
         });
@@ -599,6 +629,8 @@ export default function RoutingTab({ load, onLoadRefresh }) {
             sequence: maxSeq + 1,
             move_id: moveId,
             event_type: eventType,
+            estimated_miles: null,
+            distance_is_manual: false,
             ...locationPayload,
           }),
         });
@@ -635,6 +667,8 @@ export default function RoutingTab({ load, onLoadRefresh }) {
             sequence: maxSeq + 1,
             move_id: moveId,
             event_type: 'drop',
+            estimated_miles: null,
+            distance_is_manual: false,
             ...dropLocation,
           }),
         });
@@ -662,6 +696,8 @@ export default function RoutingTab({ load, onLoadRefresh }) {
             sequence: maxSeq + 2,
             move_id: newMove.id,
             event_type: 'hook',
+            estimated_miles: null,
+            distance_is_manual: false,
             ...dropLocation,
           }),
         });
@@ -692,6 +728,8 @@ export default function RoutingTab({ load, onLoadRefresh }) {
             sequence: maxSeq + 1,
             move_id: moveId,
             event_type: eventType,
+            estimated_miles: null,
+            distance_is_manual: false,
             ...locationPayload,
           }),
         });
@@ -962,6 +1000,9 @@ export default function RoutingTab({ load, onLoadRefresh }) {
   return (
     <div className="space-y-4">
       {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
+      {distanceWarning && (
+        <Alert type="warning" message={distanceWarning} onClose={() => setDistanceWarning(null)} />
+      )}
 
       {/* Header */}
       <div className="flex items-end justify-between gap-4">
