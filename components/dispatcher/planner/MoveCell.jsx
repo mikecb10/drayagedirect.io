@@ -82,7 +82,17 @@ export default function MoveCell({ move, onClickPreview, onDispatch, onUnassign 
                 : 'border border-green-600 text-green-600 hover:bg-green-50 dark:border-green-500 dark:text-green-400 dark:hover:bg-green-950',
               !['pending', 'dispatched'].includes(move.status) && 'opacity-40 cursor-not-allowed',
             ].filter(Boolean).join(' ')}
-            title={move.status === 'dispatched' ? 'Re-send to driver mobile app' : 'Dispatch to driver mobile app'}
+            title={
+              ['in_progress', 'completed'].includes(move.status)
+                ? "Can't dispatch — move is already in progress."
+                : move.status === 'cancelled'
+                ? 'Cancelled moves cannot be dispatched.'
+                : move.status === 'unassigned'
+                ? 'Assign a driver before dispatching.'
+                : move.status === 'dispatched'
+                ? 'Re-send to driver mobile app'
+                : 'Dispatch to driver mobile app'
+            }
           >
             <Check className="w-3 h-3" />
           </button>
@@ -94,7 +104,13 @@ export default function MoveCell({ move, onClickPreview, onDispatch, onUnassign 
               'w-5 h-5 rounded flex items-center justify-center border border-red-600 text-red-600 hover:bg-red-50 dark:border-red-500 dark:text-red-400 dark:hover:bg-red-950',
               !['pending', 'dispatched'].includes(move.status) && 'opacity-40 cursor-not-allowed',
             ].filter(Boolean).join(' ')}
-            title="Unassign driver"
+            title={
+              ['in_progress', 'completed'].includes(move.status)
+                ? "Can't unassign — move is already in progress. Reverse status on the Load Detail page first."
+                : move.status === 'cancelled'
+                ? 'Cancelled moves cannot be unassigned.'
+                : 'Unassign driver'
+            }
           >
             <X className="w-3 h-3" />
           </button>
