@@ -12,6 +12,15 @@ export default async function handler(req, res) {
 }
 
 async function handleGet(req, res, ctx) {
+  if (
+    !ctx.permissions.includes(PERMISSIONS.SETTINGS) &&
+    !ctx.permissions.includes(PERMISSIONS.ACCOUNTS_RECEIVABLE) &&
+    !ctx.permissions.includes(PERMISSIONS.REPORTING) &&
+    !ctx.permissions.includes(PERMISSIONS.ALL)
+  ) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
   const svc = getServiceClient();
   const { data, error } = await svc
     .from('tenants')

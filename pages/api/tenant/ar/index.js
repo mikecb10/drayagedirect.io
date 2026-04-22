@@ -1,6 +1,7 @@
 import { requireTenantUser, getServiceClient } from '../../../../lib/tenant-api';
 import { parseCsvParam } from '../../../../lib/ar-filter-params';
 import { fetchLoadMarginInputs, computeLoadMargin } from '../../../../lib/load-margin';
+import { PERMISSIONS } from '../../../../lib/permissions';
 
 /**
  * GET /api/tenant/ar
@@ -289,9 +290,15 @@ export default async function handler(req, res) {
   }
 
   // ── Load Margin: attach margin object per row ─────────────────────────
-  // Runs after all filters. Rows are per-charge-set; a load with 2 charge
-  // sets gets the SAME margin object (load-level margin, computed once).
-  if (scopedSets.length > 0) {
+  // Gated on ACCOUNTS_RECEIVABLE | REPORTING | ALL — users without the
+  // permission receive rows without a margin object, and the margin filter
+  // is treated as a no-op so they don't accidentally see empty results.
+  const canSeeMargin =
+    ctx.permissions.includes(PERMISSIONS.ACCOUNTS_RECEIVABLE) ||
+    ctx.permissions.includes(PERMISSIONS.REPORTING) ||
+    ctx.permissions.includes(PERMISSIONS.ALL);
+
+  if (canSeeMargin && scopedSets.length > 0) {
     try {
       const { data: tenant, error: tErr } = await svc
         .from('tenants')
@@ -329,13 +336,15 @@ export default async function handler(req, res) {
   // ── Margin range filter ───────────────────────────────────────────────
   // Runs after the margin-attach block so row.margin is populated.
   // Neutral-bucket rows (no revenue or no cost) are excluded from numeric ranges.
+  // Skip entirely when the caller lacks the margin-view permission — no rows
+  // have .margin attached, so filtering would produce an empty result set.
   const { margin_from, margin_to } = req.query;
   const marginFrom = margin_from !== '' && margin_from != null
     ? Number(margin_from) : null;
   const marginTo   = margin_to   !== '' && margin_to   != null
     ? Number(margin_to)   : null;
 
-  if (Number.isFinite(marginFrom) || Number.isFinite(marginTo)) {
+  if (canSeeMargin && (Number.isFinite(marginFrom) || Number.isFinite(marginTo))) {
     scopedSets = scopedSets.filter((r) => {
       const m = r.margin;
       if (!m || m.bucket === 'neutral') return false;
