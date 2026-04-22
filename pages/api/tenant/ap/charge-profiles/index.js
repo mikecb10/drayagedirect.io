@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   const svc = getServiceClient();
 
   if (req.method === 'GET') {
-    const { search, charge_name, driver_group_id, enabled } = req.query;
+    const { search, charge_name, driver_group_id, enabled, is_dry_run } = req.query;
 
     let query = svc
       .from('driver_charge_profiles')
@@ -35,6 +35,7 @@ export default async function handler(req, res) {
     if (charge_name) query = query.eq('charge_name', charge_name);
     if (driver_group_id) query = query.eq('driver_group_id', driver_group_id);
     if (enabled === 'true') query = query.eq('is_enabled', true);
+    if (is_dry_run === 'true') query = query.eq('is_dry_run', true);
 
     const { data, error } = await query;
     if (error) return res.status(500).json({ error: error.message });
@@ -61,6 +62,7 @@ export default async function handler(req, res) {
         effective_date_basis: body.effective_date_basis || null,
         calculation_mode: body.calculation_mode || 'by_event',
         auto_add: body.auto_add || false,
+        is_dry_run: body.is_dry_run || false,
         conditions: body.conditions || [],
         match_resolution: body.match_resolution || 'first_match_wins',
       })
