@@ -15,6 +15,7 @@ export default function DriverPlannerView() {
 
   const [driverSearch, setDriverSearch] = useState('');
   const [includeInactive, setIncludeInactive] = useState(false);
+  const [previewMove, setPreviewMove] = useState(null);
 
   const { drivers, movesByDriverId, unassignedBuckets, isLoading, error, mutations, refetch } =
     useDriverPlanner({ date, driverSearch, includeInactive });
@@ -38,7 +39,13 @@ export default function DriverPlannerView() {
             </div>
           )}
           {!isLoading && !error && (
-            <DriverPlannerGrid drivers={drivers} movesByDriverId={movesByDriverId} />
+            <DriverPlannerGrid
+              drivers={drivers}
+              movesByDriverId={movesByDriverId}
+              onClickPreview={(m) => setPreviewMove(m)}
+              onDispatch={(m) => mutations.dispatch({ moveId: m.id }).catch((e) => alert(`Dispatch failed: ${e.message}`))}
+              onUnassign={(m) => mutations.unassign({ move: m, bucket: 'other' }).catch((e) => alert(`Unassign failed: ${e.message}`))}
+            />
           )}
         </div>
 
