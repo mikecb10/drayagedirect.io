@@ -239,16 +239,9 @@ export default function useDriverPlanner({ date, driverSearch = '', branchId = n
     },
     async unassign({ move }) {
       const snapshot = state;
-      // Compute the correct right-rail bucket for the now-unassigned move so
-      // it lands in the right place optimistically — refetch will confirm.
-      const orderFlags = move.order
-        ? {
-            lfd: move.order.last_free_day,
-            container_at_port: move.order.container_at_port,
-            empty_ready_for_return_at: move.order.empty_ready_for_return_at,
-          }
-        : {};
-      const bucket = getBucket({ ...move, driver_id: null }, orderFlags) || 'other';
+      // Compute the correct right-rail bucket for the now-unassigned move
+      // so it lands in the right place optimistically — refetch confirms.
+      const bucket = getBucket({ ...move, driver_id: null }) || 'other';
       dispatch({ type: 'OPTIMISTIC_UNASSIGN', move, bucket });
       try {
         const r = await fetch('/api/tenant/dispatcher/planner/unassign', {
