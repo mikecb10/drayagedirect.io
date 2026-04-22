@@ -1,5 +1,6 @@
 import { requireTenantUser, getServiceClient } from '../../../../lib/tenant-api';
 import { parseCsvParam } from '../../../../lib/ar-filter-params';
+import { fetchLoadMarginInputs, computeLoadMargin } from '../../../../lib/load-margin';
 
 /**
  * GET /api/tenant/ar
@@ -284,6 +285,44 @@ export default async function handler(req, res) {
       scopedSets = scopedSets.filter((cs) => sentChargeSetIds.has(cs.id));
     } else {
       scopedSets = scopedSets.filter((cs) => !sentChargeSetIds.has(cs.id));
+    }
+  }
+
+  // ── Load Margin: attach margin object per row ─────────────────────────
+  // Runs after all filters. Rows are per-charge-set; a load with 2 charge
+  // sets gets the SAME margin object (load-level margin, computed once).
+  if (scopedSets.length > 0) {
+    try {
+      const { data: tenant, error: tErr } = await svc
+        .from('tenants')
+        .select('margin_red_threshold, margin_yellow_threshold, margin_include_dry_runs')
+        .eq('id', ctx.tenantId)
+        .single();
+      if (!tErr && tenant) {
+        const distinctOrderIds = [...new Set(scopedSets.map((r) => r.order_id).filter(Boolean))];
+        if (distinctOrderIds.length > 0) {
+          const inputs = await fetchLoadMarginInputs(svc, {
+            tenantId: ctx.tenantId,
+            orderIds: distinctOrderIds,
+            includeDryRuns: tenant.margin_include_dry_runs,
+          });
+          const marginByOrder = new Map();
+          for (const id of distinctOrderIds) {
+            const { revenueCents, costCents } = inputs.get(id) ?? { revenueCents: 0, costCents: 0 };
+            marginByOrder.set(id, computeLoadMargin({
+              revenueCents,
+              costCents,
+              redThreshold:    Number(tenant.margin_red_threshold),
+              yellowThreshold: Number(tenant.margin_yellow_threshold),
+            }));
+          }
+          for (const row of scopedSets) {
+            if (row.order_id) row.margin = marginByOrder.get(row.order_id) ?? null;
+          }
+        }
+      }
+    } catch (err) {
+      console.error('AR margin attach failed', err);
     }
   }
 
