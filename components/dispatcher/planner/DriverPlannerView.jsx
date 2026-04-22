@@ -5,6 +5,7 @@ import useDriverPlanner from '../../../hooks/useDriverPlanner';
 import PlannerToolbar from './PlannerToolbar';
 import DriverPlannerGrid from './DriverPlannerGrid';
 import UnassignedRightRail from './UnassignedRightRail';
+import MovePreviewPanel from './MovePreviewPanel';
 
 function todayIso() {
   const d = new Date();
@@ -86,6 +87,7 @@ export default function DriverPlannerView() {
           </aside>
         </div>
       </div>
+      <MovePreviewPanel move={previewMove} onClose={() => setPreviewMove(null)} />
     </DndContext>
   );
 }
