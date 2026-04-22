@@ -10,6 +10,7 @@ import CurrencyInput from '../../ui/CurrencyInput';
 import Input from '../../ui/Input';
 import Select from '../../ui/Select';
 import EmailComposeSlideOver from '../../ar/EmailComposeSlideOver';
+import DryRunSlideOver from '../routing/DryRunSlideOver';
 import { useEmailCompose } from '../../../hooks/useEmailCompose';
 
 const STATUS_STYLES = {
@@ -69,6 +70,8 @@ export default function BillingTab({ load }) {
   const [creating, setCreating] = useState(false);
   const [recalculating, setRecalculating] = useState(false);
   const [recalcSuccess, setRecalcSuccess] = useState(null);
+  const [dryRunEdit, setDryRunEdit] = useState(null);
+  const [dryRunDrivers, setDryRunDrivers] = useState([]);
 
   async function fetchChargeSets({ silent = false } = {}) {
     if (!load?.id) return;
@@ -97,6 +100,15 @@ export default function BillingTab({ load }) {
     fetchChargeSets();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/tenant/drivers')
+      .then((r) => r.json())
+      .then((data) => { if (!cancelled) setDryRunDrivers(data?.drivers || []); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   async function handleCreate() {
     setCreating(true);
@@ -136,6 +148,15 @@ export default function BillingTab({ load }) {
       setRecalculating(false);
       setTimeout(() => setRecalcSuccess(null), 5000);
     }
+  }
+
+  async function openDryRunEdit(lineItem) {
+    try {
+      const res = await fetch(`/api/tenant/loads/${load.id}/dry-runs`);
+      const data = await res.json();
+      const match = (data.dry_runs || []).find((r) => r.id === lineItem.dry_run_attempt_id);
+      if (match) setDryRunEdit(match);
+    } catch {}
   }
 
   const grandTotal = chargeSets.reduce((sum, cs) => sum + (cs.total_cents || 0), 0);
@@ -244,9 +265,30 @@ export default function BillingTab({ load }) {
               onChanged={fetchChargeSets}
               onError={setError}
               openOverlay={openOverlay}
+              onOpenDryRun={openDryRunEdit}
             />
           ))}
         </div>
+      )}
+
+      {dryRunEdit && (
+        <DryRunSlideOver
+          open={!!dryRunEdit}
+          onClose={() => setDryRunEdit(null)}
+          onSaved={() => {
+            setDryRunEdit(null);
+            fetchChargeSets();
+          }}
+          orderId={load.id}
+          event={{
+            id: dryRunEdit.event_id,
+            event_type: 'DRY_RUN',
+            location_label: '',
+            distance_miles: dryRunEdit.miles,
+          }}
+          drivers={dryRunDrivers}
+          existing={dryRunEdit}
+        />
       )}
     </div>
   );
@@ -274,7 +316,7 @@ function SummaryCard({ label, value, icon: Icon, color }) {
   );
 }
 
-function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
+function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay, onOpenDryRun }) {
   const [adding, setAdding] = useState(false);
   const [savingStatus, setSavingStatus] = useState(false);
   const emailCompose = useEmailCompose();
@@ -567,6 +609,7 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
                 onDelete={() => deleteLineItem(li.id)}
                 formatCents={formatCents}
                 openOverlay={openOverlay}
+                onOpenDryRun={onOpenDryRun}
               />
             ))}
           </tbody>
@@ -872,7 +915,7 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay }) {
 /**
  * EditableLineRow — click a cell to edit inline, save on blur.
  */
-function EditableLineRow({ li, isEditable, onUpdate, onDelete, formatCents, openOverlay }) {
+function EditableLineRow({ li, isEditable, onUpdate, onDelete, formatCents, openOverlay, onOpenDryRun }) {
   const [editField, setEditField] = useState(null);
   const [editValue, setEditValue] = useState('');
 
@@ -937,7 +980,12 @@ function EditableLineRow({ li, isEditable, onUpdate, onDelete, formatCents, open
   const tariffId = li.source_tariff_id;
 
   return (
-    <tr className="hover:bg-gray-50 dark:hover:bg-slate-800 group">
+    <tr
+      className={`hover:bg-gray-50 dark:hover:bg-slate-800 group ${
+        li.dry_run_attempt_id ? 'cursor-pointer bg-amber-50/40 dark:bg-amber-950/20 hover:bg-amber-100/60 dark:hover:bg-amber-950/30' : ''
+      }`}
+      onClick={() => li.dry_run_attempt_id ? onOpenDryRun?.(li) : undefined}
+    >
       {/* Source badge: A = Auto, M = Manual */}
       <td className="px-2 py-2 text-center">
         {li.is_auto ? (
