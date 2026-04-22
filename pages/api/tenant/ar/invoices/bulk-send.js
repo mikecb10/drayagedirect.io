@@ -41,7 +41,7 @@ export default async function handler(req, res) {
 
   try {
     // ── STAGE: validate ──────────────────────────────────────────────────────
-    const { group } = req.body || {};
+    const { group, force_resend = false } = req.body || {};
     if (!group || typeof group !== 'object') {
       return res.status(400).json({ error: 'group required' });
     }
@@ -67,21 +67,44 @@ export default async function handler(req, res) {
     }
 
     // ── STAGE: claim ─────────────────────────────────────────────────────────
-    // claim_invoices_for_send is the plural Task-1 (migration 081) RPC.
-    // Signature: (p_invoice_ids UUID[], p_tenant_id UUID) → table(invoice_id UUID)
-    // Returns only the UUIDs that were successfully claimed (others already
-    // sent or mid-flight are silently skipped so the caller can proceed with
-    // whatever subset is available).
+    // First-send path: claim_invoices_for_send RPC (migration 081).
+    // Resend path (force_resend): direct UPDATE that filters on status
+    // IN (sent, overdue) and reuses the 5-minute send_claimed_at freshness
+    // mutex. Does NOT require sent_at IS NULL (that's the whole point of
+    // resend). Skipped rows (wrong status, mid-flight, deleted) appear in
+    // skippedIds exactly like the RPC path.
     stage = STAGE.claim;
-    const { data: claimRows, error: claimErr } = await svc.rpc(
-      'claim_invoices_for_send',
-      { p_invoice_ids: invoiceIds, p_tenant_id: ctx.tenantId }
-    );
-    if (claimErr) throw new Error(`claim RPC failed: ${claimErr.message}`);
+    let claimRows;
+    if (force_resend) {
+      const staleCutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      const nowIso = new Date().toISOString();
+      const { data, error: claimErr } = await svc
+        .from('invoices')
+        .update({ send_claimed_at: nowIso })
+        .eq('tenant_id', ctx.tenantId)
+        .is('deleted_at', null)
+        .in('id', invoiceIds)
+        .in('status', ['sent', 'overdue'])
+        .or(`send_claimed_at.is.null,send_claimed_at.lt.${staleCutoff}`)
+        .select('id');
+      if (claimErr) throw new Error(`resend claim failed: ${claimErr.message}`);
+      claimRows = (data ?? []).map((r) => ({ invoice_id: r.id }));
+    } else {
+      const { data, error: claimErr } = await svc.rpc(
+        'claim_invoices_for_send',
+        { p_invoice_ids: invoiceIds, p_tenant_id: ctx.tenantId }
+      );
+      if (claimErr) throw new Error(`claim RPC failed: ${claimErr.message}`);
+      claimRows = data;
+    }
 
     claimedIds = (claimRows ?? []).map((r) => r.invoice_id);
     if (claimedIds.length === 0) {
-      const err = new Error('All invoices already claimed or sent');
+      const err = new Error(
+        force_resend
+          ? 'No eligible invoices — must be sent or overdue, not currently mid-send'
+          : 'All invoices already claimed or sent'
+      );
       err.code = 'ALL_CLAIMED';
       throw err;
     }
@@ -288,12 +311,17 @@ export default async function handler(req, res) {
     const sentAt = new Date().toISOString();
     // Defense-in-depth: tenant filter on UPDATE. The claim RPC already enforces
     // tenant boundary, but service-role bypasses RLS so we re-enforce here.
-    // Match single-send release_invoice_claim(success=true) semantics: stamp
-    // sent_at AND flip status='sent' so the AR Pipeline's status-based
-    // bucketing moves these invoices into the Invoiced column.
+    // First-send: stamp sent_at AND flip status='sent' so the AR Pipeline's
+    // status-based bucketing moves these invoices into the Invoiced column.
+    // Resend (force_resend): do NOT re-stamp sent_at (preserves original send
+    // timestamp critical for aging/overdue). Do NOT flip status (already
+    // sent/overdue). Only release the claim.
+    const updatePayload = force_resend
+      ? { send_claimed_at: null }
+      : { sent_at: sentAt, send_claimed_at: null, status: 'sent' };
     const { error: updErr } = await svc
       .from('invoices')
-      .update({ sent_at: sentAt, send_claimed_at: null, status: 'sent' })
+      .update(updatePayload)
       .eq('tenant_id', ctx.tenantId)
       .in('id', sendableInvoiceIds);
     if (updErr) throw new Error(`sent_at update: ${updErr.message}`);
@@ -309,6 +337,7 @@ export default async function handler(req, res) {
       referenceNumber: null,
       messageId: dispatchResult?.messageId ?? null,
       error: null,
+      resend: force_resend,
     });
 
     return res.status(200).json({
@@ -345,6 +374,7 @@ export default async function handler(req, res) {
         referenceNumber: null,
         messageId: null,
         error: `${stage}: ${err.message}`,
+        resend: req.body?.force_resend === true,
       });
     } catch (_) { /* audit-log failure is not fatal */ }
 
