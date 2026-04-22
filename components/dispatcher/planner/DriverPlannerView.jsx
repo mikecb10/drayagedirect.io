@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import useDriverPlanner from '../../../hooks/useDriverPlanner';
 import PlannerToolbar from './PlannerToolbar';
+import DriverPlannerGrid from './DriverPlannerGrid';
 
 function todayIso() {
   const d = new Date();
@@ -37,11 +38,8 @@ export default function DriverPlannerView() {
             </div>
           )}
           {!isLoading && !error && (
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              {drivers.length} drivers · {Object.values(movesByDriverId).flat().length} assigned moves · {Object.values(unassignedBuckets).flat().length} unassigned
-            </div>
+            <DriverPlannerGrid drivers={drivers} movesByDriverId={movesByDriverId} />
           )}
-          {/* Grid added in Task 12 */}
         </div>
 
         <aside className="w-[360px] border-l border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 overflow-auto">
