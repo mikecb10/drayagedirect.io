@@ -72,6 +72,25 @@ export default function RoutingTab({ load, onLoadRefresh }) {
     return confirm(message);
   }
   const [legMetrics, setLegMetrics] = useState({});
+  const [drivers, setDrivers] = useState([]);
+  const [allDryRuns, setAllDryRuns] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [drvRes, drRes] = await Promise.all([
+          fetch('/api/tenant/drivers').then((r) => r.json()),
+          fetch(`/api/tenant/loads/${load.id}/dry-runs`).then((r) => r.json()),
+        ]);
+        if (cancelled) return;
+        setDrivers(drvRes?.drivers || []);
+        setAllDryRuns(drRes?.dry_runs || []);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [load.id]);
+
   const use24h = useTenantTimeFormat();
 
   // Tenant-level color overrides + dark mode for the state banner
@@ -1021,6 +1040,9 @@ export default function RoutingTab({ load, onLoadRefresh }) {
                       load={load}
                       onDispatchLoad={idx === 0 ? handleDispatchLoad : null}
                       onRemoveLoadDriver={idx === 0 ? handleRemoveLoadDriver : null}
+                      orderId={load.id}
+                      drivers={drivers}
+                      allDryRuns={allDryRuns}
                     />
                   );
                 })}

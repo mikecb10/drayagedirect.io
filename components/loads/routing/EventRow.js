@@ -1,10 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Trash2, MapPin, Play, Lock, Link2 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import OrgPicker from '../../ui/OrgPicker';
 import StatusButton from './StatusButton';
 import { EVENT_LABELS } from '../../../lib/routing-template-seed';
+import DryRunList from './DryRunList';
+import DryRunSlideOver from './DryRunSlideOver';
+
+const DRY_RUN_ELIGIBLE_EVENTS = new Set(['pull', 'pickup', 'deliver', 'return', 'drop', 'hook']);
 
 function labelFor(eventType) {
   return EVENT_LABELS[eventType] || (eventType || '').replace(/^./, (c) => c.toUpperCase());
@@ -36,8 +40,18 @@ export default function EventRow({
   isPairedDrop = false,      // this drop immediately follows a deliver in the same move
   isPairedDeliver = false,   // this deliver is immediately followed by a drop in the same move
   loadCompleted = false,     // when true, all timestamps are frozen (load is completed)
+  // NEW for dry-run feature
+  orderId,
+  drivers = [],
+  dryRuns = [],
 }) {
   const [editingLocation, setEditingLocation] = useState(false);
+  const [dryRunSlideOpen, setDryRunSlideOpen] = useState(false);
+  const [editingRun, setEditingRun] = useState(null);
+  const [localDryRuns, setLocalDryRuns] = useState(dryRuns);
+  useEffect(() => { setLocalDryRuns(dryRuns); }, [dryRuns]);
+
+  const isDryRunEligible = DRY_RUN_ELIGIBLE_EVENTS.has(event.event_type);
 
   // Event is "locked" (structurally immutable) once ANY timestamp has been
   // recorded. The user can still clear timestamps to undo (which unlocks),
@@ -246,6 +260,37 @@ export default function EventRow({
           </div>
         </div>
       </div>
+
+      {isDryRunEligible && (
+        <DryRunList
+          runs={localDryRuns}
+          onAdd={() => { setEditingRun(null); setDryRunSlideOpen(true); }}
+          onEdit={(r) => { setEditingRun(r); setDryRunSlideOpen(true); }}
+        />
+      )}
+
+      {isDryRunEligible && dryRunSlideOpen && (
+        <DryRunSlideOver
+          open={dryRunSlideOpen}
+          onClose={() => setDryRunSlideOpen(false)}
+          onSaved={async () => {
+            try {
+              const res = await fetch(`/api/tenant/loads/${orderId}/dry-runs?event_id=${event.id}`);
+              const data = await res.json();
+              setLocalDryRuns(data.dry_runs || []);
+            } catch {}
+          }}
+          orderId={orderId}
+          event={{
+            id: event.id,
+            event_type: event.event_type,
+            location_label: event.location_name || '',
+            distance_miles: legMetrics?.distance_miles ?? null,
+          }}
+          drivers={drivers}
+          existing={editingRun}
+        />
+      )}
     </div>
   );
 }
