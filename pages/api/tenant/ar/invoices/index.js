@@ -290,10 +290,21 @@ export default async function handler(req, res) {
               if (uniqueOrderIds.length === 1) {
                 inv.margin = marginByOrder.get(uniqueOrderIds[0]) ?? null;
               } else if (uniqueOrderIds.length > 1) {
-                // Consolidated invoice: attach all per-order margins as an array.
-                inv.margin = uniqueOrderIds
-                  .map((id) => marginByOrder.get(id) ?? null)
-                  .filter(Boolean);
+                // Consolidated invoice: aggregate revenue + cost across all
+                // constituent orders, then compute a single invoice-level margin.
+                let aggRevenue = 0;
+                let aggCost = 0;
+                for (const id of uniqueOrderIds) {
+                  const { revenueCents, costCents } = inputs.get(id) ?? { revenueCents: 0, costCents: 0 };
+                  aggRevenue += revenueCents;
+                  aggCost    += costCents;
+                }
+                inv.margin = computeLoadMargin({
+                  revenueCents:    aggRevenue,
+                  costCents:       aggCost,
+                  redThreshold:    Number(tenant.margin_red_threshold),
+                  yellowThreshold: Number(tenant.margin_yellow_threshold),
+                });
               } else {
                 inv.margin = null;
               }
