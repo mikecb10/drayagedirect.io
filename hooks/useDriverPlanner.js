@@ -118,9 +118,60 @@ export default function useDriverPlanner({ date, driverSearch = '', branchId = n
     }
   }, [date, driverSearch, branchId, includeInactive]);
 
+  const refetchTimerRef = useRef(null);
+  const scheduleRefetch = useCallback(() => {
+    if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current);
+    refetchTimerRef.current = setTimeout(() => {
+      fetchPlanner();
+    }, 300);
+  }, [fetchPlanner]);
+
   useEffect(() => {
     fetchPlanner();
   }, [fetchPlanner]);
+
+  // ── Realtime subscription ────────────────────────────────────────────
+  useEffect(() => {
+    if (!supabase || !tenantId || !date) return;
+
+    const channel = supabase
+      .channel(`dispatcher_planner:${tenantId}:${date}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'order_container_moves', filter: `tenant_id=eq.${tenantId}` },
+        () => {
+          // Simple strategy for v1: refetch on any move change. Avoids the
+          // complexity of client-side delta reconciliation. Debounced above.
+          scheduleRefetch();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'order_routing_events', filter: `tenant_id=eq.${tenantId}` },
+        () => scheduleRefetch()
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'orders', filter: `tenant_id=eq.${tenantId}` },
+        (payload) => {
+          // Only refetch if bucket-relevant columns changed
+          const old = payload.old || {};
+          const nw = payload.new || {};
+          if (
+            old.container_at_port !== nw.container_at_port ||
+            old.empty_ready_for_return_at !== nw.empty_ready_for_return_at ||
+            old.lfd !== nw.lfd
+          ) {
+            scheduleRefetch();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, tenantId, date, scheduleRefetch]);
 
   // Mutation helpers — each is optimistic, rolls back on failure.
   const mutations = {
