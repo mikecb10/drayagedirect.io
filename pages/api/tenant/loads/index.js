@@ -204,7 +204,7 @@ export default async function handler(req, res) {
           .is('total_cents', null),
         svc
           .from('order_driver_pay_lines')
-          .select('load_id')
+          .select('order_id')
           .eq('tenant_id', ctx.tenantId)
           .eq('needs_distance', true)
           .is('amount_cents', null),
@@ -214,7 +214,7 @@ export default async function handler(req, res) {
         if (orderId) unresolvedDistanceOrderIds.add(orderId);
       }
       for (const r of apRows || []) {
-        if (r.load_id) unresolvedDistanceOrderIds.add(r.load_id);
+        if (r.order_id) unresolvedDistanceOrderIds.add(r.order_id);
       }
     }
 
