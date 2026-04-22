@@ -182,7 +182,6 @@ console.log('Test: percentage charge cascades needs_distance from unresolved bas
   // with miles unresolved → both rows show the red badge).
   // The unit-level coverage here is intentionally limited to a note.
   console.log('  SKIP: resolvePercentageCharges not directly exported — covered by live gate in Task 11');
-  passed++; // count as pass so total stays correct
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);
