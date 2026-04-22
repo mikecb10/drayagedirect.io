@@ -9,6 +9,7 @@ import { buildRoutingEventsForTemplate } from '../../../../lib/routing-template-
 import { computeKpiStats } from '../../../../lib/kpi-engine';
 import { findMatchingCharges, applyChargesToLoad } from '../../../../lib/tariff-engine';
 import { applyBranchFilter } from '../../../../lib/branch-filter';
+import { fetchLoadMarginInputs, computeLoadMargin } from '../../../../lib/load-margin';
 
 const VALID_LOAD_TYPES = ['import', 'inbound', 'export', 'outbound', 'road', 'bill_only'];
 const VALID_STATUSES = ['pending', 'available', 'dispatched', 'in_transit', 'dropped', 'delivered', 'completed', 'cancelled'];
@@ -281,6 +282,46 @@ export default async function handler(req, res) {
       active_only === 'true'
         ? data.filter((l) => l.status !== 'completed' && l.status !== 'cancelled')
         : data;
+
+    // Attach margin per row for users with AR/reporting access.
+    // Uses the full `data` set (before active_only filter) so every row in
+    // visibleLoads already has .margin when it reaches the client.
+    if (
+      data.length > 0 &&
+      (
+        ctx.permissions.includes(PERMISSIONS.ACCOUNTS_RECEIVABLE) ||
+        ctx.permissions.includes(PERMISSIONS.REPORTING) ||
+        ctx.permissions.includes(PERMISSIONS.ALL)
+      )
+    ) {
+      try {
+        const { data: tenant, error: tErr } = await svc
+          .from('tenants')
+          .select('margin_red_threshold, margin_yellow_threshold, margin_include_dry_runs')
+          .eq('id', ctx.tenantId)
+          .single();
+        if (!tErr && tenant) {
+          const inputs = await fetchLoadMarginInputs(svc, {
+            tenantId: ctx.tenantId,
+            orderIds: data.map((r) => r.id),
+            includeDryRuns: tenant.margin_include_dry_runs,
+          });
+          for (const row of data) {
+            const { revenueCents, costCents } = inputs.get(row.id) ?? { revenueCents: 0, costCents: 0 };
+            row.margin = computeLoadMargin({
+              revenueCents,
+              costCents,
+              redThreshold:    Number(tenant.margin_red_threshold),
+              yellowThreshold: Number(tenant.margin_yellow_threshold),
+            });
+          }
+        }
+      } catch (err) {
+        // Non-fatal — if margin attach fails, log and continue. The loads
+        // list is still usable without the margin field.
+        console.error('loads list margin attach failed', err);
+      }
+    }
 
     return res.status(200).json({ loads: visibleLoads, stats, pendingDocOrderIds });
   }
