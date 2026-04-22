@@ -55,10 +55,10 @@ export default function MovePreviewPanel({ move, onClose }) {
           </ul>
         </section>
 
-        {order.lfd && (
+        {order.last_free_day && (
           <section>
             <h3 className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-1">LFD</h3>
-            <div className="text-gray-900 dark:text-gray-100">{order.lfd}</div>
+            <div className="text-gray-900 dark:text-gray-100">{order.last_free_day}</div>
           </section>
         )}
       </div>

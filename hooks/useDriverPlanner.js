@@ -160,7 +160,7 @@ export default function useDriverPlanner({ date, driverSearch = '', branchId = n
           if (
             old.container_at_port !== nw.container_at_port ||
             old.empty_ready_for_return_at !== nw.empty_ready_for_return_at ||
-            old.lfd !== nw.lfd
+            old.last_free_day !== nw.last_free_day
           ) {
             scheduleRefetch();
           }

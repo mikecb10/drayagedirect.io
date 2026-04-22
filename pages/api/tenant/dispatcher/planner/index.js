@@ -61,7 +61,7 @@ export default async function handler(req, res) {
       assigned_at,
       order:orders!order_container_moves_order_id_fkey(
         id, order_number, container_number, container_size, container_type,
-        lfd, container_at_port, empty_ready_for_return_at, branch_id
+        last_free_day, container_at_port, empty_ready_for_return_at, branch_id
       ),
       events:order_routing_events!order_routing_events_move_id_fkey(
         id, sequence, event_type, location_id, location_name, city, state,
@@ -117,7 +117,7 @@ export default async function handler(req, res) {
   for (const m of unassigned) {
     const orderFlags = m.order
       ? {
-          lfd: m.order.lfd,
+          lfd: m.order.last_free_day,
           container_at_port: m.order.container_at_port,
           empty_ready_for_return_at: m.order.empty_ready_for_return_at,
         }

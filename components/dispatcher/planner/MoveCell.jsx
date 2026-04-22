@@ -144,9 +144,9 @@ export default function MoveCell({ move, onClickPreview, onDispatch, onUnassign 
         )}
       </div>
 
-      {order.lfd && (
+      {order.last_free_day && (
         <div className="px-2 py-1 text-[10px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950 border-t border-amber-200 dark:border-amber-900">
-          LFD: {order.lfd}
+          LFD: {order.last_free_day}
         </div>
       )}
     </div>
