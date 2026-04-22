@@ -73,15 +73,29 @@ function DistanceDisplay({ event, legMetrics, onOverride, onResetToAuto }) {
       >
         ✎
       </button>
-      {isManual && (
-        <button
-          type="button"
-          className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline"
-          onClick={onResetToAuto}
-        >
-          reset
-        </button>
-      )}
+      {isManual && (() => {
+        const liveMiles = legMetrics?.distance_miles;
+        const canReset = typeof liveMiles === 'number' && !Number.isNaN(liveMiles);
+        if (canReset) {
+          return (
+            <button
+              type="button"
+              className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline"
+              onClick={onResetToAuto}
+            >
+              reset
+            </button>
+          );
+        }
+        return (
+          <span
+            className="text-[10px] text-gray-400 dark:text-slate-500"
+            title="Google Maps hasn't computed this leg yet. Wait a moment or clear the override to see the auto value."
+          >
+            reset (unavailable)
+          </span>
+        );
+      })()}
     </span>
   );
 }
@@ -355,7 +369,8 @@ export default function EventRow({
                 });
               }}
               onResetToAuto={async () => {
-                const autoMiles = legMetrics?.distance_miles ?? null;
+                const autoMiles = legMetrics?.distance_miles;
+                if (typeof autoMiles !== 'number' || Number.isNaN(autoMiles)) return;
                 await onEventPatch?.(event.id, {
                   estimated_miles: autoMiles,
                   distance_is_manual: false,
