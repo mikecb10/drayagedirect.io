@@ -21,13 +21,17 @@ export default function DryRunSlideOver({
   onClose,
   onSaved,
   orderId,
-  event,        // { id, event_type, location_label, distance_miles }
-  drivers,      // [{ id, name }]
-  existing,     // full dry_run_attempts row OR null for "create" mode
+  event,            // { id, event_type, location_label, distance_miles }
+  drivers,          // [{ id, name }]
+  existing,         // full dry_run_attempts row OR null for "create" mode
+  defaultDriverId,  // move's current driver — used as create-mode default
 }) {
   const isEdit = !!existing;
 
-  const [driverId, setDriverId] = useState(existing?.driver_id || '');
+  // Edit mode → use the run's driver. Create mode → fall back to the move's
+  // currently-assigned driver, since most dry runs are recorded for the same
+  // driver who's working the leg.
+  const [driverId, setDriverId] = useState(existing?.driver_id || defaultDriverId || '');
   const [occurredAt, setOccurredAt] = useState(
     existing?.occurred_at?.slice(0, 16) || new Date().toISOString().slice(0, 16)
   );

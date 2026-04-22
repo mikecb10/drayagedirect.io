@@ -1179,7 +1179,10 @@ export default function RoutingTab({ load, onLoadRefresh }) {
               );
               if (res.status === 204) {
                 setLegDeleteConfirm(null);
-                await fetchRouting();
+                // Refresh both routing AND dry runs — detach nulls event_id
+                // on attempts; delete_all soft-deletes them. Without this,
+                // allDryRuns stays stale until tab remount.
+                await Promise.all([fetchRouting(), refetchDryRuns()]);
               } else {
                 const body = await res.json().catch(() => ({}));
                 setError(body.error || 'Detach failed');
@@ -1196,7 +1199,10 @@ export default function RoutingTab({ load, onLoadRefresh }) {
               );
               if (res.status === 204) {
                 setLegDeleteConfirm(null);
-                await fetchRouting();
+                // Refresh both routing AND dry runs — detach nulls event_id
+                // on attempts; delete_all soft-deletes them. Without this,
+                // allDryRuns stays stale until tab remount.
+                await Promise.all([fetchRouting(), refetchDryRuns()]);
               } else {
                 const body = await res.json().catch(() => ({}));
                 setError(body.error || 'Delete failed');

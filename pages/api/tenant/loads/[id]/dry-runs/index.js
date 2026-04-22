@@ -3,6 +3,7 @@ import { logTenantAction, getClientIp } from '../../../../../../lib/tenant-audit
 import { PERMISSIONS } from '../../../../../../lib/permissions';
 import { validatePayload, computeManualAmount, computePresetAmount } from '../../../../../../lib/dry-run-engine';
 import { generateChargeSetNumber } from '../../../../../../lib/charge-set-utils';
+import { EVENT_LABELS } from '../../../../../../lib/routing-template-seed';
 
 const ALLOWED = [
   PERMISSIONS.ACCOUNTS_RECEIVABLE,
@@ -322,11 +323,13 @@ export default async function handler(req, res) {
       chargeSet = newSet;
     }
 
-    // 6. Build human-friendly event label
-    const eventLabel = event.event_type
-      .toLowerCase()
-      .replace(/_/g, ' ')
-      .replace(/\b\w/g, (c) => c.toUpperCase());
+    // 6. Build human-friendly event label using the codebase's canonical
+    // EVENT_LABELS map ("pull" → "Pull from Terminal", "deliver" → "Deliver
+    // Container", etc.). Falls back to a Title Case'd version of the raw
+    // event_type when the map doesn't have a label (forward-compat).
+    const eventLabel =
+      EVENT_LABELS[event.event_type] ||
+      event.event_type.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
     // 7. Description string shared by both derived rows. Includes the driver
     // name so multi-driver invoices can be defended in disputes.

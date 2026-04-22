@@ -47,6 +47,8 @@ export default function EventRow({
   onDryRunsChange,   // parent RoutingTab's refetch — call after save/edit so
                      // allDryRuns stays in sync with the DB and can't overwrite
                      // localDryRuns with stale data on a subsequent re-render
+  defaultDriverId,   // move's currently-assigned driver, used as the create-mode
+                     // default in the slide-over
 }) {
   const [editingLocation, setEditingLocation] = useState(false);
   const [dryRunSlideOpen, setDryRunSlideOpen] = useState(false);
@@ -302,6 +304,7 @@ export default function EventRow({
           }}
           drivers={drivers}
           existing={editingRun}
+          defaultDriverId={defaultDriverId}
         />
       )}
     </div>

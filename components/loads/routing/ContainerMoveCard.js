@@ -366,6 +366,7 @@ export default function ContainerMoveCard({
                     drivers={drivers}
                     dryRuns={allDryRuns.filter((r) => r.event_id === ev.id)}
                     onDryRunsChange={onDryRunsChange}
+                    defaultDriverId={move.driver_id || null}
                   />
                   {/* Drop zone after each event — only shown if the
                       insertion position is > lastTouchedIdx (can't
