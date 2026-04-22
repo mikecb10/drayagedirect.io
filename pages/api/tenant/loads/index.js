@@ -189,8 +189,36 @@ export default async function handler(req, res) {
     const { data, error } = await query;
     if (error) return res.status(500).json({ error: error.message });
 
-    // Fetch all order_notes for these orders in one shot, then group into notes_by_audience per load
+    // Derive has_unresolved_distance: any AR charge line OR AP driver-pay line
+    // with needs_distance=true AND a null amount. Two flat queries + set lookup
+    // avoids bloating the main SELECT with more nested arrays.
     const orderIds = data.map((l) => l.id);
+    let unresolvedDistanceOrderIds = new Set();
+    if (orderIds.length > 0) {
+      const [{ data: arRows }, { data: apRows }] = await Promise.all([
+        svc
+          .from('order_charge_set_line_items')
+          .select('order_charge_sets!inner(order_id)')
+          .eq('tenant_id', ctx.tenantId)
+          .eq('needs_distance', true)
+          .is('total_cents', null),
+        svc
+          .from('order_driver_pay_lines')
+          .select('load_id')
+          .eq('tenant_id', ctx.tenantId)
+          .eq('needs_distance', true)
+          .is('amount_cents', null),
+      ]);
+      for (const r of arRows || []) {
+        const orderId = r.order_charge_sets?.order_id;
+        if (orderId) unresolvedDistanceOrderIds.add(orderId);
+      }
+      for (const r of apRows || []) {
+        if (r.load_id) unresolvedDistanceOrderIds.add(r.load_id);
+      }
+    }
+
+    // Fetch all order_notes for these orders in one shot, then group into notes_by_audience per load
     let notesByOrder = {};
     if (orderIds.length > 0) {
       const { data: notesData } = await svc
@@ -208,12 +236,13 @@ export default async function handler(req, res) {
       }
     }
 
-    // Post-process each load: derive current_event + attach notes_by_audience
+    // Post-process each load: derive current_event + attach notes_by_audience + distance flag
     for (const load of data) {
       // Sort routing_events by sequence, pick the first incomplete (no departed_at)
       const events = (load.routing_events || []).slice().sort((a, b) => a.sequence - b.sequence);
       load.current_event = events.find((e) => !e.departed_at) || null;
       load.notes_by_audience = notesByOrder[load.id] || {};
+      load.has_unresolved_distance = unresolvedDistanceOrderIds.has(load.id);
     }
 
     // KPI stats — computed by the engine using the universal date filter.
