@@ -1,6 +1,6 @@
 import DriverRow from './DriverRow';
 
-export default function DriverPlannerGrid({ drivers, movesByDriverId, onClickPreview, onDispatch, onUnassign }) {
+export default function DriverPlannerGrid({ drivers, movesByDriverId, onClickPreview, onOpenLoad, onDispatch, onUnassign }) {
   if (drivers.length === 0) {
     return <div className="p-8 text-center text-gray-500 dark:text-gray-400">No drivers match your filters.</div>;
   }
@@ -13,6 +13,7 @@ export default function DriverPlannerGrid({ drivers, movesByDriverId, onClickPre
             driver={d}
             moves={movesByDriverId[d.id] || []}
             onClickPreview={onClickPreview}
+            onOpenLoad={onOpenLoad}
             onDispatch={onDispatch}
             onUnassign={onUnassign}
           />

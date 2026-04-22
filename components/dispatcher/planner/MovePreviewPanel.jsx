@@ -1,6 +1,6 @@
-import { X, ExternalLink } from 'lucide-react';
+import { X } from 'lucide-react';
 
-export default function MovePreviewPanel({ move, onClose }) {
+export default function MovePreviewPanel({ move, onClose, onOpenLoad }) {
   if (!move) return null;
   const order = move.order || {};
   const driverLine = move.driver_id ? `Assigned driver: ${move.driver_id.slice(0, 8)}…` : 'Unassigned';
@@ -64,14 +64,16 @@ export default function MovePreviewPanel({ move, onClose }) {
       </div>
 
       <div className="border-t border-gray-200 dark:border-gray-700 p-3">
-        <a
-          href={`/loads/${order.id || move.order_id}`}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          type="button"
+          onClick={() => {
+            onClose?.();
+            onOpenLoad?.(order.id || move.order_id);
+          }}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
         >
-          Open Load <ExternalLink className="w-3.5 h-3.5" />
-        </a>
+          Open Load
+        </button>
       </div>
     </div>
   );

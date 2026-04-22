@@ -1,7 +1,7 @@
 import { useDroppable } from '@dnd-kit/core';
 import MoveCell from './MoveCell';
 
-export default function MoveSlot({ driverId, index, move, onClickPreview, onDispatch, onUnassign }) {
+export default function MoveSlot({ driverId, index, move, onClickPreview, onOpenLoad, onDispatch, onUnassign }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `slot:${driverId}:${index}`,
     data: { type: 'slot', driverId, index },
@@ -16,7 +16,7 @@ export default function MoveSlot({ driverId, index, move, onClickPreview, onDisp
       ].filter(Boolean).join(' ')}
     >
       {move ? (
-        <MoveCell move={move} onClickPreview={onClickPreview} onDispatch={onDispatch} onUnassign={onUnassign} />
+        <MoveCell move={move} onClickPreview={onClickPreview} onOpenLoad={onOpenLoad} onDispatch={onDispatch} onUnassign={onUnassign} />
       ) : (
         <div className="h-full rounded border border-dashed border-gray-300 dark:border-gray-700 text-xs text-gray-400 dark:text-gray-500 flex items-center justify-center">
           + Drop a move here

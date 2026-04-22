@@ -3,7 +3,7 @@ import MoveSlot from './MoveSlot';
 
 const MIN_SLOTS = 8;
 
-export default function DriverRow({ driver, moves, onClickPreview, onDispatch, onUnassign }) {
+export default function DriverRow({ driver, moves, onClickPreview, onOpenLoad, onDispatch, onUnassign }) {
   const slotCount = Math.max(MIN_SLOTS, moves.length + 1);
 
   return (
@@ -19,6 +19,7 @@ export default function DriverRow({ driver, moves, onClickPreview, onDispatch, o
             index={i}
             move={moves[i]}
             onClickPreview={onClickPreview}
+            onOpenLoad={onOpenLoad}
             onDispatch={onDispatch}
             onUnassign={onUnassign}
           />

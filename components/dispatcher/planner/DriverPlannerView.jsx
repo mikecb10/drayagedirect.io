@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { DndContext, PointerSensor, KeyboardSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core';
 import useDriverPlanner from '../../../hooks/useDriverPlanner';
+import { useOverlay } from '../../../contexts/OverlayContext';
 import PlannerToolbar from './PlannerToolbar';
 import DriverPlannerGrid from './DriverPlannerGrid';
 import UnassignedRightRail from './UnassignedRightRail';
@@ -15,6 +16,7 @@ function todayIso() {
 export default function DriverPlannerView() {
   const router = useRouter();
   const date = router.query.date || todayIso();
+  const { openOverlay } = useOverlay();
 
   const [driverSearch, setDriverSearch] = useState('');
   const [includeInactive, setIncludeInactive] = useState(false);
@@ -22,6 +24,31 @@ export default function DriverPlannerView() {
 
   const { drivers, movesByDriverId, unassignedBuckets, isLoading, error, mutations, refetch } =
     useDriverPlanner({ date, driverSearch, includeInactive });
+
+  // Open a load as a popup overlay (not a new browser tab) — keeps the user
+  // in the planner context. Refetch on close so any edits made inside the
+  // overlay (status, driver, dates) surface immediately.
+  //
+  // OverlayContext.closeOverlay clears the `tab` query param on close
+  // (designed for the Load Board's ?tab=info|routing usage). On the planner,
+  // `tab=planner` is the dispatcher-page-level tab selector, so we restore
+  // it here after close — otherwise a page refresh would drop the user back
+  // to the Load Board.
+  function handleOpenLoad(orderId) {
+    if (!orderId) return;
+    openOverlay('load', {
+      loadId: orderId,
+      tab: 'info',
+      onClose: () => {
+        if (typeof window !== 'undefined') {
+          const url = new URL(window.location.href);
+          url.searchParams.set('tab', 'planner');
+          window.history.replaceState({}, '', url.pathname + '?' + url.searchParams.toString());
+        }
+        refetch();
+      },
+    });
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -76,6 +103,7 @@ export default function DriverPlannerView() {
                 drivers={drivers}
                 movesByDriverId={movesByDriverId}
                 onClickPreview={(m) => setPreviewMove(m)}
+                onOpenLoad={handleOpenLoad}
                 onDispatch={(m) => mutations.dispatch({ moveId: m.id }).catch((e) => alert(`Dispatch failed: ${e.message}`))}
                 onUnassign={(m) => mutations.unassign({ move: m, bucket: 'other' }).catch((e) => alert(`Unassign failed: ${e.message}`))}
               />
@@ -87,7 +115,11 @@ export default function DriverPlannerView() {
           </aside>
         </div>
       </div>
-      <MovePreviewPanel move={previewMove} onClose={() => setPreviewMove(null)} />
+      <MovePreviewPanel
+        move={previewMove}
+        onClose={() => setPreviewMove(null)}
+        onOpenLoad={handleOpenLoad}
+      />
     </DndContext>
   );
 }

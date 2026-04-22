@@ -61,7 +61,8 @@ export default async function handler(req, res) {
       assigned_at,
       order:orders!order_container_moves_order_id_fkey(
         id, order_number, container_number, container_size, container_type,
-        last_free_day, container_at_port, empty_ready_for_return_at, branch_id
+        last_free_day, container_at_port, empty_ready_for_return_at, branch_id,
+        status, deleted_at, actual_delivery_at
       ),
       events:order_routing_events!order_routing_events_move_id_fkey(
         id, sequence, event_type, location_id, location_name, city, state,
@@ -78,10 +79,33 @@ export default async function handler(req, res) {
   const { data: moves, error: movesErr } = await moveQuery;
   if (movesErr) return res.status(500).json({ error: movesErr.message });
 
+  // Mirror the dispatcher Load Board's lifecycle filter so the planner only
+  // shows moves whose parent order is actually on the board:
+  //   - soft-deleted orders are hidden (deleted_at IS NOT NULL)
+  //   - completed/cancelled orders are hidden UNLESS finished today
+  //     (the "Finished Today" KPI surface relies on this one-day grace)
+  // Kept in JS (not SQL) so we stay consistent with the loads-index endpoint,
+  // which also does this post-fetch. See pages/dispatcher/index.js
+  // passesLifecycleFilter + pages/api/tenant/loads/index.js line ~282.
+  function passesLifecycleFilter(order) {
+    if (order.deleted_at != null) return false;
+    if (!['completed', 'cancelled'].includes(order.status)) return true;
+    const finishedAt = order.actual_delivery_at;
+    if (!finishedAt) return false;
+    const finished = new Date(finishedAt);
+    const today = new Date();
+    return (
+      finished.getFullYear() === today.getFullYear() &&
+      finished.getMonth() === today.getMonth() &&
+      finished.getDate() === today.getDate()
+    );
+  }
+
   // Branch scoping via the joined orders row
   const branchFilterActive = shouldFilterByBranch(ctx);
   const branchScoped = (moves || []).filter((m) => {
     if (!m.order) return false;
+    if (!passesLifecycleFilter(m.order)) return false;
     if (branch_id && m.order.branch_id !== branch_id) return false;
     // applyBranchFilter on the outer query only scopes drivers, not moves —
     // do the branch check on the order directly for parity. Admins and

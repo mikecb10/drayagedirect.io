@@ -36,7 +36,7 @@ function fmtApt(iso) {
   }
 }
 
-export default function MoveCell({ move, onClickPreview, onDispatch, onUnassign }) {
+export default function MoveCell({ move, onClickPreview, onOpenLoad, onDispatch, onUnassign }) {
   const draggable = useDraggable({
     id: `assigned:${move.id}`,
     data: { type: 'assigned-move', move },
@@ -61,15 +61,16 @@ export default function MoveCell({ move, onClickPreview, onDispatch, onUnassign 
       data-move-id={move.id}
     >
       <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-200 dark:border-gray-700">
-        <a
-          href={`/loads/${order.id || move.order_id}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenLoad?.(order.id || move.order_id);
+          }}
+          className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400 bg-transparent p-0 border-0 cursor-pointer"
         >
           {order.order_number || move.id.slice(0, 8)}
-        </a>
+        </button>
         <div className="flex items-center gap-1">
           <button
             type="button"
