@@ -66,10 +66,12 @@ CREATE INDEX idx_driver_pay_li_dry_run ON order_driver_pay_lines      (dry_run_a
 ALTER TABLE charge_profiles        ADD COLUMN is_dry_run boolean NOT NULL DEFAULT false;
 ALTER TABLE driver_charge_profiles ADD COLUMN is_dry_run boolean NOT NULL DEFAULT false;
 
--- 5. Updated-at trigger (reuse existing tenant convention)
-CREATE TRIGGER trg_dry_run_attempts_updated_at
-  BEFORE UPDATE ON dry_run_attempts
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+-- 5. Updated-at trigger (matches the `trigger_set_updated_at()` function
+--    defined in 001_initial_schema.sql and reused across the codebase —
+--    trigger is named `set_updated_at` per convention in migrations 005/006)
+DROP TRIGGER IF EXISTS set_updated_at ON dry_run_attempts;
+CREATE TRIGGER set_updated_at BEFORE UPDATE ON dry_run_attempts
+  FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();
 
 NOTIFY pgrst, 'reload schema';
 
