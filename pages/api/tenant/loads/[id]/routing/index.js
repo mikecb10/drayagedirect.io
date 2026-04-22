@@ -156,6 +156,8 @@ export default async function handler(req, res) {
           zip: body.zip || null,
           scheduled_at: body.scheduled_at || null,
           notes: body.notes || null,
+          estimated_miles: body.estimated_miles ?? null,
+          distance_is_manual: body.distance_is_manual === true,
         })
         .select(`*, location:customers(id, name, address_line1, city, state, zip)`)
         .single();
@@ -281,6 +283,8 @@ export default async function handler(req, res) {
           ...rest,
           sequence: startEventSeq + i,
           move_id: moveIdByIndex[move_index] || null,
+          estimated_miles: null,
+          distance_is_manual: false,
         };
       });
 
@@ -440,6 +444,8 @@ export default async function handler(req, res) {
           ...rest,
           sequence: i,
           move_id: moveIdByIndex[move_index] || null,
+          estimated_miles: null,
+          distance_is_manual: false,
         };
       });
       const { error: evErr } = await svc

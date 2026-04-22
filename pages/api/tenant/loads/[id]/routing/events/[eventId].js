@@ -23,6 +23,8 @@ const EDITABLE = [
   'departed_at',
   'notes',
   'sequence',
+  'estimated_miles',
+  'distance_is_manual',
 ];
 
 export default async function handler(req, res) {
