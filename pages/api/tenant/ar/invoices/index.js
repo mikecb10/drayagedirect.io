@@ -4,7 +4,7 @@ import {
   getServiceClient,
 } from '../../../../../lib/tenant-api';
 import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
-import { PERMISSIONS } from '../../../../../lib/permissions';
+import { PERMISSIONS, hasPermission } from '../../../../../lib/permissions';
 import { assignInvoiceNumberBase } from '../../../../../lib/invoice-utils';
 import { computeInvoiceDueDate } from '../../../../../lib/ar-utils';
 import { parseCsvParam } from '../../../../../lib/ar-filter-params';
@@ -19,7 +19,7 @@ import { fetchLoadMarginInputs, computeLoadMargin } from '../../../../../lib/loa
 export default async function handler(req, res) {
   const ctx = await requireTenantUser(req, res);
   if (!ctx) return;
-  if (!requirePermission(ctx, [PERMISSIONS.ACCOUNTS_RECEIVABLE, PERMISSIONS.ALL], res)) return;
+  if (!requirePermission(ctx, [PERMISSIONS.ACCOUNTS_RECEIVABLE], res)) return;
 
   const svc = getServiceClient();
 
@@ -246,7 +246,10 @@ export default async function handler(req, res) {
     // ── Load Margin: attach margin object per invoice row ─────────────────
     // Invoices are load-level documents; collect distinct order IDs from
     // their nested charge_sets, compute margin once per order, then attach.
-    if (filtered.length > 0) {
+    // Gated on ACCOUNTS_RECEIVABLE | REPORTING | super_admin — consistent
+    // with loads list and AR endpoints.
+    const canSeeMargin = hasPermission(ctx, [PERMISSIONS.ACCOUNTS_RECEIVABLE, PERMISSIONS.REPORTING]);
+    if (canSeeMargin && filtered.length > 0) {
       try {
         const { data: tenant, error: tErr } = await svc
           .from('tenants')
@@ -319,13 +322,15 @@ export default async function handler(req, res) {
     // ── Margin range filter ─────────────────────────────────────────────
     // Runs after the margin-attach block so inv.margin is populated.
     // Neutral-bucket rows (no revenue or no cost) are excluded from numeric ranges.
+    // Skip entirely when the caller lacks the margin-view permission — no rows
+    // have .margin attached, so filtering would produce an empty result set.
     const { margin_from, margin_to } = req.query;
     const marginFrom = margin_from !== '' && margin_from != null
       ? Number(margin_from) : null;
     const marginTo   = margin_to   !== '' && margin_to   != null
       ? Number(margin_to)   : null;
 
-    if (Number.isFinite(marginFrom) || Number.isFinite(marginTo)) {
+    if (canSeeMargin && (Number.isFinite(marginFrom) || Number.isFinite(marginTo))) {
       filtered = filtered.filter((inv) => {
         const m = inv.margin;
         if (!m || m.bucket === 'neutral') return false;

@@ -4,7 +4,7 @@ import {
   getServiceClient,
 } from '../../../../../lib/tenant-api';
 import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
-import { PERMISSIONS } from '../../../../../lib/permissions';
+import { PERMISSIONS, hasPermission } from '../../../../../lib/permissions';
 import { fireFieldChangeTriggers, fireStatusChangeTriggers } from '../../../../../lib/email-dispatch';
 import { fetchLoadMarginInputs, computeLoadMargin } from '../../../../../lib/load-margin';
 
@@ -209,11 +209,7 @@ export default async function handler(req, res) {
     }
 
     // ── Margin attach (gated by ACCOUNTS_RECEIVABLE / REPORTING / ALL) ──
-    if (
-      ctx.permissions.includes(PERMISSIONS.ACCOUNTS_RECEIVABLE) ||
-      ctx.permissions.includes(PERMISSIONS.REPORTING) ||
-      ctx.permissions.includes(PERMISSIONS.ALL)
-    ) {
+    if (hasPermission(ctx, [PERMISSIONS.ACCOUNTS_RECEIVABLE, PERMISSIONS.REPORTING])) {
       try {
         const { data: tenant, error: tErr } = await svc
           .from('tenants')
