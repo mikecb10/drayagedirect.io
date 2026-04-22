@@ -690,7 +690,22 @@ function EditablePayRow({ line, driverName, nextLabel, onUpdate, onAdvance, onDe
           {line.to_location && <><span className="text-gray-400 dark:text-slate-500 mx-1">→</span>{line.to_location}</>}
         </span>
       )}
-      {renderCell('amount_cents', formatCents(line.amount_cents), 'right', 'font-semibold text-gray-900 dark:text-slate-100')}
+      {renderCell(
+        'amount_cents',
+        line.needs_distance && line.amount_cents == null ? (
+          <span
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded px-1.5 py-0.5"
+            title="Load needs a saved route. Open the Routing tab and save."
+          >
+            <span aria-hidden="true">⚠</span>
+            Distance missing
+          </span>
+        ) : (
+          formatCents(line.amount_cents)
+        ),
+        'right',
+        'font-semibold text-gray-900 dark:text-slate-100'
+      )}
       {renderCell('hours', line.hours ?? '—', 'right', 'text-xs text-gray-600 dark:text-slate-300')}
       {renderCell('miles', line.miles ?? '—', 'right', 'text-xs text-gray-600 dark:text-slate-300')}
       <td className="px-4 py-2">

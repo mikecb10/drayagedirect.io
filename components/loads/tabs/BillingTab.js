@@ -1041,7 +1041,17 @@ function EditableLineRow({ li, isEditable, onUpdate, onDelete, formatCents, open
       {renderCell('free_units', li.free_units, li.free_units, 'right', 'text-gray-500 dark:text-slate-400 text-xs')}
       {renderCell('per_unit_price_cents', li.per_unit_price_cents, formatCents(li.per_unit_price_cents), 'right', 'text-gray-700 dark:text-slate-200')}
       <td className="px-4 py-2 text-right font-semibold text-strong">
-        {formatCents(li.total_cents)}
+        {li.needs_distance && li.total_cents == null ? (
+          <span
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded px-1.5 py-0.5"
+            title="Load needs a saved route. Open the Routing tab and save."
+          >
+            <span aria-hidden="true">⚠</span>
+            Distance missing
+          </span>
+        ) : (
+          <span>{formatCents(li.total_cents)}</span>
+        )}
       </td>
       <td className="px-2 py-2">
         {rowIsEditable && (
