@@ -170,14 +170,7 @@ export default async function handler(req, res) {
   // ── Bucket unassigned moves via the shared util ───────────────────────
   const unassignedBuckets = { atPort: [], deliveries: [], return: [], other: [] };
   for (const m of unassigned) {
-    const orderFlags = m.order
-      ? {
-          lfd: m.order.last_free_day,
-          container_at_port: m.order.container_at_port,
-          empty_ready_for_return_at: m.order.empty_ready_for_return_at,
-        }
-      : {};
-    const b = getBucket(m, orderFlags);
+    const b = getBucket(m);
     if (b != null) unassignedBuckets[b].push(m);
   }
 
