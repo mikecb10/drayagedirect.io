@@ -162,21 +162,21 @@ check(
   'other'
 );
 
-// 15-18 (I1). Non-canonical move_type values must throw
+// 15-19. Non-canonical move_type values fall through to 'other'
+// (pre-Task-20 these threw; softened after Gate-1 surfaced real-world
+// routing-template names like "Prepull + Live Unload" in production data).
 for (const [label, badType] of [
-  ["'PICKUP' (uppercase) → throws",     'PICKUP'],
-  ["' pickup ' (whitespace) → throws",  ' pickup '],
-  ['null move_type → throws',            null],
-  ['undefined move_type → throws',       undefined],
+  ["'PICKUP' (uppercase) → other",                     'PICKUP'],
+  ["' pickup ' (whitespace) → other",                  ' pickup '],
+  ['null move_type → other',                           null],
+  ['undefined move_type → other',                      undefined],
+  ['free-form "Prepull + Live Unload" → other',        'Prepull + Live Unload'],
 ]) {
-  try {
-    getBucket({ driver_id: null, move_type: badType, events: [] }, {});
-    failed++;
-    console.log(`  FAIL  ${label}  — did not throw`);
-  } catch (e) {
-    passed++;
-    console.log(`  PASS  ${label}`);
-  }
+  check(
+    label,
+    getBucket({ driver_id: null, move_type: badType, events: [] }, {}),
+    'other'
+  );
 }
 
 // 19 (I2-A). bucketize: mixed array across all 4 buckets + 1 assigned (skipped)
