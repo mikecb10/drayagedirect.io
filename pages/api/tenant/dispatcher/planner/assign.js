@@ -128,7 +128,7 @@ export default async function handler(req, res) {
       .eq('driver_id', prevDriverId)
       .eq('scheduled_date', prevDate)
       .order('sort_order', { ascending: true });
-    await Promise.all(
+    const priorResults = await Promise.all(
       (priorRow || []).map((r, idx) =>
         svc
           .from('order_container_moves')
@@ -137,6 +137,8 @@ export default async function handler(req, res) {
           .eq('tenant_id', ctx.tenantId)
       )
     );
+    const priorErr = priorResults.find((r) => r.error);
+    if (priorErr) return res.status(500).json({ error: priorErr.error.message });
   }
 
   await logTenantAction(svc, {

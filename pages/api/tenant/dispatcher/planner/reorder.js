@@ -64,7 +64,7 @@ export default async function handler(req, res) {
   }
 
   // Dense resequence
-  await Promise.all(
+  const results = await Promise.all(
     orderedMoveIds.map((id, idx) =>
       svc
         .from('order_container_moves')
@@ -73,6 +73,8 @@ export default async function handler(req, res) {
         .eq('tenant_id', ctx.tenantId)
     )
   );
+  const anyErr = results.find((r) => r.error);
+  if (anyErr) return res.status(500).json({ error: anyErr.error.message });
 
   await logTenantAction(svc, {
     tenantId: ctx.tenantId,

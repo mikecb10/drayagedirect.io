@@ -4,7 +4,7 @@ import {
   getServiceClient,
 } from '../../../../../lib/tenant-api';
 import { PERMISSIONS } from '../../../../../lib/permissions';
-import { applyBranchFilter } from '../../../../../lib/branch-filter';
+import { applyBranchFilter, shouldFilterByBranch } from '../../../../../lib/branch-filter';
 import { getBucket } from '../../../../../lib/dispatcher/moveBuckets';
 
 export default async function handler(req, res) {
@@ -79,13 +79,14 @@ export default async function handler(req, res) {
   if (movesErr) return res.status(500).json({ error: movesErr.message });
 
   // Branch scoping via the joined orders row
+  const branchFilterActive = shouldFilterByBranch(ctx);
   const branchScoped = (moves || []).filter((m) => {
     if (!m.order) return false;
     if (branch_id && m.order.branch_id !== branch_id) return false;
     // applyBranchFilter on the outer query only scopes drivers, not moves —
-    // do the branch check on the order directly for parity. Admins (no
-    // scoped branches in ctx) see all.
-    if (ctx.branchIds && ctx.branchIds.length > 0) {
+    // do the branch check on the order directly for parity. Admins and
+    // super_admins bypass (shouldFilterByBranch returns false for them).
+    if (branchFilterActive) {
       return m.order.branch_id == null || ctx.branchIds.includes(m.order.branch_id);
     }
     return true;
