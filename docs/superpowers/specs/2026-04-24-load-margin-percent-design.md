@@ -16,7 +16,7 @@ The margin formula is simple on purpose: `margin = Σ order_charge_sets.total_ce
 
 ## Goals
 
-- Single per-load margin value surfaced on the four most-viewed load surfaces (dispatcher board, AR Billing, AR Invoices, load detail header).
+- Single per-load margin value surfaced on the five most-viewed load surfaces (dispatcher board, AR Billing pipeline, AR Invoices pipeline, load detail header, load detail Billing tab summary row).
 - Tenant-configurable red/yellow thresholds (defaults 15% / 30%), with green as "above yellow" derived. Set in Settings → Accounting → Margin Thresholds.
 - Tenant toggle to include or exclude dry-run line items from the margin calc (default: include).
 - Close out the AR filter bar Phase C deferred dim — numeric range (`margin_from` / `margin_to`) plus quick-pick preset pills (Red / Yellow+ / Green+).
@@ -296,9 +296,16 @@ Sizes: `sm` → `text-xs px-1.5 py-0.5 rounded`, `md` → `text-sm px-2 py-1 rou
 ### Surface integrations
 
 1. **Dispatcher board** — new opt-in column `'margin_pct'` in the column set. Hidden by default. Stored in `user_dispatcher_preferences.column_order` + visibility. Column renderer uses `<MarginBadge marginPct={margin.marginPct} bucket={margin.bucket} size="sm" />`.
-2. **AR Billing tab rows** — `components/ar/BillingPipelineTab.js`: add a `Margin` column to the row shape. Every CS row for the same load renders the same pill (load-level margin).
-3. **AR Invoices tab rows** — `components/ar/InvoicesTab.js`: mirror Billing.
-4. **Load detail header** — `components/loads/LoadDetailHeader.js` (or equivalent): insert a `<MarginBadge size="md" tooltip={...} />` in the header metadata strip, after the load status chip.
+2. **AR Billing pipeline rows** — `components/ar/BillingPipelineTab.js`: add a `Margin` column to the row shape. Every CS row for the same load renders the same pill (load-level margin).
+3. **AR Invoices pipeline rows** — `components/ar/InvoicesTab.js`: mirror Billing.
+4. **Load detail header (persistent across tabs)** — `components/loads/LoadDetailLayout.js`: insert a `<MarginBadge size="md" tooltip={...} />` in the header metadata strip, after the load status chip. Visible whichever tab is active, including Billing.
+5. **Load detail → Billing tab summary row** — `components/loads/tabs/BillingTab.js`: one-line summary at the very top of the tab content (above the charge-set cards) showing:
+
+   `Revenue $1,250.00 · Cost $875.00 · Margin $375.00 [30.0% green pill]`
+
+   Renders from `load.margin` (already attached by the load detail GET endpoint — no extra fetch). Purpose: right where the dispatcher is editing line items, approving CS, and sending rate-cons, the margin context is at eye level. Header badge stays for at-a-glance; this row gives the breakdown. Neutral-bucket loads (no revenue or no cost) render `Revenue — · Cost — · Margin —` with a grey pill. Permission-gated identically to the other surfaces (`ACCOUNTS_RECEIVABLE` OR `REPORTING`).
+
+   **Not included:** per-charge-set margin allocation (remains out of scope per Non-Goal #2 — dry-run vs primary CS contribute non-obviously to load margin; shipping that correctly is its own design).
 
 ## AR Filter Bar Integration
 
@@ -416,7 +423,7 @@ Hand-rolled `.test.mjs` files run via `node tests/<file>.test.mjs`. Each asserti
 | Batch 1 (3 gates) | Settings page loads; threshold save round-trips; constraint violation toast |
 | Batch 2 (4 gates) | Dispatcher board shows margin column when ACCOUNTS_RECEIVABLE; hidden without it; badge color matches bucket; tooltip shows Revenue − Cost = Margin |
 | Batch 3 (4 gates) | AR Billing/Invoices show margin column; AR filter bar margin range filters; quick-pick pills set thresholds; saved filter persists across reload |
-| Batch 4 (2 gates) | Dry-run toggle OFF excludes dry-run AR + AP from computed margin; re-enabling restores |
+| Batch 4 (4 gates) | Load detail header badge renders on all tabs; Billing tab summary row renders above CS cards with correct breakdown; dry-run toggle OFF excludes dry-run AR + AP from computed margin; re-enabling restores |
 
 ## Rollout
 
@@ -450,8 +457,10 @@ Modified files:
 - `lib/ar-filter-schema.js` — two new string keys
 - `lib/ar-filter-params.js` — STRING_KEYS extension
 - `components/ar/FilterSidebar.js` — new section
-- `components/ar/BillingPipelineTab.js` — margin column
-- `components/ar/InvoicesTab.js` — margin column
+- `components/ar/BillingPipelineTab.js` — margin column (AR pipeline, global)
+- `components/ar/InvoicesTab.js` — margin column (AR pipeline, global)
+- `components/loads/LoadDetailLayout.js` — margin badge in persistent header
+- `components/loads/tabs/BillingTab.js` — one-line margin summary above CS cards
 - `pages/api/tenant/ar/index.js` — margin filter applier + response attach
 - `pages/api/tenant/ar/invoices/index.js` — same
 - `pages/api/tenant/loads/index.js` — response attach on dispatcher/loads list
