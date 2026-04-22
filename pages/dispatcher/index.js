@@ -15,6 +15,7 @@ import BulkActionBar from '../../components/dispatcher/BulkActionBar';
 import LiveIndicator from '../../components/dispatcher/LiveIndicator';
 import PresenceAvatars from '../../components/dispatcher/PresenceAvatars';
 import LiveCursorLayer from '../../components/dispatcher/LiveCursorLayer';
+import DispatcherTabs from '../../components/dispatcher/DispatcherTabs';
 import useRealtimePresence from '../../hooks/useRealtimePresence';
 import useLiveCursors from '../../hooks/useLiveCursors';
 import { PERMISSIONS } from '../../lib/permissions';
@@ -25,6 +26,10 @@ import useRealtimeLoads from '../../hooks/useRealtimeLoads';
 export default function DispatcherIndex() {
   const router = useRouter();
   const { openOverlay } = useOverlay();
+
+  // Dispatcher-level tab (Load Board vs Driver Planner). Distinct from the
+  // load-detail overlay tab (router.query.tab values like 'info', 'routing').
+  const activeTab = router.query.tab === 'planner' ? 'planner' : 'loadBoard';
 
   const [loads, setLoads] = useState([]);
   const [stats, setStats] = useState({});
@@ -604,46 +609,58 @@ export default function DispatcherIndex() {
           }
         />
 
-        {/* Date filter + KPI strip */}
-        <div className="space-y-3">
-          <DateFilterDropdown value={dateFilter} onChange={setDateFilter} />
-          <KpiStrip stats={stats} activeKey={kpiFilter} onSelect={setKpiFilter} />
-        </div>
+        <DispatcherTabs activeTab={activeTab} />
 
-        {/* Search bar */}
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by load #, container #, BOL, booking..."
-            className="flex-1 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40"
-          />
-        </div>
+        {activeTab === 'loadBoard' && (
+          <>
+            {/* Date filter + KPI strip */}
+            <div className="space-y-3">
+              <DateFilterDropdown value={dateFilter} onChange={setDateFilter} />
+              <KpiStrip stats={stats} activeKey={kpiFilter} onSelect={setKpiFilter} />
+            </div>
 
-        {error && <Alert type="error" message={error} />}
+            {/* Search bar */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by load #, container #, BOL, booking..."
+                className="flex-1 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40"
+              />
+            </div>
 
-        {/* Board — apply KPI filter client-side */}
-        {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-static-element-interactions */}
-        <div onClick={handleBoardClick}>
-        <DispatcherBoard
-          loads={applyKpiFilter(loads)}
-          loading={loading}
-          preferences={preferences}
-          onPreferencesChange={updatePreferences}
-          onCellSave={handleCellSave}
-          tenantColors={tenantColors}
-          selectedIds={selectedIds}
-          onToggleSelect={toggleSelect}
-          onToggleSelectAll={toggleSelectAll}
-          flashingIds={flashingIds}
-          scrollContainerRef={boardScrollRef}
-          cursorLayer={livePresenceEnabled ? <LiveCursorLayer cursors={liveCursors} /> : null}
-        />
+            {error && <Alert type="error" message={error} />}
 
-        {/* Spacer so rows aren't hidden behind the bulk action bar */}
-        {selectedIds.size > 0 && <div className="h-20" />}
-        </div>
+            {/* Board — apply KPI filter client-side */}
+            {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-static-element-interactions */}
+            <div onClick={handleBoardClick}>
+              <DispatcherBoard
+                loads={applyKpiFilter(loads)}
+                loading={loading}
+                preferences={preferences}
+                onPreferencesChange={updatePreferences}
+                onCellSave={handleCellSave}
+                tenantColors={tenantColors}
+                selectedIds={selectedIds}
+                onToggleSelect={toggleSelect}
+                onToggleSelectAll={toggleSelectAll}
+                flashingIds={flashingIds}
+                scrollContainerRef={boardScrollRef}
+                cursorLayer={livePresenceEnabled ? <LiveCursorLayer cursors={liveCursors} /> : null}
+              />
+
+              {/* Spacer so rows aren't hidden behind the bulk action bar */}
+              {selectedIds.size > 0 && <div className="h-20" />}
+            </div>
+          </>
+        )}
+
+        {activeTab === 'planner' && (
+          <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+            Driver Planner — coming online in subsequent tasks.
+          </div>
+        )}
       </div>
 
       <NewLoadModal
