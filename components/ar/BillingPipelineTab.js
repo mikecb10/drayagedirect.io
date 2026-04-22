@@ -9,6 +9,7 @@ import { formatInvoiceNumber } from '../../lib/invoice-utils';
 import BulkActionBar from './BulkActionBar';
 import BulkGroupingModal from './BulkGroupingModal';
 import BulkEmailQueue from './BulkEmailQueue';
+import MarginBadge from '../ui/MarginBadge';
 
 const STATUS_BADGES = {
   draft: { label: 'Draft', cls: 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300' },
@@ -494,15 +495,16 @@ export default function BillingPipelineTab({ filters = {} }) {
                 <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Status</th>
                 <th className="text-center px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Items</th>
                 <th className="text-right px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Total</th>
+                <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Margin</th>
                 <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Created</th>
                 <th className="w-10"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-slate-800">
               {loading ? (
-                <tr><td colSpan={10} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">Loading...</td></tr>
+                <tr><td colSpan={11} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">Loading...</td></tr>
               ) : chargeSets.length === 0 ? (
-                <tr><td colSpan={10} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">
+                <tr><td colSpan={11} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">
                   {activeFilter ? 'No charge sets match this filter.' : 'No charge sets found.'}
                 </td></tr>
               ) : (
@@ -568,6 +570,11 @@ export default function BillingPipelineTab({ filters = {} }) {
                       </td>
                       <td className="px-4 py-2.5 text-center text-xs text-gray-600 dark:text-slate-300">{(cs.line_items || []).length}</td>
                       <td className="px-4 py-2.5 text-right font-semibold text-gray-900 dark:text-slate-100">{formatCents(cs.total_cents)}</td>
+                      <td className="px-4 py-2.5">
+                        {cs.margin
+                          ? <MarginBadge marginPct={cs.margin.marginPct} bucket={cs.margin.bucket} size="sm" />
+                          : null}
+                      </td>
                       <td className="px-4 py-2.5 text-xs text-gray-500 dark:text-slate-400">
                         {cs.created_at ? new Date(cs.created_at).toLocaleDateString() : '—'}
                       </td>

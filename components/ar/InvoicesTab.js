@@ -8,6 +8,7 @@ import Select from '../ui/Select';
 import { formatCents } from '../../lib/ar-utils';
 import EmailComposeSlideOver from './EmailComposeSlideOver';
 import { useEmailCompose } from '../../hooks/useEmailCompose';
+import MarginBadge from '../ui/MarginBadge';
 
 const STATUS_BADGES = {
   draft: { variant: 'gray', label: 'Draft' },
@@ -194,6 +195,7 @@ export default function InvoicesTab({ filters = {} }) {
                 <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Status</th>
                 <th className="text-right px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Total</th>
                 <th className="text-right px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Balance</th>
+                <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Margin</th>
                 <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Due Date</th>
                 <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Loads</th>
                 <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Actions</th>
@@ -201,9 +203,9 @@ export default function InvoicesTab({ filters = {} }) {
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-slate-800">
               {loading ? (
-                <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">Loading...</td></tr>
+                <tr><td colSpan={9} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">Loading...</td></tr>
               ) : invoices.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">No invoices yet.</td></tr>
+                <tr><td colSpan={9} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">No invoices yet.</td></tr>
               ) : (
                 invoices.map((inv) => {
                   const badge = STATUS_BADGES[inv.status] || STATUS_BADGES.draft;
@@ -225,6 +227,11 @@ export default function InvoicesTab({ filters = {} }) {
                         <span className={inv.balance_due_cents > 0 ? 'font-semibold text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}>
                           {formatCents(inv.balance_due_cents)}
                         </span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {inv.margin
+                          ? <MarginBadge marginPct={inv.margin.marginPct} bucket={inv.margin.bucket} size="sm" />
+                          : null}
                       </td>
                       <td className="px-4 py-2.5 text-xs text-gray-500 dark:text-slate-400">
                         {inv.due_date ? new Date(inv.due_date).toLocaleDateString() : '—'}
