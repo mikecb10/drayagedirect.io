@@ -36,12 +36,17 @@ export default function InvoicesTab({ filters = {} }) {
   const [creating, setCreating] = useState(false);
 
   // 2a.4c: bulk resend selection state. Only sent/overdue invoices are
-  // selectable. Mirrors BillingPipelineTab's pattern.
+  // selectable. Mirrors BillingPipelineTab's pattern. Toast is intentionally
+  // omitted — BulkEmailQueue surfaces per-row status pills which is richer
+  // than a single-line toast would be.
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [lastClickedId, setLastClickedId] = useState(null);
-  const [bulkAction, setBulkAction] = useState(null); // 'resend' | null
   const [groupingModalInvoices, setGroupingModalInvoices] = useState(null);
   const [queueState, setQueueState] = useState(null);
+
+  // Derived: "resend" whenever the queue modal is open. Disables row
+  // checkboxes + animates the InvoicesBulkBar icon while mid-send.
+  const bulkAction = queueState ? 'resend' : null;
 
   async function load() {
     setLoading(true);
