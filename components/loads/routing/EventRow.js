@@ -44,12 +44,21 @@ export default function EventRow({
   orderId,
   drivers = [],
   dryRuns = [],
+  onDryRunsChange,   // parent RoutingTab's refetch — call after save/edit so
+                     // allDryRuns stays in sync with the DB and can't overwrite
+                     // localDryRuns with stale data on a subsequent re-render
 }) {
   const [editingLocation, setEditingLocation] = useState(false);
   const [dryRunSlideOpen, setDryRunSlideOpen] = useState(false);
   const [editingRun, setEditingRun] = useState(null);
+  // Local mirror of dryRuns for instant optimistic updates; parent refetch
+  // via onDryRunsChange keeps allDryRuns authoritative.
   const [localDryRuns, setLocalDryRuns] = useState(dryRuns);
-  useEffect(() => { setLocalDryRuns(dryRuns); }, [dryRuns]);
+  // Keyed on a content signature so the effect only fires when something
+  // actually changed — not on every parent render (where dryRuns is a new
+  // array reference from .filter()).
+  const dryRunsSig = dryRuns.map((r) => `${r.id}:${r.ar_amount_cents}:${r.ap_amount_cents}:${r.miles || 0}`).join('|');
+  useEffect(() => { setLocalDryRuns(dryRuns); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [dryRunsSig]);
 
   const isDryRunEligible = DRY_RUN_ELIGIBLE_EVENTS.has(event.event_type);
 
@@ -279,6 +288,10 @@ export default function EventRow({
               const data = await res.json();
               setLocalDryRuns(data.dry_runs || []);
             } catch {}
+            // Also tell the parent to refresh allDryRuns so its data stays
+            // authoritative and subsequent re-renders don't clobber local
+            // state with stale parent props.
+            onDryRunsChange?.();
           }}
           orderId={orderId}
           event={{

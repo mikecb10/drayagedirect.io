@@ -77,6 +77,19 @@ export default function RoutingTab({ load, onLoadRefresh }) {
   const [drivers, setDrivers] = useState([]);
   const [allDryRuns, setAllDryRuns] = useState([]);
 
+  // Refetch dry runs — exposed as a callback so EventRow can trigger a refresh
+  // after save/edit. Without this, localDryRuns in EventRow can drift from
+  // parent allDryRuns when the parent re-renders for unrelated reasons (the
+  // filter().map() creates a new array reference each render, triggering
+  // EventRow's sync-effect with stale parent data).
+  const refetchDryRuns = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/tenant/loads/${load.id}/dry-runs`);
+      const data = await res.json();
+      setAllDryRuns(data?.dry_runs || []);
+    } catch {}
+  }, [load.id]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -1058,6 +1071,7 @@ export default function RoutingTab({ load, onLoadRefresh }) {
                       orderId={load.id}
                       drivers={drivers}
                       allDryRuns={allDryRuns}
+                      onDryRunsChange={refetchDryRuns}
                     />
                   );
                 })}

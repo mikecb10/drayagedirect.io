@@ -76,6 +76,7 @@ export default function ContainerMoveCard({
   orderId,
   drivers = [],
   allDryRuns = [],
+  onDryRunsChange,
 }) {
   // Also register the whole card as a droppable fallback
   const { setNodeRef: setCardRef, isOver: isCardOver } = useDroppable({
@@ -364,6 +365,7 @@ export default function ContainerMoveCard({
                     orderId={orderId}
                     drivers={drivers}
                     dryRuns={allDryRuns.filter((r) => r.event_id === ev.id)}
+                    onDryRunsChange={onDryRunsChange}
                   />
                   {/* Drop zone after each event — only shown if the
                       insertion position is > lastTouchedIdx (can't
