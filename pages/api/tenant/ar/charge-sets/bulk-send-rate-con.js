@@ -244,8 +244,14 @@ export default async function handler(req, res) {
       templateId: null,
       configurationId: fullConfig.id,
       sentByUserId: ctx.userId,
-      relatedEntity: { type: 'charge_set_rate_con_bulk', id: sendableCsIds.join(',') },
-      eventName: 'manual:rate_con_bulk_send',
+      // NOTE: Do NOT pass relatedEntity + eventName here. They trigger
+      // dispatchEmail's inline audit row with umbrella_decisions[0].type
+      // = 'manual'. For the bulk flow, we write our own audit row via
+      // logManualBulkRateConSend below with type='manual_bulk_rate_con'
+      // so queries can discriminate single vs bulk sends. Supplying the
+      // fields here produces a duplicate (and misleading) audit row.
+      relatedEntity: null,
+      eventName: null,
       // 2a.5 precedence helpers: supply objects so dispatcher resolves
       // display name + reply-to via the unified helper path.
       config: fullConfig,
