@@ -14,7 +14,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * @param {Array} groups  - from BulkGroupingModal.onContinue
  * @param {'customer'|'reference'|'charge_set'} groupingKind
  */
-export function useBulkEmailQueue(groups, groupingKind, docType = 'invoice') {
+export function useBulkEmailQueue(groups, groupingKind, docType = 'invoice', mode = 'first-send') {
   const [rows, setRows] = useState(() => groups.map((g) => ({
     groupKey: g.key,
     group: g,
@@ -224,6 +224,9 @@ export function useBulkEmailQueue(groups, groupingKind, docType = 'invoice') {
               grouping_kind: groupingKind,
               group_label: r.group.label,
             },
+            // 2a.4c: resend flag. Only invoice docType currently supports resend;
+            // for rate-con it's silently ignored by the endpoint.
+            ...(mode === 'resend' ? { force_resend: true } : {}),
           }),
         }).then(async (res) => {
           if (!res.ok) {
@@ -258,7 +261,7 @@ export function useBulkEmailQueue(groups, groupingKind, docType = 'invoice') {
     }));
 
     return results;
-  }, [groupingKind, cfg.sendUrl, cfg.idField]);
+  }, [groupingKind, cfg.sendUrl, cfg.idField, mode]);
 
   const sendReady   = useCallback(() => sendRowsByStatus('ready'),  [sendRowsByStatus]);
   const retryFailed = useCallback(() => sendRowsByStatus('failed'), [sendRowsByStatus]);
