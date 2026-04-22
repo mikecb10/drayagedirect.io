@@ -60,13 +60,23 @@ export default async function handler(req, res) {
         .eq('charge_profile_id', arProfile.id)
         .order('created_at', { ascending: false })
         .limit(10);
-      const arTier =
-        (arTierResult.data || []).find(
-          (t) =>
-            (!t.start_date || t.start_date <= occurredDateStr) &&
-            (!t.end_date || t.end_date >= occurredDateStr)
-        ) || (arTierResult.data || [])[0];
-      if (!arTier) return res.status(400).json({ error: 'AR profile has no tier configured' });
+      // Strict date-range match — no silent fallback to tiers[0]. Matches the
+      // behavior in dry-runs/index.js + [attemptId].js. Without this, the
+      // preview would show a tier price that doesn't actually fire on save,
+      // confusing the dispatcher with mismatched numbers.
+      const arTier = (arTierResult.data || []).find(
+        (t) =>
+          (!t.start_date || t.start_date <= occurredDateStr) &&
+          (!t.end_date || t.end_date >= occurredDateStr)
+      );
+      if (!(arTierResult.data || []).length) {
+        return res.status(400).json({ error: `AR profile "${arProfile.name}" has no tier configured` });
+      }
+      if (!arTier) {
+        return res.status(400).json({
+          error: `AR profile "${arProfile.name}" has no tier covering ${occurredDateStr}. Configure a tier with a matching effective date range, or change the dry-run occurred-at date.`,
+        });
+      }
 
       // AP profile + most-recent tier (v1 — no date filtering)
       const apResult = await svc
