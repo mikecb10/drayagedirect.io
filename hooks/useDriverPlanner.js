@@ -139,9 +139,16 @@ export default function useDriverPlanner({ date, driverSearch = '', branchId = n
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'order_container_moves', filter: `tenant_id=eq.${tenantId}` },
-        () => {
-          // Simple strategy for v1: refetch on any move change. Avoids the
-          // complexity of client-side delta reconciliation. Debounced above.
+        (payload) => {
+          // v1 strategy: refetch on any planner-relevant move change rather
+          // than reconcile deltas client-side. The pre-filter below avoids
+          // burning a refetch on moves that can't affect THIS date's view
+          // — an assigned move on another date, or an unassigned move that
+          // just got assigned to a driver on another date.
+          const nw = payload.new || {};
+          const old = payload.old || {};
+          const relevantDate = (m) => m.scheduled_date === date || m.driver_id == null;
+          if (!relevantDate(nw) && !relevantDate(old)) return;
           scheduleRefetch();
         }
       )

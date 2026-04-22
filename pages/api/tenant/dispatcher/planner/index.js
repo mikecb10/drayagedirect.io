@@ -64,6 +64,7 @@ export default async function handler(req, res) {
         last_free_day, container_at_port, empty_ready_for_return_at, branch_id,
         status, deleted_at, actual_delivery_at
       ),
+      chassis:equipment_chassis(id, chassis_number),
       events:order_routing_events!order_routing_events_move_id_fkey(
         id, sequence, event_type, location_id, location_name, city, state,
         scheduled_at, arrived_at, departed_at
@@ -74,7 +75,15 @@ export default async function handler(req, res) {
 
   // Either: scheduled on this date (assigned moves shown on grid)
   // OR: unassigned (right-rail pool — shown regardless of scheduled_date)
-  moveQuery = moveQuery.or(`scheduled_date.eq.${date},driver_id.is.null`);
+  //
+  // Safety limit: cap at 500 rows to protect against runaway payload on
+  // high-volume tenants (per-date assigned rows + tenant-wide unassigned
+  // pool). If a real tenant hits this, the correct answer is a bounded
+  // unassigned-pool query (e.g. recency filter) rather than a bigger limit.
+  moveQuery = moveQuery
+    .or(`scheduled_date.eq.${date},driver_id.is.null`)
+    .order('sort_order', { ascending: true })
+    .limit(500);
 
   const { data: moves, error: movesErr } = await moveQuery;
   if (movesErr) return res.status(500).json({ error: movesErr.message });
@@ -173,7 +182,7 @@ export default async function handler(req, res) {
           ? new Date(pickup.scheduled_at).toISOString().slice(11, 16) // HH:MM UTC
           : null,
         truck_number: d.truck_number || null,
-        chassis_number: ref?.chassis_id || null,
+        chassis_number: ref?.chassis?.chassis_number || null,
         container_size: ref?.order?.container_size || null,
       },
       eld: d.eld_snapshot && Object.keys(d.eld_snapshot).length > 0 ? d.eld_snapshot : null,

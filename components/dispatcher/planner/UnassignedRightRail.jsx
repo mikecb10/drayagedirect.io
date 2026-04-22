@@ -36,7 +36,7 @@ export default function UnassignedRightRail({ buckets }) {
     <div className="flex flex-col h-full">
       <div className="p-2 border-b border-gray-200 dark:border-gray-700">
         <div className="relative">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
           <input
             type="text"
             placeholder="Search unassigned…"

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 import { DndContext, PointerSensor, KeyboardSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core';
 import useDriverPlanner from '../../../hooks/useDriverPlanner';
@@ -21,9 +21,24 @@ export default function DriverPlannerView() {
   const [driverSearch, setDriverSearch] = useState('');
   const [includeInactive, setIncludeInactive] = useState(false);
   const [previewMove, setPreviewMove] = useState(null);
+  // Local toast — mirrors the dispatcher page's bulkFlash pattern. Replaces
+  // blocking browser alert() calls for mutation-failure / drag-blocked errors.
+  const [toast, setToast] = useState(null); // { message, kind: 'error' | 'info' }
+
+  function showToast(message, kind = 'error') {
+    setToast({ message, kind });
+    setTimeout(() => setToast((t) => (t?.message === message ? null : t)), 3500);
+  }
 
   const { drivers, movesByDriverId, unassignedBuckets, isLoading, error, mutations, refetch } =
     useDriverPlanner({ date, driverSearch, includeInactive });
+
+  // Fast driver lookup for the preview panel's Assignment row and anywhere
+  // else we need to render a name from a driver_id on the move.
+  const driversById = useMemo(
+    () => Object.fromEntries((drivers || []).map((d) => [d.id, d])),
+    [drivers]
+  );
 
   // Open a load as a popup overlay (not a new browser tab) — keeps the user
   // in the planner context. Refetch on close so any edits made inside the
@@ -68,14 +83,14 @@ export default function DriverPlannerView() {
     // Guard: in_progress/completed/cancelled cannot be moved — useDraggable
     // already disables these for assigned-moves, but belt-and-suspenders:
     if (['in_progress', 'completed', 'cancelled'].includes(move.status)) {
-      alert("Can't move a job that's already in progress. Reverse status on the Load Detail page first.");
+      showToast("Can't move a job that's already in progress. Reverse status on the Load Detail page first.", 'info');
       return;
     }
 
     try {
       await mutations.assign({ move, driverId, index });
     } catch (e) {
-      alert(`Assign failed: ${e.message}`);
+      showToast(`Assign failed: ${e.message}`);
     }
   }
 
@@ -104,8 +119,8 @@ export default function DriverPlannerView() {
                 movesByDriverId={movesByDriverId}
                 onClickPreview={(m) => setPreviewMove(m)}
                 onOpenLoad={handleOpenLoad}
-                onDispatch={(m) => mutations.dispatch({ moveId: m.id }).catch((e) => alert(`Dispatch failed: ${e.message}`))}
-                onUnassign={(m) => mutations.unassign({ move: m, bucket: 'other' }).catch((e) => alert(`Unassign failed: ${e.message}`))}
+                onDispatch={(m) => mutations.dispatch({ moveId: m.id }).catch((e) => showToast(`Dispatch failed: ${e.message}`))}
+                onUnassign={(m) => mutations.unassign({ move: m, bucket: 'other' }).catch((e) => showToast(`Unassign failed: ${e.message}`))}
               />
             )}
           </div>
@@ -119,7 +134,23 @@ export default function DriverPlannerView() {
         move={previewMove}
         onClose={() => setPreviewMove(null)}
         onOpenLoad={handleOpenLoad}
+        driversById={driversById}
       />
+
+      {toast && (
+        <div
+          className={[
+            'fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg shadow-lg text-sm font-medium max-w-md',
+            toast.kind === 'error'
+              ? 'bg-red-600 text-white'
+              : 'bg-slate-700 text-white',
+          ].join(' ')}
+          role="alert"
+          onClick={() => setToast(null)}
+        >
+          {toast.message}
+        </div>
+      )}
     </DndContext>
   );
 }

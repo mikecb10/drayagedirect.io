@@ -1,9 +1,12 @@
 import { X } from 'lucide-react';
 
-export default function MovePreviewPanel({ move, onClose, onOpenLoad }) {
+export default function MovePreviewPanel({ move, onClose, onOpenLoad, driversById = {} }) {
   if (!move) return null;
   const order = move.order || {};
-  const driverLine = move.driver_id ? `Assigned driver: ${move.driver_id.slice(0, 8)}…` : 'Unassigned';
+  const driver = move.driver_id ? driversById[move.driver_id] : null;
+  const driverLine = move.driver_id
+    ? `Assigned driver: ${driver?.name || `${move.driver_id.slice(0, 8)}…`}`
+    : 'Unassigned';
 
   return (
     <div className="fixed inset-y-0 right-0 w-[420px] bg-white dark:bg-gray-900 shadow-2xl border-l border-gray-200 dark:border-gray-700 z-40 flex flex-col">

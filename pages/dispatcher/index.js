@@ -123,9 +123,14 @@ export default function DispatcherIndex() {
   }
 
   useEffect(() => {
+    // Only fetch loads when the Load Board tab is active. The Driver Planner
+    // tab has its own data-fetching stack (useDriverPlanner) and doesn't need
+    // the board's loads list. When the user switches back to the Load Board,
+    // this effect re-runs and refreshes.
+    if (activeTab !== 'loadBoard') return;
     fetchLoads();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, filters, dateFilter]);
+  }, [search, filters, dateFilter, activeTab]);
 
   useEffect(() => {
     if (router.query.new === '1') setModalOpen(true);
@@ -214,7 +219,9 @@ export default function DispatcherIndex() {
   // refreshSingleLoad to pull the joined customer/driver/etc. data.
   // This is still surgical — only one row re-renders.
   const { markSelfEdit, connectedRef: realtimeConnectedRef } = useRealtimeLoads({
-    enabled: true,
+    // Realtime subscription only makes sense on the Load Board tab. The
+    // Driver Planner has its own realtime channel (see useDriverPlanner).
+    enabled: activeTab === 'loadBoard',
     onInsert: async (row) => {
       // Fetch full joined data and prepend to the board
       try {
@@ -255,12 +262,14 @@ export default function DispatcherIndex() {
     channelReady: presenceReady,
     tabId: presenceTabId,
   } = useRealtimePresence({
-    enabled: livePresenceEnabled,
+    // Presence is a Load Board feature (cursors + avatars on rows). Gate
+    // it off when the Driver Planner tab is active.
+    enabled: livePresenceEnabled && activeTab === 'loadBoard',
     room: 'dispatcher',
   });
 
   const { cursors: liveCursors } = useLiveCursors({
-    enabled: livePresenceEnabled,
+    enabled: livePresenceEnabled && activeTab === 'loadBoard',
     channelRef: presenceChannelRef,
     channelReady: presenceReady,
     tabId: presenceTabId,

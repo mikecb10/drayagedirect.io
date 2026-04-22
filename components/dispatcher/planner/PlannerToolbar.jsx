@@ -30,7 +30,7 @@ export default function PlannerToolbar({ date, driverSearch, onDriverSearchChang
       </label>
 
       <div className="relative flex-1 max-w-sm">
-        <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
         <input
           type="text"
           placeholder="Search drivers by name or truck #"
