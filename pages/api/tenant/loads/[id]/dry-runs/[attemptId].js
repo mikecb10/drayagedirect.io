@@ -44,15 +44,25 @@ async function loadArProfileAndTier(svc, tenantId, profileId, occurredDateStr) {
     .order('created_at', { ascending: false })
     .limit(10);
 
-  const tier =
-    (tiers || []).find(
-      (t) =>
-        (!t.start_date || t.start_date <= occurredDateStr) &&
-        (!t.end_date || t.end_date >= occurredDateStr)
-    ) || (tiers || [])[0];
+  // Strict date-range match — no silent fallback to tiers[0]. See sibling
+  // dry-runs/index.js for rationale.
+  const tier = (tiers || []).find(
+    (t) =>
+      (!t.start_date || t.start_date <= occurredDateStr) &&
+      (!t.end_date || t.end_date >= occurredDateStr)
+  );
 
+  if (!(tiers || []).length) {
+    throw Object.assign(new Error(`AR profile "${profile.name}" has no tier configured`), { status: 400 });
+  }
   if (!tier) {
-    throw Object.assign(new Error('AR profile has no tier configured'), { status: 400 });
+    throw Object.assign(
+      new Error(
+        `AR profile "${profile.name}" has no tier covering ${occurredDateStr}. ` +
+          `Configure a tier with a matching effective date range, or change the dry-run occurred-at date.`
+      ),
+      { status: 400 }
+    );
   }
 
   return { profile, tier };
@@ -334,29 +344,32 @@ export default async function handler(req, res) {
 
     const now = new Date().toISOString();
 
-    // Soft-delete parent
-    const { error: softErr } = await svc
-      .from('dry_run_attempts')
-      .update({ deleted_at: now })
-      .eq('id', attemptId);
+    // Order matters: hard-delete CHILDREN first, then soft-delete the parent.
+    // If we soft-deleted the parent first and a child delete then failed, the
+    // child rows would still be visible in Billing/DriverPay (they have no
+    // deleted_at column) but pointing at a soft-deleted parent that PATCH/GET
+    // filter out — orphaned ghost rows.
 
-    if (softErr) return res.status(500).json({ error: softErr.message });
-
-    // Hard-delete AR line items (no deleted_at on this table)
+    // Hard-delete AR line items
     const { error: liErr } = await svc
       .from('order_charge_set_line_items')
       .delete()
       .eq('dry_run_attempt_id', attemptId);
-
     if (liErr) return res.status(500).json({ error: `Failed to delete line item: ${liErr.message}` });
 
-    // Hard-delete AP pay lines (no deleted_at on this table)
+    // Hard-delete AP pay lines
     const { error: payErr } = await svc
       .from('order_driver_pay_lines')
       .delete()
       .eq('dry_run_attempt_id', attemptId);
-
     if (payErr) return res.status(500).json({ error: `Failed to delete pay line: ${payErr.message}` });
+
+    // Soft-delete parent last (so children are gone before parent is filtered out)
+    const { error: softErr } = await svc
+      .from('dry_run_attempts')
+      .update({ deleted_at: now })
+      .eq('id', attemptId);
+    if (softErr) return res.status(500).json({ error: softErr.message });
 
     // Audit
     await logTenantAction(svc, {

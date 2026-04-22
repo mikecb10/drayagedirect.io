@@ -12,6 +12,37 @@ const ALLOWED = [
 ];
 
 // ---------------------------------------------------------------------------
+// Rollback helper — used when a downstream insert fails after the parent
+// `dry_run_attempts` row has already landed. Soft-deletes the parent (and
+// optionally hard-deletes the AR line item if it landed before the failing
+// step). Always checks its own errors and logs to stderr so on-call engineers
+// can clean up rows that get stuck active by a rollback failure (e.g. network
+// drop, RLS misconfiguration, transient DB outage).
+// ---------------------------------------------------------------------------
+async function rollbackAttempt(svc, attemptId, { hardDeleteAr = false, context = 'unknown' } = {}) {
+  if (hardDeleteAr) {
+    const { error: arDelErr } = await svc
+      .from('order_charge_set_line_items')
+      .delete()
+      .eq('dry_run_attempt_id', attemptId);
+    if (arDelErr) {
+      console.error(
+        `[dry_run.rollback] (${context}) FAILED to hard-delete AR line for attempt ${attemptId}: ${arDelErr.message} — manual cleanup may be required`
+      );
+    }
+  }
+  const { error: parentErr } = await svc
+    .from('dry_run_attempts')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', attemptId);
+  if (parentErr) {
+    console.error(
+      `[dry_run.rollback] (${context}) FAILED to soft-delete parent ${attemptId}: ${parentErr.message} — MANUAL CLEANUP REQUIRED`
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Shared: load AR profile + applicable tier
 // ---------------------------------------------------------------------------
 async function loadArProfileAndTier(svc, tenantId, profileId, occurredDateStr) {
@@ -39,15 +70,28 @@ async function loadArProfileAndTier(svc, tenantId, profileId, occurredDateStr) {
     .order('created_at', { ascending: false })
     .limit(10);
 
-  const tier =
-    (tiers || []).find(
-      (t) =>
-        (!t.start_date || t.start_date <= occurredDateStr) &&
-        (!t.end_date || t.end_date >= occurredDateStr)
-    ) || (tiers || [])[0];
+  // Strict date-range match — no silent fallback to tiers[0]. If the
+  // dispatcher records a dry run on a date that no tier covers, fail loud
+  // so they can either correct the date or configure a tier that covers
+  // the date. Falling back to "most recent tier" silently could price the
+  // dry run with a future or expired rate, which is bad invoicing hygiene.
+  const tier = (tiers || []).find(
+    (t) =>
+      (!t.start_date || t.start_date <= occurredDateStr) &&
+      (!t.end_date || t.end_date >= occurredDateStr)
+  );
 
+  if (!(tiers || []).length) {
+    throw Object.assign(new Error(`AR profile "${profile.name}" has no tier configured`), { status: 400 });
+  }
   if (!tier) {
-    throw Object.assign(new Error('AR profile has no tier configured'), { status: 400 });
+    throw Object.assign(
+      new Error(
+        `AR profile "${profile.name}" has no tier covering ${occurredDateStr}. ` +
+          `Configure a tier with a matching effective date range, or change the dry-run occurred-at date.`
+      ),
+      { status: 400 }
+    );
   }
 
   return { profile, tier };
@@ -241,12 +285,17 @@ export default async function handler(req, res) {
       .maybeSingle();
 
     let chargeSet;
+    // Editable charge-set statuses for dry-run line-item insertion. Includes
+    // 'rate_con_sent' so a load that's only had its rate-con sent (but not
+    // yet been approved/invoiced) reuses that charge set rather than spawning
+    // a fresh 'draft' set per dry run. The invoiced statuses (approved /
+    // invoiced / billed / rebilling) are intentionally excluded.
     const { data: existingSets } = await svc
       .from('order_charge_sets')
       .select('id, status')
       .eq('tenant_id', ctx.tenantId)
       .eq('order_id', orderId)
-      .in('status', ['draft', 'unapproved'])
+      .in('status', ['draft', 'unapproved', 'rate_con_sent'])
       .order('created_at', { ascending: true })
       .limit(1);
 
@@ -267,11 +316,7 @@ export default async function handler(req, res) {
         .single();
 
       if (csErr) {
-        // Clean up parent
-        await svc
-          .from('dry_run_attempts')
-          .update({ deleted_at: new Date().toISOString() })
-          .eq('id', attempt.id);
+        await rollbackAttempt(svc, attempt.id, { context: 'charge-set-create' });
         return res.status(500).json({ error: `Failed to create charge set: ${csErr.message}` });
       }
       chargeSet = newSet;
@@ -313,10 +358,7 @@ export default async function handler(req, res) {
     });
 
     if (liErr) {
-      await svc
-        .from('dry_run_attempts')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', attempt.id);
+      await rollbackAttempt(svc, attempt.id, { context: 'ar-line-insert' });
       return res.status(500).json({ error: `Failed to create charge set line item: ${liErr.message}` });
     }
 
@@ -336,17 +378,11 @@ export default async function handler(req, res) {
     });
 
     if (payErr) {
-      // CRITICAL: the AR line already landed. order_charge_set_line_items has
+      // CRITICAL: AR line already landed. order_charge_set_line_items has
       // no deleted_at, and FK CASCADE only fires on hard parent DELETE — so
-      // soft-deleting the parent would orphan the AR line (user sees a ghost
-      // "Dry Run" row in Billing that can't be edited or deleted via the
-      // slide-over because PATCH filters deleted_at IS NULL).
-      // Hard-delete the AR line first, THEN soft-delete the parent.
-      await svc.from('order_charge_set_line_items').delete().eq('dry_run_attempt_id', attempt.id);
-      await svc
-        .from('dry_run_attempts')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', attempt.id);
+      // we hard-delete the AR line first to prevent it being orphaned and
+      // appearing as an unreachable ghost row in Billing.
+      await rollbackAttempt(svc, attempt.id, { hardDeleteAr: true, context: 'ap-line-insert' });
       return res.status(500).json({ error: `Failed to create driver pay line: ${payErr.message}` });
     }
 
