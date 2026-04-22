@@ -324,7 +324,7 @@ export default async function handler(req, res) {
       .update(updatePayload)
       .eq('tenant_id', ctx.tenantId)
       .in('id', sendableInvoiceIds);
-    if (updErr) throw new Error(`sent_at update: ${updErr.message}`);
+    if (updErr) throw new Error(`postdispatch update: ${updErr.message}`);
 
     // Single bulk audit-log row.
     await logManualBulkSend(svc, {
@@ -363,6 +363,7 @@ export default async function handler(req, res) {
     }
 
     // Audit-log the failure (best-effort — don't let log failure mask the real error).
+    // Note: force_resend destructured inside try — re-read from req.body here.
     try {
       await logManualBulkSend(svc, {
         tenantId: ctx?.tenantId ?? null,
