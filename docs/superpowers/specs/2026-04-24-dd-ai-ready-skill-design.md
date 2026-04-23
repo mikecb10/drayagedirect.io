@@ -240,18 +240,18 @@ Four new `followups.md` entries written.
 **Edit:** Added `if (load.commodity === 'HAZMAT') total += 250;` in `lib/pricing/calculate-invoice.js:134`.
 
 **Gate evaluation:**
-- G4 (Business logic): YES — hardcoded conditional in pricing code outside `lib/rules/*`
+- G4 (Business logic): YES — hardcoded conditional in pricing code outside the rules-engine file set (see G5 for authoritative list)
 
 **Adaptive checks:**
-- BL-1 (can it move to rules engine): the charge profile engine already supports commodity-based rules → finding: "move to charge profile engine"
+- BL-1 (shape-based move candidate): the conditional has a clear `operator` (equals), `condition` field (`load.commodity`), and `action` (add 250) — shape matches the `operator + condition + action` pattern the tariff / charge-profile / driver-pay-rule engines use → finding: "move to rules engine, specific engine TBD during review"
 - BL-2 (tenant-specific): not tenant-specific → no elevation
-- BL-3 (magic number): $250 is a magic number that should come from tenant config → already covered by BL-1's recommendation (moving to rules engine makes it tenant-configurable)
+- BL-3 (magic number): $250 is a magic number → already covered by BL-1's recommendation (moving to rules engine makes it tenant-configurable)
 
 **Output:**
 ```
 ⚠ dd-ai-ready: 1 AI-readiness finding
 
-1. [Business-logic] lib/pricing/calculate-invoice.js:134 — Hardcoded hazmat commodity surcharge. Move to the charge profile engine, which already supports commodity-based rules. → FU-149
+1. [Business-logic] lib/pricing/calculate-invoice.js:134 — Move rule from lib/pricing/calculate-invoice.js:134 to the rules engine — shape matches the operator + condition + action pattern the tariff / charge-profile / driver-pay-rule engines use. Specific engine selection to be determined during review. → FU-149
 ```
 
 ## Relationship to Stream B and Stream C
