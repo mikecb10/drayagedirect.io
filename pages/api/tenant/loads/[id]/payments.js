@@ -96,9 +96,49 @@ export default async function handler(req, res) {
     return res.status(200).json({ load_id: id, applications: [], total_applied_cents: 0 });
   }
 
-  // Step 4: all payment applications against those invoices, joined with
-  // the payment details (including optional document_url + filename) and
-  // the invoice number for display.
+  // Step 4 — split-billing share calculation.
+  //
+  // An invoice can span multiple loads (one customer, one invoice,
+  // charge sets from several loads — e.g. drayage + storage). When a
+  // payment applies to that invoice, each constituent load should see
+  // only its proportional share, not the full amount. Otherwise both
+  // loads display the same $X and the totals get double-counted.
+  //
+  // Share = (this load's charge set dollars on invoice N) ÷ (total
+  //          charge set dollars on invoice N).
+  //
+  // To compute: fetch EVERY charge set linked to any invoice in our
+  // set (not just this load's), along with its order_id + total_cents.
+  // Then per-invoice, sum the totals with a filter on order_id === load.
+  const { data: allCsLinks, error: linksErr } = await svc
+    .from('invoice_charge_sets')
+    .select('invoice_id, charge_set:order_charge_sets!charge_set_id(id, order_id, total_cents)')
+    .eq('tenant_id', ctx.tenantId)
+    .in('invoice_id', invoiceIds);
+  if (linksErr) return res.status(500).json({ error: linksErr.message });
+
+  const shareByInvoice = new Map(); // invoice_id → { load, total, share }
+  for (const link of (allCsLinks || [])) {
+    const cs = link.charge_set;
+    if (!cs) continue;
+    const cents = cs.total_cents || 0;
+    const entry = shareByInvoice.get(link.invoice_id) || { load: 0, total: 0 };
+    entry.total += cents;
+    if (cs.order_id === id) entry.load += cents;
+    shareByInvoice.set(link.invoice_id, entry);
+  }
+  for (const [invId, entry] of shareByInvoice) {
+    // total can be 0 if all charge sets on an invoice have total_cents = 0
+    // (shouldn't happen in practice but guard to avoid NaN). Fall back to
+    // the simple case — this load owns 100% — which preserves the prior
+    // non-split behavior for those edge-case invoices.
+    entry.share = entry.total > 0 ? entry.load / entry.total : 1;
+    shareByInvoice.set(invId, entry);
+  }
+
+  // Step 5: payment applications against those invoices, joined with the
+  // payment details (including optional document_url + filename) and
+  // invoice number for display.
   const { data: apps, error: appErr } = await svc
     .from('payment_applications')
     .select(`
@@ -115,14 +155,25 @@ export default async function handler(req, res) {
     .order('created_at', { ascending: false });
   if (appErr) return res.status(500).json({ error: appErr.message });
 
-  const applications = (apps || []).map((a) => ({
-    application_id: a.id,
-    invoice_id: a.invoice_id,
-    invoice_number: a.invoice?.invoice_number ?? null,
-    amount_cents: a.amount_cents,
-    applied_at: a.created_at,
-    payment: a.payment ?? null,
-  }));
+  // Apply share to each application. Round to nearest cent; over a payment's
+  // applications the rounded sum may differ from the unrounded total by
+  // a cent or two, which matches the general-ledger convention of per-
+  // line rounding over totals.
+  const applications = (apps || []).map((a) => {
+    const share = shareByInvoice.get(a.invoice_id)?.share ?? 1;
+    const fullAmount = a.amount_cents || 0;
+    const loadShareAmount = Math.round(fullAmount * share);
+    return {
+      application_id: a.id,
+      invoice_id: a.invoice_id,
+      invoice_number: a.invoice?.invoice_number ?? null,
+      amount_cents: loadShareAmount,                  // proportional to this load
+      full_application_cents: fullAmount,             // full amount applied to the invoice
+      share,                                          // 0..1, this load's share of the invoice
+      applied_at: a.created_at,
+      payment: a.payment ?? null,
+    };
+  });
   const total_applied_cents = applications.reduce((s, a) => s + (a.amount_cents || 0), 0);
 
   return res.status(200).json({

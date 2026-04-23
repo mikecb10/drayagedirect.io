@@ -30,18 +30,21 @@ const ALLOWED_MIME = new Set([
  *   POST   — upload a supporting document (check scan, wire confirmation,
  *            ACH receipt). Multipart form with a single `file` field.
  *            Stores in Storage bucket `documents` at
- *            `{tenantId}/payments/{paymentId}{ext}` and stamps
- *            payments_received.document_url + document_filename.
- *            Re-upload replaces the prior doc (upsert + URL points at the
- *            new path; the old path is orphaned and will age out with
- *            bucket lifecycle policy — fine for low-volume payment docs).
+ *            `{tenantId}/payments/{paymentId}-{timestamp}.{ext}`. The
+ *            timestamp makes each upload a unique key so re-uploading
+ *            does NOT overwrite the prior doc — storage is append-only
+ *            by convention for evidence retention. The payment row's
+ *            document_url is updated to point at the new key; prior
+ *            bytes remain accessible at their stored path for audit.
  *
- *   GET    — returns a 15-min signed URL for the stored document. Caller
- *            can fetch JSON { url, filename } or follow ?redirect=1 for
- *            a 302 into the signed URL (convenient for inline <a href>).
+ *   GET    — returns a 15-min signed URL for the currently-pointed-at
+ *            document. Caller can fetch JSON { url, filename } or follow
+ *            ?redirect=1 for a 302 into the signed URL.
  *
- *   DELETE — removes the document reference from the row and deletes the
- *            file from Storage. Does NOT delete the payment itself.
+ *   DELETE — clears document_url/document_filename on the payment row.
+ *            Does NOT remove the Storage file — prior uploads are
+ *            retained as evidence. The UI stops surfacing the doc but
+ *            the bytes are still in the bucket if audit needs them.
  */
 export default async function handler(req, res) {
   const ctx = await requireTenantUser(req, res);
@@ -84,10 +87,16 @@ export default async function handler(req, res) {
       try {
         const buffer = fs.readFileSync(filePath);
 
-        const storagePath = `${ctx.tenantId}/payments/${paymentId}${ext}`;
+        // Timestamp in the path makes every upload a fresh key. Re-uploading
+        // a replacement doc writes a new file rather than overwriting —
+        // previous bytes are preserved in the bucket at their original
+        // path for audit/evidence retention. upsert:false protects against
+        // accidental same-ms collisions (shouldn't happen but belt-and-
+        // suspenders).
+        const storagePath = `${ctx.tenantId}/payments/${paymentId}-${Date.now()}${ext}`;
         const { error: uploadErr } = await svc.storage
           .from(BUCKET)
-          .upload(storagePath, buffer, { contentType: mime, upsert: true });
+          .upload(storagePath, buffer, { contentType: mime, upsert: false });
         if (uploadErr) return res.status(500).json({ error: `Upload failed: ${uploadErr.message}` });
 
         const { error: updErr } = await svc
@@ -135,22 +144,19 @@ export default async function handler(req, res) {
 
   if (req.method === 'DELETE') {
     if (!payment.document_url) return res.status(200).json({ ok: true });
-    // DB first, Storage second. If the DB update fails, we return 500 and
-    // nothing is mutated — user can retry cleanly. If Storage remove fails
-    // after a successful DB clear, the row already looks correct to the
-    // UI (no paperclip icon, no click-through) and the orphan bytes age
-    // out with bucket lifecycle. Reversing this order made a partial
-    // failure reveal an icon that no longer resolved.
-    const oldPath = payment.document_url;
+    // Clear the row reference only. The Storage file itself is retained
+    // for evidence/audit purposes — customer docs (check scans, wire
+    // confirmations, ACH receipts) may be subject to later discovery or
+    // regulatory review. The UI stops surfacing the doc (no paperclip
+    // icon, no click-through) but the bytes remain at their stored path.
+    // If a future workflow needs a true erase (e.g., GDPR deletion
+    // request), that should be a separate privileged admin action.
     const { error: updErr } = await svc
       .from('payments_received')
       .update({ document_url: null, document_filename: null })
       .eq('id', paymentId)
       .eq('tenant_id', ctx.tenantId);
     if (updErr) return res.status(500).json({ error: updErr.message });
-    try {
-      await svc.storage.from(BUCKET).remove([oldPath]);
-    } catch { /* non-fatal — row-clear is the source of truth */ }
     return res.status(200).json({ ok: true });
   }
 

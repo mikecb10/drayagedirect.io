@@ -112,6 +112,12 @@ export default function PaymentsCreditsTab({ load }) {
           const method = p?.payment_method ? (METHOD_LABELS[p.payment_method] || p.payment_method) : '—';
           const paymentDate = p?.payment_date ? new Date(p.payment_date).toLocaleDateString() : '—';
           const appliedDate = a.applied_at ? new Date(a.applied_at).toLocaleDateString() : '—';
+          // Split-billing: if this load's share of the invoice is less than
+          // 100%, the display amount is proportional, not the full
+          // application. Show both so the operator knows this is a shared
+          // payment, not the literal applied total.
+          const isSplit = a.share != null && a.share < 0.999;
+          const sharePct = Math.round((a.share ?? 1) * 1000) / 10; // one decimal
           return (
             <div key={a.application_id} className="px-4 py-3 flex items-start gap-3">
               <div className="w-8 h-8 shrink-0 rounded-lg bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center">
@@ -122,6 +128,14 @@ export default function PaymentsCreditsTab({ load }) {
                   <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">
                     {formatCents(a.amount_cents)}
                   </span>
+                  {isSplit && (
+                    <span
+                      title={`This load's share: ${sharePct}% of invoice total. Full payment applied to invoice: ${formatCents(a.full_application_cents)}`}
+                      className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300"
+                    >
+                      {sharePct}% share
+                    </span>
+                  )}
                   <span className="text-xs text-gray-500 dark:text-slate-400">
                     applied to invoice
                   </span>
@@ -147,6 +161,11 @@ export default function PaymentsCreditsTab({ load }) {
                   <span>Paid: {paymentDate}</span>
                   <span>Applied: {appliedDate}</span>
                   {p?.customer?.name && <span className="truncate">From: {p.customer.name}</span>}
+                  {isSplit && (
+                    <span className="text-purple-600 dark:text-purple-400">
+                      Invoice spans multiple loads · Full applied: {formatCents(a.full_application_cents)}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
