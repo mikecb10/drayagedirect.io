@@ -408,7 +408,11 @@ export default async function handler(req, res) {
     // Assign invoice number
     const invoiceNumber = await assignInvoiceNumberBase(svc, ctx.tenantId);
 
-    // Create invoice
+    // Create invoice. invoice_date is the business-meaningful "issue date"
+    // (separate from created_at, which is the insert timestamp). Used as
+    // the anchor for due-date computation so edits to invoice_date can
+    // recompute due_date predictably.
+    const todayIso = new Date().toISOString().split('T')[0]; // YYYY-MM-DD, date-only
     const { data: invoice, error: invError } = await svc
       .from('invoices')
       .insert({
@@ -419,6 +423,7 @@ export default async function handler(req, res) {
         subtotal_cents: subtotalCents,
         total_amount_cents: totalCents,
         balance_due_cents: totalCents,
+        invoice_date: todayIso,
         due_date: computeInvoiceDueDate(new Date(), paymentTerms),
         payment_terms_days: paymentTerms,
         is_consolidated: charge_set_ids.length > 1,
