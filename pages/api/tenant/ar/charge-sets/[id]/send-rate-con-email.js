@@ -11,6 +11,7 @@ import { selectActiveConfig } from '../../../../../../lib/email-dispatch/select-
 import { archiveRateConPdf } from '../../../../../../lib/pdf/archive';
 import { renderRateConPdf } from '../../../../../../lib/pdf/render-rate-con';
 import { checkChargeSetDistanceGate } from '../../../../../../lib/charge-set-distance-gate';
+import { transitionChargeSetStatus } from '../../../../../../lib/charge-sets/transition.js';
 
 export const config = { runtime: 'nodejs' };
 
@@ -146,12 +147,14 @@ export default async function handler(req, res) {
   }
 
   // Step 7: Flip status
-  const { error: updErr } = await svc
-    .from('order_charge_sets')
-    .update({ status: 'rate_con_sent' })
-    .eq('id', id)
-    .eq('tenant_id', ctx.tenantId);
-  if (updErr) {
+  try {
+    await transitionChargeSetStatus(svc, {
+      tenantId: ctx.tenantId,
+      chargeSetId: id,
+      newStatus: 'rate_con_sent',
+      actorUserId: ctx.userId,
+    });
+  } catch (updErr) {
     console.error(`Charge set ${id}: email sent but status update failed:`, updErr.message);
     return res.status(500).json({
       error: `Email sent but status update failed: ${updErr.message}`,
