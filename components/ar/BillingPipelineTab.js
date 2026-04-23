@@ -551,12 +551,22 @@ export default function BillingPipelineTab({ filters = {} }) {
                       <td className="px-4 py-2.5">
                         <span className="font-mono text-xs text-blue-600 dark:text-blue-400">{cs.charge_set_number}</span>
                       </td>
-                      <td className="px-4 py-2.5">
+                      <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
                         {cs.invoice_number_base ? (
                           <div className="flex items-center gap-1.5">
-                            <span className="font-mono text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                              {formatInvoiceNumber(cs.invoice_number_base, cs.rebill_count)}
-                            </span>
+                            {cs.invoice_id ? (
+                              <button
+                                type="button"
+                                onClick={() => openOverlay('invoice', { invoiceId: cs.invoice_id, onClose: () => fetchAR({ silent: true }) })}
+                                className="font-mono text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:text-emerald-800 dark:hover:text-emerald-200 hover:underline"
+                              >
+                                {formatInvoiceNumber(cs.invoice_number_base, cs.rebill_count)}
+                              </button>
+                            ) : (
+                              <span className="font-mono text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                                {formatInvoiceNumber(cs.invoice_number_base, cs.rebill_count)}
+                              </span>
+                            )}
                             {cs.rebill_count > 0 && (
                               <span className="text-[9px] uppercase tracking-wide font-bold px-1 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300">
                                 R{cs.rebill_count}

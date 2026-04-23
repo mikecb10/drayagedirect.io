@@ -6,6 +6,7 @@ import OverlayPanel from './ui/OverlayPanel';
 const LoadDetail = dynamic(() => import('./loads/LoadDetail'), { ssr: false });
 const TariffDetail = dynamic(() => import('./settings/TariffDetail'), { ssr: false });
 const ChargeProfileDetail = dynamic(() => import('./settings/ChargeProfileDetail'), { ssr: false });
+const InvoiceDetail = dynamic(() => import('./ar/InvoiceDetail'), { ssr: false });
 
 /**
  * OverlayRenderer — Reads the overlay stack and renders the correct content
@@ -39,6 +40,12 @@ export default function OverlayRenderer() {
           {entry.type === 'chargeProfile' && (
             <ChargeProfileDetail
               chargeProfileId={entry.props.chargeProfileId}
+              onClose={closeOverlay}
+            />
+          )}
+          {entry.type === 'invoice' && (
+            <InvoiceDetail
+              invoiceId={entry.props.invoiceId}
               onClose={closeOverlay}
             />
           )}

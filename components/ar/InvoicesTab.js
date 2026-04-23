@@ -12,6 +12,7 @@ import InvoicesBulkBar from './InvoicesBulkBar';
 import BulkGroupingModal from './BulkGroupingModal';
 import BulkEmailQueue from './BulkEmailQueue';
 import MarginBadge from '../ui/MarginBadge';
+import { useOverlay } from '../../contexts/OverlayContext';
 
 const STATUS_BADGES = {
   draft: { variant: 'gray', label: 'Draft' },
@@ -23,6 +24,7 @@ const STATUS_BADGES = {
 
 export default function InvoicesTab({ filters = {} }) {
   const emailCompose = useEmailCompose();
+  const { openOverlay } = useOverlay();
   const [invoices, setInvoices] = useState([]);
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
@@ -342,7 +344,13 @@ export default function InvoicesTab({ filters = {} }) {
                         ) : null}
                       </td>
                       <td className="px-4 py-2.5">
-                        <span className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400">{inv.invoice_number}</span>
+                        <button
+                          type="button"
+                          onClick={() => openOverlay('invoice', { invoiceId: inv.id, onClose: () => load() })}
+                          className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:underline"
+                        >
+                          {inv.invoice_number}
+                        </button>
                         {inv.is_consolidated && (
                           <span className="ml-1.5 text-[9px] bg-blue-100 dark:bg-blue-950/40 text-blue-600 dark:text-blue-300 px-1 py-0.5 rounded font-bold">CONSOLIDATED</span>
                         )}
