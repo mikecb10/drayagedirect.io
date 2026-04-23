@@ -7,14 +7,24 @@ import { formatCents } from '../../lib/ar-utils';
 
 /**
  * Apply Payments & Credits tab.
- * Customer picker → left: unapplied payments/credits → right: open invoices
- * User allocates amounts from payments to invoices.
+ *
+ * Two modes:
+ *  - Global overview (no customer picked): shows every unapplied payment
+ *    across the tenant grouped by customer, so operators can see what's
+ *    outstanding at a glance. Clicking a customer card drills into the
+ *    allocation UI for that customer.
+ *  - Customer mode: left panel = that customer's unapplied payments,
+ *    right panel = their open invoices, inline allocation inputs.
+ *
+ * A customer-scoped saved filter (filters.customer_ids with one id)
+ * auto-populates the picker so the user doesn't have to click twice.
  */
-export default function ApplyPaymentsTab() {
+export default function ApplyPaymentsTab({ filters = {} }) {
   const [customerId, setCustomerId] = useState(null);
   const [customerLabel, setCustomerLabel] = useState('');
   const [payments, setPayments] = useState([]);
   const [invoices, setInvoices] = useState([]);
+  const [globalPayments, setGlobalPayments] = useState([]); // all unapplied across tenant (overview mode)
   const [allocations, setAllocations] = useState({}); // { paymentId: { invoiceId: amountCents } }
   // Raw typed string per input, decoupled from cents. Without this, the
   // input's value={.toFixed(2)} snaps back on every keystroke (React
@@ -46,7 +56,45 @@ export default function ApplyPaymentsTab() {
     finally { setLoading(false); }
   }
 
+  // Overview-mode fetch: every unapplied payment across the tenant.
+  // No customer_id param → the payments endpoint returns all tenant rows.
+  // Reused to render the per-customer summary cards that drill into
+  // allocation mode on click.
+  async function loadGlobalOverview() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/tenant/ar/payments');
+      if (res.ok) {
+        const d = await res.json();
+        setGlobalPayments((d.payments || []).filter((p) => p.unapplied_cents > 0));
+      }
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  }
+
   useEffect(() => { loadData(); }, [customerId]);
+
+  // Load the global overview whenever we're in no-customer mode so operators
+  // can see what's outstanding across the tenant. Skipped when a customer is
+  // active (customer-scoped fetch already covers it).
+  useEffect(() => {
+    if (!customerId) loadGlobalOverview();
+  }, [customerId]);
+
+  // Auto-populate the customer picker when a saved filter scopes to exactly
+  // one customer. Empty filters ("All") leaves the picker as-is so operators
+  // can still drill in manually from the overview cards. Multi-customer
+  // filters don't auto-populate — ambiguous and the overview is more useful.
+  useEffect(() => {
+    const ids = filters?.customer_ids;
+    if (!Array.isArray(ids) || ids.length !== 1) return;
+    if (customerId === ids[0]) return;
+    setCustomerId(ids[0]);
+    setCustomerLabel(''); // OrgPicker will resolve the name lazily
+    setAllocations({});
+    setInputs({});
+  }, [filters]);
 
   function setAllocation(paymentId, invoiceId, amountStr) {
     const cents = Math.round((parseFloat(amountStr) || 0) * 100);
@@ -113,9 +161,16 @@ export default function ApplyPaymentsTab() {
       />
 
       {!customerId && (
-        <div className="rounded-xl border border-dashed border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 p-10 text-center text-sm text-gray-400 dark:text-slate-500">
-          Select a customer to see unapplied payments and open invoices.
-        </div>
+        <GlobalOverview
+          payments={globalPayments}
+          loading={loading}
+          onPick={(cId, cName) => {
+            setCustomerId(cId);
+            setCustomerLabel(cName);
+            setAllocations({});
+            setInputs({});
+          }}
+        />
       )}
 
       {customerId && !loading && (
@@ -203,6 +258,90 @@ export default function ApplyPaymentsTab() {
           <Button onClick={handleApply} loading={applying}>Apply Payments</Button>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Tenant-wide overview shown when no customer is picked. Groups unapplied
+ * payments by customer so operators can see total outstanding allocation
+ * work at a glance. Clicking a card drills into that customer's
+ * allocation UI.
+ */
+function GlobalOverview({ payments, loading, onPick }) {
+  if (loading && payments.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 p-10 text-center text-sm text-gray-400 dark:text-slate-500">
+        Loading unapplied payments…
+      </div>
+    );
+  }
+
+  if (payments.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 p-10 text-center text-sm text-gray-400 dark:text-slate-500">
+        No unapplied payments across any customers. Pick a customer above to start a new allocation.
+      </div>
+    );
+  }
+
+  // Group by customer_id. Payments from the list endpoint include a joined
+  // `customer:{id,name}` object; fall back to payment.customer_id when the
+  // join missed (orphaned rows shouldn't happen but guard anyway).
+  const byCustomer = new Map();
+  for (const p of payments) {
+    const cid = p.customer?.id ?? p.customer_id;
+    if (!cid) continue;
+    if (!byCustomer.has(cid)) {
+      byCustomer.set(cid, {
+        id: cid,
+        name: p.customer?.name ?? '(unknown customer)',
+        count: 0,
+        total_unapplied_cents: 0,
+      });
+    }
+    const c = byCustomer.get(cid);
+    c.count += 1;
+    c.total_unapplied_cents += (p.unapplied_cents || 0);
+  }
+  const customers = Array.from(byCustomer.values())
+    .sort((a, b) => b.total_unapplied_cents - a.total_unapplied_cents);
+
+  const totalUnapplied = customers.reduce((s, c) => s + c.total_unapplied_cents, 0);
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50/60 dark:bg-blue-950/20 px-4 py-3 flex items-center justify-between">
+        <div>
+          <div className="text-sm font-semibold text-blue-900 dark:text-blue-200">
+            {customers.length} customer{customers.length !== 1 ? 's' : ''} with unapplied payments
+          </div>
+          <div className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
+            Total unapplied: {formatCents(totalUnapplied)}
+          </div>
+        </div>
+        <div className="text-[11px] text-blue-600 dark:text-blue-400">
+          Click a card to allocate, or pick a customer above.
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {customers.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => onPick(c.id, c.name)}
+            className="text-left rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-sm transition-colors"
+          >
+            <div className="text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">{c.name}</div>
+            <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+              {c.count} payment{c.count !== 1 ? 's' : ''} unapplied
+            </div>
+            <div className="text-lg font-bold text-amber-600 dark:text-amber-400 mt-2">
+              {formatCents(c.total_unapplied_cents)}
+            </div>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

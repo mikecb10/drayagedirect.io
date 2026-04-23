@@ -52,12 +52,21 @@ export default async function handler(req, res) {
     // Verify invoice exists and has balance
     const { data: invoice } = await svc
       .from('invoices')
-      .select('id, balance_due_cents, status')
+      .select('id, balance_due_cents, status, customer_id')
       .eq('id', app.invoice_id)
       .eq('tenant_id', ctx.tenantId)
       .single();
 
     if (!invoice) continue;
+    // Cross-customer guard: the UI normally scopes allocation to a single
+    // customer, but the global-overview mode + direct API calls can produce
+    // mismatched payment↔invoice pairs. Reject them here so we never post a
+    // payment to another customer's invoice.
+    if (invoice.customer_id !== payment.customer_id) {
+      return res.status(400).json({
+        error: 'Cannot apply payment — invoice belongs to a different customer',
+      });
+    }
     if (app.amount_cents > invoice.balance_due_cents) {
       return res.status(400).json({
         error: `Application exceeds invoice balance ($${(invoice.balance_due_cents / 100).toFixed(2)})`,
