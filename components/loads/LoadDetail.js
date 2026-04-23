@@ -7,12 +7,13 @@ import NotesTab from './tabs/NotesTab';
 import AuditTab from './tabs/AuditTab';
 import DocumentsTab from './tabs/DocumentsTab';
 import BillingTab from './tabs/BillingTab';
+import PaymentsCreditsTab from './tabs/PaymentsCreditsTab';
 import DriverPayTab from './tabs/DriverPayTab';
 import RoutingTab from './tabs/RoutingTab';
 import TrackingTab from './tabs/TrackingTab';
 import PlaceholderTab from './tabs/PlaceholderTab';
 import DuplicateLoadModal from './DuplicateLoadModal';
-import { MessageSquare, CreditCard } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 import { useOverlay } from '../../contexts/OverlayContext';
 
 /**
@@ -202,13 +203,7 @@ export default function LoadDetail({ loadId: initialLoadId, initialTab = 'info',
           )}
           {activeTab === 'notes' && <NotesTab load={load} />}
           {activeTab === 'audit' && <AuditTab load={load} />}
-          {activeTab === 'payments' && (
-            <PlaceholderTab
-              title="Payments"
-              description="Payment history and open balance tracking."
-              icon={CreditCard}
-            />
-          )}
+          {activeTab === 'payments' && <PaymentsCreditsTab load={load} />}
         </LoadDetailLayout>
       ) : null}
 

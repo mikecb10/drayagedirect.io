@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, FileText, Upload, X } from 'lucide-react';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
@@ -24,6 +24,7 @@ export default function PaymentsTab({ filters = {} }) {
     customer_id: null, customer_label: '', amount: '', payment_method: 'check',
     payment_date: new Date().toISOString().split('T')[0], reference_number: '', notes: '',
   });
+  const [docFile, setDocFile] = useState(null); // File | null — optional supporting doc to upload after payment create
   const [saving, setSaving] = useState(false);
 
   async function load() {
@@ -71,8 +72,31 @@ export default function PaymentsTab({ filters = {} }) {
         const b = await res.json().catch(() => ({}));
         throw new Error(b.error || 'Failed to record payment');
       }
+      // Two-step upload: create the payment first (JSON POST above), then
+      // if a supporting doc was attached, multipart POST it to
+      // /payments/[id]/document. Decouples create from upload so a failed
+      // upload doesn't block the payment record — user sees a warning and
+      // can retry via edit. Endpoint accepts .pdf/.png/.jpg/.jpeg, 10MB max.
+      if (docFile) {
+        const created = await res.json().catch(() => ({}));
+        const newPaymentId = created.payment?.id || created.id;
+        if (newPaymentId) {
+          const fd = new FormData();
+          fd.append('file', docFile);
+          const upRes = await fetch(`/api/tenant/ar/payments/${newPaymentId}/document`, {
+            method: 'POST',
+            body: fd,
+          });
+          if (!upRes.ok) {
+            const b = await upRes.json().catch(() => ({}));
+            // Non-fatal: payment is already recorded. Surface a warning.
+            setError(`Payment recorded, but document upload failed: ${b.error || upRes.status}`);
+          }
+        }
+      }
       setModalOpen(false);
       setForm({ customer_id: null, customer_label: '', amount: '', payment_method: 'check', payment_date: new Date().toISOString().split('T')[0], reference_number: '', notes: '' });
+      setDocFile(null);
       load();
     } catch (e) { setError(e.message); }
     finally { setSaving(false); }
@@ -127,7 +151,23 @@ export default function PaymentsTab({ filters = {} }) {
               ) : (
                 payments.map((p) => (
                   <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40">
-                    <td className="px-4 py-2.5 font-mono text-xs text-gray-900 dark:text-slate-100">{p.reference_number || '—'}</td>
+                    <td className="px-4 py-2.5 font-mono text-xs text-gray-900 dark:text-slate-100">
+                      <div className="inline-flex items-center gap-1.5">
+                        {p.reference_number || '—'}
+                        {p.document_url && (
+                          <a
+                            href={`/api/tenant/ar/payments/${p.id}/document?redirect=1`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={p.document_filename || 'Supporting document'}
+                            className="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-700"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-2.5 text-xs text-gray-700 dark:text-slate-300">{p.customer?.name || '—'}</td>
                     <td className="px-4 py-2.5 text-right font-semibold text-gray-900 dark:text-slate-100">{formatCents(p.amount_cents)}</td>
                     <td className="px-4 py-2.5">
@@ -181,10 +221,44 @@ export default function PaymentsTab({ filters = {} }) {
               onChange={(e) => setForm((f) => ({ ...f, payment_date: e.target.value }))} required />
             <Input label="Reference / Check #" value={form.reference_number}
               onChange={(e) => setForm((f) => ({ ...f, reference_number: e.target.value }))} placeholder="e.g. Check #4521" />
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                Supporting Document <span className="text-gray-400 dark:text-slate-500 font-normal">(optional)</span>
+              </label>
+              {docFile ? (
+                <div className="flex items-center gap-2 rounded-lg border border-emerald-300 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/20 px-3 py-2">
+                  <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <div className="flex-1 min-w-0 text-xs">
+                    <div className="font-medium text-emerald-900 dark:text-emerald-200 truncate">{docFile.name}</div>
+                    <div className="text-[11px] text-emerald-700 dark:text-emerald-400">{(docFile.size / 1024).toFixed(1)} KB</div>
+                  </div>
+                  <button type="button" onClick={() => setDocFile(null)} aria-label="Remove attachment"
+                    className="text-emerald-700 dark:text-emerald-400 hover:text-emerald-900">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex items-center gap-2 rounded-lg border border-dashed border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 px-3 py-3 text-xs text-gray-500 dark:text-slate-400 cursor-pointer hover:border-blue-400 dark:hover:border-blue-600">
+                  <Upload className="w-4 h-4" />
+                  <span>Upload a check scan, wire confirmation, or ACH receipt (PDF, PNG, JPG · max 10 MB)</span>
+                  <input type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      if (f.size > 10 * 1024 * 1024) {
+                        setError('File too large — 10 MB max');
+                        return;
+                      }
+                      setDocFile(f);
+                    }}
+                  />
+                </label>
+              )}
+            </div>
             <Input label="Notes" value={form.notes}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
             <div className="flex justify-end gap-2 pt-3 border-t border-gray-200 dark:border-slate-800">
-              <Button variant="secondary" type="button" onClick={() => setModalOpen(false)}>Cancel</Button>
+              <Button variant="secondary" type="button" onClick={() => { setModalOpen(false); setDocFile(null); }}>Cancel</Button>
               <Button type="submit" loading={saving}>Record Payment</Button>
             </div>
           </form>
