@@ -61,6 +61,41 @@ export default async function handler(req, res) {
       updates.status = req.body.status;
     }
 
+    // Lock check: if transitioning to 'rebilling' or 'void' on a charge set
+    // whose invoice has an applied payment or credit memo, reject. The GL
+    // has moved; the accountant must reverse those first. Only runs when
+    // we have a status in play that touches the invoice lifecycle — other
+    // fields (bill_to, notes) aren't impacted.
+    if (updates.status === 'rebilling' || updates.status === 'void') {
+      const { data: current } = await svc
+        .from('order_charge_sets')
+        .select('invoice_id')
+        .eq('tenant_id', ctx.tenantId)
+        .eq('id', csId)
+        .maybeSingle();
+      if (current?.invoice_id) {
+        const [creditsRes, paymentsRes] = await Promise.all([
+          svc.from('credit_memos')
+            .select('id')
+            .eq('tenant_id', ctx.tenantId)
+            .eq('applied_to_invoice_id', current.invoice_id)
+            .eq('status', 'applied')
+            .limit(1),
+          svc.from('payment_applications')
+            .select('id')
+            .eq('tenant_id', ctx.tenantId)
+            .eq('invoice_id', current.invoice_id)
+            .limit(1),
+        ]);
+        if ((creditsRes.data?.length || 0) > 0 || (paymentsRes.data?.length || 0) > 0) {
+          return res.status(409).json({
+            error: `Cannot ${updates.status === 'rebilling' ? 'rebill' : 'void'} — the linked invoice has an applied payment or credit memo. Reverse it first.`,
+            code: 'INVOICE_LOCKED',
+          });
+        }
+      }
+    }
+
     // If we're transitioning to 'invoiced', handle invoice number assignment.
     // Fetch current row so we know the previous status + existing invoice fields.
     let invoiceNumberAssigned = false;

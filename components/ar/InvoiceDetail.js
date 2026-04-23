@@ -195,8 +195,27 @@ export default function InvoiceDetail({ invoiceId, onClose }) {
   const balanceDue = invoice.balance_due_cents ?? invoice.total_amount_cents ?? 0;
   const paidCents = (invoice.total_amount_cents ?? 0) - balanceDue;
   const isInvoiced = invoice.status === 'sent' || invoice.status === 'overdue';
-  const canVoid = ['draft', 'sent', 'overdue'].includes(invoice.status);
-  const canRebill = isInvoiced && (invoice.charge_sets?.length ?? 0) > 0;
+  // Lock rule: an invoice with any applied credit memo or any payment
+  // application is settled — the GL has moved. Rebill/void would leave
+  // books inconsistent. Accountant has to reverse the payment or void
+  // the credit memo first before the invoice can be touched.
+  const hasAppliedCredit = (invoice.credits || []).some((c) => c.status === 'applied');
+  const hasPaymentApplied = (invoice.payments || []).length > 0;
+  const invoiceLocked = hasAppliedCredit || hasPaymentApplied;
+  const lockReason = hasAppliedCredit && hasPaymentApplied
+    ? 'a payment and a credit memo have been applied'
+    : hasAppliedCredit
+    ? 'a credit memo has been applied'
+    : hasPaymentApplied
+    ? 'a payment has been applied'
+    : null;
+  // Buttons render even when locked so the user can see they exist — but
+  // disabled, with a tooltip explaining why. Hiding the buttons entirely
+  // made the lock invisible; showing them explains the constraint.
+  const couldVoid = ['draft', 'sent', 'overdue'].includes(invoice.status);
+  const couldRebill = isInvoiced && (invoice.charge_sets?.length ?? 0) > 0;
+  const canVoid = couldVoid && !invoiceLocked;
+  const canRebill = couldRebill && !invoiceLocked;
 
   return (
     <div className="h-full flex flex-col bg-gray-50 dark:bg-slate-950">
@@ -417,29 +436,37 @@ export default function InvoiceDetail({ invoiceId, onClose }) {
       {/* Footer actions */}
       <div className="px-6 py-3 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          {canVoid && (
+          {couldVoid && (
             <Button
               variant="secondary"
               onClick={handleVoid}
               loading={actionLoading === 'void'}
-              disabled={actionLoading != null}
+              disabled={actionLoading != null || !canVoid}
+              title={!canVoid && invoiceLocked ? `Cannot void — ${lockReason} to this invoice.` : undefined}
               className="!text-xs !py-1.5 !text-red-500 dark:!text-red-400 !border-red-200 dark:!border-red-800 hover:!bg-red-50 dark:hover:!bg-red-950/40"
             >
               <XCircle className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />
               Void
             </Button>
           )}
-          {canRebill && (
+          {couldRebill && (
             <Button
               variant="secondary"
               onClick={handleRebill}
               loading={actionLoading === 'rebill'}
-              disabled={actionLoading != null}
+              disabled={actionLoading != null || !canRebill}
+              title={!canRebill && invoiceLocked ? `Cannot rebill — ${lockReason} to this invoice.` : undefined}
               className="!text-xs !py-1.5"
             >
               <RefreshCw className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />
               Rebill
             </Button>
+          )}
+          {invoiceLocked && (
+            <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium inline-flex items-center gap-1">
+              <span aria-hidden>🔒</span>
+              Locked — {lockReason}
+            </span>
           )}
         </div>
         <Button variant="secondary" onClick={onClose} className="!text-xs !py-1.5">Close</Button>

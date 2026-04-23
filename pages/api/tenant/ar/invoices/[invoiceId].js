@@ -72,6 +72,28 @@ export default async function handler(req, res) {
       if (existing.rebilled_at) {
         return res.status(409).json({ error: 'Invoice already marked as rebilled' });
       }
+      // Lock check: reject rebill if any applied credit memo or payment
+      // application targets this invoice. The accountant must reverse
+      // the payment/credit before the invoice can be re-opened.
+      const [creditsRes, paymentsRes] = await Promise.all([
+        svc.from('credit_memos')
+          .select('id')
+          .eq('tenant_id', ctx.tenantId)
+          .eq('applied_to_invoice_id', invoiceId)
+          .eq('status', 'applied')
+          .limit(1),
+        svc.from('payment_applications')
+          .select('id')
+          .eq('tenant_id', ctx.tenantId)
+          .eq('invoice_id', invoiceId)
+          .limit(1),
+      ]);
+      if ((creditsRes.data?.length || 0) > 0 || (paymentsRes.data?.length || 0) > 0) {
+        return res.status(409).json({
+          error: 'Cannot rebill — this invoice has an applied payment or credit memo. Reverse it first.',
+          code: 'INVOICE_LOCKED',
+        });
+      }
       updates.rebilled_at = new Date().toISOString();
       updates.rebilled_by_user_id = ctx.userId;
       const { data, error } = await svc

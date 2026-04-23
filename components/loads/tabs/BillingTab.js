@@ -541,10 +541,39 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay, onO
     }
   }
 
-  const isEditable = chargeSet.status === 'draft' || chargeSet.status === 'unapproved';
+  // Editable states now include 'rebilling' — that's the whole point of
+  // rebilling, operators must be able to adjust charges before re-invoicing.
+  // The override: any charge set whose invoice has an applied credit memo
+  // or a payment application is LOCKED regardless of status — editing it
+  // would put the AR ledger out of sync with the GL. invoice_locked is
+  // computed server-side in the charge-sets GET and flows in on the
+  // chargeSet prop.
+  const invoiceLocked = Boolean(chargeSet.invoice_locked);
+  const isEditable = !invoiceLocked && (
+    chargeSet.status === 'draft' ||
+    chargeSet.status === 'unapproved' ||
+    chargeSet.status === 'rebilling'
+  );
+  const lockReasonLabel = {
+    credit_applied: 'a credit memo has been applied',
+    payment_applied: 'a payment has been applied',
+    payment_and_credit_applied: 'a payment and credit memo have been applied',
+  }[chargeSet.invoice_lock_reason] || null;
 
   return (
     <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden">
+      {invoiceLocked && (
+        <div className="px-4 py-2.5 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-900/60 text-xs text-amber-800 dark:text-amber-200 flex items-start gap-2">
+          <span aria-hidden>🔒</span>
+          <div>
+            <span className="font-semibold">Locked — </span>
+            this charge set cannot be edited or rebilled because{' '}
+            {lockReasonLabel || 'an applied payment or credit is attached'} to invoice{' '}
+            <span className="font-mono font-semibold">{chargeSet.invoice?.invoice_number || '—'}</span>.
+            Issue a credit memo or reverse the payment/credit first.
+          </div>
+        </div>
+      )}
       {/* Bill To row — dispatcher can pick which customer this charge set is billed to */}
       <div className="px-4 py-2.5 border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900">
         <OrgPicker
@@ -879,14 +908,30 @@ function ChargeSetCard({ loadId, chargeSet, onChanged, onError, openOverlay, onO
               <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold bg-emerald-100 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full flex items-center gap-1">
                 <Check className="w-3 h-3" /> Invoiced
               </span>
-              <Button variant="secondary" onClick={() => updateStatus('rebilling')} loading={savingStatus}
-                className="!text-xs !py-1.5">
+              <Button
+                variant="secondary"
+                onClick={() => updateStatus('rebilling')}
+                loading={savingStatus}
+                disabled={invoiceLocked}
+                title={invoiceLocked
+                  ? `Cannot rebill — ${lockReasonLabel || 'an applied payment or credit is attached'} to this invoice.`
+                  : undefined}
+                className="!text-xs !py-1.5"
+              >
                 Rebill
               </Button>
-              <Button variant="secondary" onClick={() => {
-                if (confirm('Void this charge set? This will remove it from the invoice.')) updateStatus('void');
-              }} loading={savingStatus}
-                className="!text-xs !py-1.5 !text-red-500 dark:!text-red-400 !border-red-200 dark:!border-red-800 hover:!bg-red-50 dark:hover:!bg-red-950/40">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  if (confirm('Void this charge set? This will remove it from the invoice.')) updateStatus('void');
+                }}
+                loading={savingStatus}
+                disabled={invoiceLocked}
+                title={invoiceLocked
+                  ? `Cannot void — ${lockReasonLabel || 'an applied payment or credit is attached'} to this invoice.`
+                  : undefined}
+                className="!text-xs !py-1.5 !text-red-500 dark:!text-red-400 !border-red-200 dark:!border-red-800 hover:!bg-red-50 dark:hover:!bg-red-950/40"
+              >
                 Void
               </Button>
             </>
