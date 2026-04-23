@@ -5,6 +5,7 @@ import {
 } from '../../../../../lib/tenant-api';
 import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
 import { PERMISSIONS } from '../../../../../lib/permissions';
+import { transitionChargeSetStatus } from '../../../../../lib/charge-sets/transition.js';
 
 /**
  * /api/tenant/ar/invoices/[invoiceId]
@@ -135,11 +136,15 @@ export default async function handler(req, res) {
         .eq('invoice_id', invoiceId)
         .eq('tenant_id', ctx.tenantId);
       if (junctions?.length) {
-        await svc
-          .from('order_charge_sets')
-          .update({ status: 'approved', invoice_id: null })
-          .eq('tenant_id', ctx.tenantId)
-          .in('id', junctions.map((j) => j.charge_set_id));
+        for (const { charge_set_id } of junctions) {
+          await transitionChargeSetStatus(svc, {
+            tenantId: ctx.tenantId,
+            chargeSetId: charge_set_id,
+            newStatus: 'approved',
+            actorUserId: ctx.userId,
+            extraFields: { invoice_id: null },
+          });
+        }
       }
     } else if (status === 'overdue') {
       updates.status = 'overdue';
