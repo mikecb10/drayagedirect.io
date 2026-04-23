@@ -138,6 +138,10 @@ export default async function handler(req, res) {
       // The `.eq('order_id', id)` scoping used before is a belt-and-
       // suspenders check — `(tenant_id, csId)` already uniquely identifies
       // the charge_set, which is what the helper uses.
+      // Rest-spread captures everything except `status`: bill_to_customer_id,
+      // notes, and the invoice-number-assignment fields (invoice_number_base,
+      // invoiced_at, rebill_count, last_rebilled_at) set in the block above.
+      // All flow through transitionChargeSetStatus as extraFields.
       const { status: newStatus, ...extraFields } = updates;
       try {
         const result = await transitionChargeSetStatus(svc, {

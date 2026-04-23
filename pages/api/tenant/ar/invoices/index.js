@@ -458,13 +458,32 @@ export default async function handler(req, res) {
     // Loop-serial through transitionChargeSetStatus so each transition
     // gets a history row. N is small (1-10 charge_sets per invoice typical).
     const invoicedAt = new Date().toISOString();
-    for (const chargeSetId of charge_set_ids) {
-      await transitionChargeSetStatus(svc, {
-        tenantId: ctx.tenantId,
-        chargeSetId,
-        newStatus: 'invoiced',
-        actorUserId: ctx.userId,
-        extraFields: { invoice_id: invoice.id, invoiced_at: invoicedAt },
+    try {
+      for (const chargeSetId of charge_set_ids) {
+        await transitionChargeSetStatus(svc, {
+          tenantId: ctx.tenantId,
+          chargeSetId,
+          newStatus: 'invoiced',
+          actorUserId: ctx.userId,
+          extraFields: { invoice_id: invoice.id, invoiced_at: invoicedAt },
+        });
+      }
+    } catch (transitionErr) {
+      // Pre-refactor this was a single bulk UPDATE and was atomic. Now it's a
+      // serial loop — partial failure would leave charge_sets split between
+      // two states (some 'invoiced' with invoice_id, rest 'approved' with null),
+      // pointing to a freshly-committed invoice.
+      // Roll back: clear any partially-stamped charge_sets, then soft-delete the invoice
+      // and junction rows (same rollback shape as the junctionErr handler above).
+      await svc.from('order_charge_sets')
+        .update({ status: 'approved', invoice_id: null, invoiced_at: null })
+        .eq('tenant_id', ctx.tenantId)
+        .in('id', charge_set_ids)
+        .eq('invoice_id', invoice.id);
+      await svc.from('invoice_charge_sets').delete().eq('invoice_id', invoice.id).eq('tenant_id', ctx.tenantId);
+      await svc.from('invoices').delete().eq('id', invoice.id).eq('tenant_id', ctx.tenantId);
+      return res.status(500).json({
+        error: `Failed to transition charge sets to 'invoiced': ${transitionErr.message}`,
       });
     }
 

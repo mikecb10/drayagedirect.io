@@ -64,6 +64,7 @@ console.log('transitionMoveStatus');
   check('oldStatus=pending', r.oldStatus === 'pending');
   check('newStatus=in_progress', r.newStatus === 'in_progress');
   check('1 UPDATE', svc._calls.updated.length === 1);
+  check('update targets order_container_moves', svc._calls.updated[0]?.table === 'order_container_moves');
   check('1 INSERT to history', svc._calls.inserted.length === 1);
   check('history table correct',
     svc._calls.inserted[0]?.table === 'order_container_moves_status_history');
@@ -133,6 +134,46 @@ console.log('transitionMoveStatus');
   check('history failure does NOT throw', !threw);
   check('UPDATE still happens', svc._calls.updated.length === 1);
   check('helper returns normally', result?.newStatus === 'in_progress');
+}
+
+// Case 6: extraFields: null is treated as absent
+{
+  const svc = makeMockClient({
+    fetch: { data: { id: 'm-6', status: 'pending' }, error: null },
+    update: { data: { id: 'm-6', status: 'in_progress' }, error: null },
+    insert: { data: null, error: null },
+  });
+  const r = await transitionMoveStatus(svc, {
+    tenantId: 't-1',
+    moveId: 'm-6',
+    newStatus: 'in_progress',
+    actorUserId: null,
+    extraFields: null,
+  });
+  check('null extraFields: helper returns normally', r.newStatus === 'in_progress');
+  check('null extraFields: UPDATE fires', svc._calls.updated.length === 1);
+  check('null extraFields: UPDATE payload has only status',
+    Object.keys(svc._calls.updated[0]?.payload || {}).length === 1);
+}
+
+// Case 7: Same status + extraFields → UPDATE fires, history does NOT write
+{
+  const svc = makeMockClient({
+    fetch: { data: { id: 'm-7', status: 'in_progress' }, error: null },
+    update: { data: { id: 'm-7', status: 'in_progress' }, error: null },
+    insert: { data: null, error: null },
+  });
+  await transitionMoveStatus(svc, {
+    tenantId: 't-1',
+    moveId: 'm-7',
+    newStatus: 'in_progress', // same as current
+    actorUserId: null,
+    extraFields: { started_at: '2026-04-24T00:00:00Z' },
+  });
+  check('same-status + extraFields: UPDATE fires', svc._calls.updated.length === 1);
+  check('same-status + extraFields: UPDATE payload has extraFields',
+    svc._calls.updated[0]?.payload?.started_at === '2026-04-24T00:00:00Z');
+  check('same-status + extraFields: NO history row written', svc._calls.inserted.length === 0);
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

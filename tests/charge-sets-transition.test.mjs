@@ -86,6 +86,7 @@ console.log('transitionChargeSetStatus');
   check('returns newStatus=invoiced', result.newStatus === 'invoiced');
   check('writes 1 update', svc._calls.updated.length === 1);
   check('update payload has status', svc._calls.updated[0]?.payload?.status === 'invoiced');
+  check('update targets order_charge_sets', svc._calls.updated[0]?.table === 'order_charge_sets');
   check('writes 1 history insert', svc._calls.inserted.length === 1);
   check('history table is order_charge_sets_status_history',
     svc._calls.inserted[0]?.table === 'order_charge_sets_status_history');
@@ -164,6 +165,46 @@ console.log('transitionChargeSetStatus');
   check('history failure does NOT throw', !threw);
   check('UPDATE still happens', svc._calls.updated.length === 1);
   check('helper returns normally', result?.newStatus === 'invoiced');
+}
+
+// Case 6: extraFields: null is treated as absent
+{
+  const svc = makeMockClient({
+    fetch: { data: { id: 'cs-6', status: 'draft' }, error: null },
+    update: { data: { id: 'cs-6', status: 'invoiced' }, error: null },
+    insert: { data: null, error: null },
+  });
+  const r = await transitionChargeSetStatus(svc, {
+    tenantId: 't-1',
+    chargeSetId: 'cs-6',
+    newStatus: 'invoiced',
+    actorUserId: null,
+    extraFields: null,
+  });
+  check('null extraFields: helper returns normally', r.newStatus === 'invoiced');
+  check('null extraFields: UPDATE fires', svc._calls.updated.length === 1);
+  check('null extraFields: UPDATE payload has only status',
+    Object.keys(svc._calls.updated[0]?.payload || {}).length === 1);
+}
+
+// Case 7: Same status + extraFields → UPDATE fires, history does NOT write
+{
+  const svc = makeMockClient({
+    fetch: { data: { id: 'cs-7', status: 'approved' }, error: null },
+    update: { data: { id: 'cs-7', status: 'approved' }, error: null },
+    insert: { data: null, error: null },
+  });
+  await transitionChargeSetStatus(svc, {
+    tenantId: 't-1',
+    chargeSetId: 'cs-7',
+    newStatus: 'approved', // same as current
+    actorUserId: null,
+    extraFields: { notes: 'updated note' },
+  });
+  check('same-status + extraFields: UPDATE fires', svc._calls.updated.length === 1);
+  check('same-status + extraFields: UPDATE payload has extraFields',
+    svc._calls.updated[0]?.payload?.notes === 'updated note');
+  check('same-status + extraFields: NO history row written', svc._calls.inserted.length === 0);
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

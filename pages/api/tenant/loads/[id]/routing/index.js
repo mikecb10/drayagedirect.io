@@ -708,6 +708,11 @@ export default async function handler(req, res) {
         .is('completed_at', null)
         .not('started_at', 'is', null);
 
+      // Pre-refactor this was a single bulk UPDATE — atomic. Now it's a serial loop.
+      // Partial failure is self-healing: retry will skip already-completed moves via
+      // the `is('completed_at', null)` filter. But the in-flight state is visible to
+      // concurrent readers mid-loop. Acceptable for complete_load (user action, not
+      // hot path).
       for (const { id: moveId } of (eligibleMoves || [])) {
         await transitionMoveStatus(svc, {
           tenantId: ctx.tenantId,
@@ -776,6 +781,10 @@ export default async function handler(req, res) {
         .not('started_at', 'is', null)
         .not('completed_at', 'is', null);
 
+      // Pre-refactor this was two bulk UPDATEs — each atomic. Now two serial loops.
+      // Retry behavior: on partial failure, the next uncomplete_load retry will skip
+      // already-reverted moves via the `is('completed_at', not null)` filter, so it's
+      // self-healing.
       for (const { id: moveId } of (startedCompletedMoves || [])) {
         await transitionMoveStatus(svc, {
           tenantId: ctx.tenantId,
