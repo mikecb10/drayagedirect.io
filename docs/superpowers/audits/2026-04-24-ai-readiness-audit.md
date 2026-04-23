@@ -166,7 +166,7 @@ The DrayageDirect codebase is **structurally strong** for AI-agent readiness —
 
 ### Tracked follow-ups
 
-- `FU-054` — Design canonical event shape + emit-from-where decision (**candidate Stream B.1 target**)
+- `FU-054` — Design canonical event shape + emit-from-where decision
 - `FU-055` — Centralize `order_charge_sets.status` updates (currently 5 locations, with 1 cross-file duplicate)
 - `FU-056` — Centralize `order_container_moves.status` fanout in `routing/index.js` (3+ code paths + inline side effects at lines 692-707)
 - `FU-057` — Outbox pattern / event bus selection (atomic transition + emit)
@@ -392,7 +392,7 @@ Reference-data cleanup (Dim 4) ──> depends on Dim 2 enum migration (VALID_ST
 
 Effort is L (21 known transition points need wrapping + 2 duplicate paths need centralizing first), but the design space is well-understood — the outbox pattern is documented, and `lib/email-dispatch/status-change-fire.js:28` is already a single-purpose version of the pattern that can be generalized.
 
-**Approximate effort:** L — reasoning: centralize `order_charge_sets.status` (5 sites) and `order_container_moves.status` fanout (single file but complex) first, then wrap remaining transitions, then build the outbox + consumer.
+**Approximate effort:** **L** — reasoning: 21 transition points need wrapping, but each is a mechanical wrap once the emit library exists. Size driver is the per-entity testing of transition side effects (each entity has its own cascade to verify: `orders` auto-creates charge sets, `ar_invoices` writes timestamps + fires SendGrid, etc.). Minimum-viable scope (2 centralizations + outbox + 1 consumer) is closer to M; full 21-site coverage is L. Picking L for planning assumes full coverage is the B.1→B.2 span.
 
 **What the Stream B.1 spec should cover:**
 - Event payload shape (`entity_id`, `tenant_id`, `from_state`, `to_state`, `actor_id`, `actor_type`, `caused_by`, `side_effects_triggered`, `occurred_at`)
@@ -402,9 +402,19 @@ Effort is L (21 known transition points need wrapping + 2 duplicate paths need c
 - Migration strategy from the 21 scattered state-write sites (phased, not big-bang)
 - Test strategy — the pure `lib/dry-run-engine.js` pattern applied to "simulate this transition"
 
+### Minimum viable Stream B.1 (what ships in one cycle)
+
+The spec above enumerates all event-spine design questions. To keep Stream B.1 to one spec→plan→execute cycle, only these three items must ship:
+
+1. **Centralize the two highest-duplication entities** — `charge_sets` status updates (FU-055: 5 scattered sites) and `orders` routing-move updates (FU-056: 6+ scattered sites in one file). These are mechanical prerequisites — the event spine can't emit consistently if the underlying writes aren't consolidated first.
+2. **Ship `lib/events/` emit wrapper covering those two centralized entities** — proves the emit pattern on real transitions without needing to cover all 21 sites up front.
+3. **Outbox table + one consumer pattern** — doesn't need to be the final architectural choice (could be Postgres `NOTIFY`, a dedicated table polled by a cron, or Supabase Realtime) — just proves end-to-end delivery for one downstream consumer.
+
+Everything else — generalizing to the remaining 4 entities, the subscription API, dry-run across transitions, intent/outcome log unification — defers to Stream B.2 or Stream C. Explicitly out of scope for B.1.
+
 ### Alternatives considered
 
-- **Dim 1 (API surface)** — also H priority, but can be achieved via aliasing without a full rewrite. JSDoc coverage (46% → 100% on top-20 endpoints) is a slow-burn effort; less leverage per unit work than event spine.
+- **API surface (Dim 1)** — also H priority, but *parallelizable* with event-spine work rather than a prerequisite for it. An agent-bundle endpoint at `/api/v1/agents/*` can be aliased as a new path while leaving the UI endpoints untouched — so agents can bind to a stable surface without requiring a codebase-wide API rewrite. This decouples Dim 1 from the Stream B.1 critical path.
 - **Dim 6 AI-enabled feature flag** — trivially easy (one row in `feature_flags`) but not a force multiplier. Can ship alongside or after event spine.
 
 ### Why not [each of the remaining dimensions]
@@ -412,6 +422,17 @@ Effort is L (21 known transition points need wrapping + 2 duplicate paths need c
 - **Dim 2 (Schema):** audit-trail gap closes as a side effect of event spine — no standalone work needed if spine ships first.
 - **Dim 4 (Business logic):** CLEAN enough that it's L priority; 5 small cleanup items don't unblock anything downstream.
 - **Dim 5 (Rules engine):** already declarative + tenant-scoped + JSONB. Consolidation (agent-bundle endpoint) is additive, not blocking.
+
+### What this audit can't see
+
+This audit is static-analysis only — no runtime inspection, no actual-data inspection, no production telemetry. Claims in this document are well-grepped against the committed source but carry caveats a reader should know:
+
+- **Code-path coverage ≠ runtime correctness.** The 252 `logTenantAction` call sites and 21 status-update call sites reflect what's wired up in source — not whether any path silently fails at runtime, or whether error-handling swallows a call.
+- **Sampling was used** for API-handler inspection (10 of 176 endpoints) and migration review (3 recent + canonical-entity extraction across all). The remaining 165+ handlers are uninspected and could contain counter-examples to the patterns claimed.
+- **UI-coupling in responses was grep-checked, not response-shape-checked at runtime** — a handler might return extra fields the grep missed.
+- **Rules-engine "declarative" claims** reflect the storage format (JSONB) and the existence of explicit operator/action fields — not the completeness of any given engine's vocabulary or its behavior under edge-case inputs.
+
+None of these caveats invalidate the priority recommendation; they bound its confidence. A runtime audit (instrumented requests, actual-data inspection) would refine the picture — treated as a potential Stream B.1-follow-up if the emit wrapper work surfaces gaps this audit missed.
 
 ---
 
@@ -428,7 +449,7 @@ This audit opened **24** new `[ai-ready]` follow-ups (FU-047 through FU-070) and
 - [FU-051] [ai-ready] Schema: Machine-readable schema catalog (autogenerated from live schema)
 - [FU-052] [ai-ready] Schema: Per-entity audit trails for invoices / driver_pay / driver_settlements / order_charge_sets
 - [FU-053] [ai-ready] Schema: Migrate 16 hardcoded enums to tenant-scoped lookup tables
-- [FU-054] [ai-ready] State: Design canonical event shape + emit-from-where decision (Stream B.1 candidate)
+- [FU-054] [ai-ready] State: Design canonical event shape + emit-from-where decision
 - [FU-055] [ai-ready] State: Centralize order_charge_sets.status updates (5 locations)
 - [FU-056] [ai-ready] State: Centralize order_container_moves.status fanout in routing/index.js
 - [FU-057] [ai-ready] State: Outbox pattern / event bus selection (atomic transition + emit)
