@@ -16,6 +16,11 @@ export default function ApplyPaymentsTab() {
   const [payments, setPayments] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [allocations, setAllocations] = useState({}); // { paymentId: { invoiceId: amountCents } }
+  // Raw typed string per input, decoupled from cents. Without this, the
+  // input's value={.toFixed(2)} snaps back on every keystroke (React
+  // controlled-input round-trip) and typing a multi-digit amount is
+  // impossible — "500" ends up locked at "5.00".
+  const [inputs, setInputs] = useState({}); // { paymentId: { invoiceId: "5.00" } }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [applying, setApplying] = useState(false);
@@ -45,6 +50,10 @@ export default function ApplyPaymentsTab() {
 
   function setAllocation(paymentId, invoiceId, amountStr) {
     const cents = Math.round((parseFloat(amountStr) || 0) * 100);
+    setInputs((prev) => ({
+      ...prev,
+      [paymentId]: { ...(prev[paymentId] || {}), [invoiceId]: amountStr },
+    }));
     setAllocations((prev) => ({
       ...prev,
       [paymentId]: { ...(prev[paymentId] || {}), [invoiceId]: cents },
@@ -76,6 +85,7 @@ export default function ApplyPaymentsTab() {
         }
       }
       setAllocations({});
+      setInputs({});
       loadData();
     } catch (e) { setError(e.message); }
     finally { setApplying(false); }
@@ -98,6 +108,7 @@ export default function ApplyPaymentsTab() {
           setCustomerId(org?.id || null);
           setCustomerLabel(org?.name || '');
           setAllocations({});
+          setInputs({});
         }}
       />
 
@@ -142,7 +153,7 @@ export default function ApplyPaymentsTab() {
                           min="0"
                           placeholder="0.00"
                           className="w-24 text-right text-xs px-2 py-1 rounded border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100"
-                          value={allocations[p.id]?.[inv.id] ? (allocations[p.id][inv.id] / 100).toFixed(2) : ''}
+                          value={inputs[p.id]?.[inv.id] ?? ''}
                           onChange={(e) => setAllocation(p.id, inv.id, e.target.value)}
                         />
                       </div>
