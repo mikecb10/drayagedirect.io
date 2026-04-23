@@ -26,6 +26,7 @@ export default async function handler(req, res) {
       .select(`
         *,
         customer:customers!customer_id(id, name, billing_email),
+        rebilled_by:users!rebilled_by_user_id(id, name, email),
         line_items:invoice_line_items(*),
         charge_sets:invoice_charge_sets(
           charge_set:order_charge_sets(id, charge_set_number, order_id, total_cents, status,
@@ -47,7 +48,7 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'PUT') {
-    const { status, void_reason } = req.body || {};
+    const { status, void_reason, mark_rebilled } = req.body || {};
 
     // Fetch existing
     const { data: existing } = await svc
@@ -61,6 +62,37 @@ export default async function handler(req, res) {
     if (!existing) return res.status(404).json({ error: 'Invoice not found' });
 
     const updates = {};
+
+    // mark_rebilled is a non-status flag used by the Rebill flow to stamp
+    // the pivot moment (who clicked Rebill, when) on the ORIGINAL invoice
+    // BEFORE its charge sets transition to rebilling. The replacement
+    // invoice gets linked back to this row later when it's created from
+    // the rebilling charge sets (see POST handler's forward-link logic).
+    if (mark_rebilled === true) {
+      if (existing.rebilled_at) {
+        return res.status(409).json({ error: 'Invoice already marked as rebilled' });
+      }
+      updates.rebilled_at = new Date().toISOString();
+      updates.rebilled_by_user_id = ctx.userId;
+      const { data, error } = await svc
+        .from('invoices')
+        .update(updates)
+        .eq('id', invoiceId)
+        .eq('tenant_id', ctx.tenantId)
+        .select()
+        .single();
+      if (error) return res.status(500).json({ error: error.message });
+      await logTenantAction(svc, {
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        action: 'invoice.rebilled',
+        entityType: 'invoice',
+        entityId: invoiceId,
+        newValues: updates,
+        ipAddress: getClientIp(req),
+      });
+      return res.status(200).json({ invoice: data });
+    }
 
     if (status === 'sent') {
       updates.status = 'sent';

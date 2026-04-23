@@ -91,6 +91,22 @@ export default function InvoiceDetail({ invoiceId, onClose }) {
     setActionLoading('rebill');
     setError(null);
     try {
+      // Stamp the invoice-level rebill pivot (rebilled_at + rebilled_by)
+      // BEFORE transitioning charge sets. If the PUT fails we haven't
+      // touched anything downstream yet; if charge-set transitions fail
+      // later, the invoice at least records that a rebill was attempted.
+      // 409 "already marked" is non-fatal — idempotent behavior on
+      // accidental double-clicks.
+      const pivotRes = await fetch(`/api/tenant/ar/invoices/${invoiceId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mark_rebilled: true }),
+      });
+      if (!pivotRes.ok && pivotRes.status !== 409) {
+        const b = await pivotRes.json().catch(() => ({}));
+        throw new Error(`Failed to mark invoice as rebilled: ${b.error || pivotRes.status}`);
+      }
+
       let failed = 0;
       let firstError = null;
       for (const jc of invoice.charge_sets) {
@@ -262,6 +278,15 @@ export default function InvoiceDetail({ invoiceId, onClose }) {
             <div className="text-sm text-gray-900 dark:text-slate-100 mt-0.5">
               {invoice.invoice_date ? new Date(invoice.invoice_date).toLocaleDateString() : '—'}
             </div>
+            {invoice.rebilled_at && (
+              <div
+                className="text-[11px] text-amber-700 dark:text-amber-400 mt-1 font-medium"
+                title={`Rebill pivot: invoice was marked for rebill by ${invoice.rebilled_by?.name || 'a user'} on ${new Date(invoice.rebilled_at).toLocaleString()}. Charge sets transitioned to 'rebilling' status and are re-invoiceable from the Billing Pipeline.`}
+              >
+                ⟳ Rebilled {new Date(invoice.rebilled_at).toLocaleDateString()}
+                {invoice.rebilled_by?.name ? ` by ${invoice.rebilled_by.name}` : ''}
+              </div>
+            )}
           </div>
           <div>
             <div className="text-[10px] uppercase tracking-wide font-semibold text-gray-500 dark:text-slate-400">Due Date</div>
