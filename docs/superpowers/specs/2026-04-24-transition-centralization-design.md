@@ -10,8 +10,8 @@ type: spec
 
 The Stream B audit identified scattered status-update writes across the codebase that need centralization before the event spine can emit consistently. After reading the actual code during plan prep, the corrected picture is:
 
-- **5 sites writing `order_charge_sets.status`** (FU-055) — all simple single-row `.update({ status })` calls.
-- **5 sites writing `order_container_moves.status`** in `pages/api/tenant/loads/[id]/routing/index.js` (FU-056, revised) — 2 single-move updates (lines 659, 673) + 3 bulk updates (lines 694, 744, 752).
+- **5 sites writing `order_charge_sets.status`** (FU-055) — **3 bulk** (`invoices/index.js:459`, `invoices/[invoiceId].js:140`, `bulk-send-rate-con.js:274` — each uses `.in('id', [...])`) and **2 single** (`send-rate-con-email.js:151`, `charge-sets/[csId].js:~135`). Most co-write other columns (`invoice_id`, `invoiced_at`, `send_claimed_at`, `invoice_number_base`, `rebill_count`, etc.) in the same UPDATE — the helper must accept `extraFields` to preserve that atomicity.
+- **5 sites writing `order_container_moves.status`** in `pages/api/tenant/loads/[id]/routing/index.js` (FU-056, revised) — 2 single-move updates (lines 659, 673) + 3 bulk updates (lines 694, 744, 752). Sites co-write `started_at` / `completed_at` alongside status.
 - **2 additional `orders.status` writes** in the same routing file (lines 702, 729) were originally mis-labeled in FU-056 as move writes. They are order-table updates, NOT move writes, and therefore out of scope for this spec. Tracked separately.
 
 This spec ships two helper functions — `transitionChargeSetStatus()` at `lib/charge-sets/transition.js` and `transitionMoveStatus()` at `lib/routing/moves/transition.js` — that own all status-write responsibility for those two entities. Each helper mirrors the established `orders` pattern (`lib/email-dispatch/status-change-fire.js`): UPDATE the entity's status, write a history row, log errors but never bubble them.
@@ -151,20 +151,66 @@ COMMIT;
  *   chargeSetId: string,
  *   newStatus: string,
  *   actorUserId: string | null,
+ *   extraFields?: object,
  * }} params
+ *   `extraFields` lets callers set co-written columns atomically with the status change
+ *   (e.g., `invoice_id`, `invoiced_at`, `send_claimed_at`, `invoice_number_base`,
+ *   `rebill_count`, `last_rebilled_at`). Plumbed verbatim into the UPDATE. Keys must
+ *   NOT include `status` (use `newStatus` param) or `tenant_id` / `id` (helper sets).
  * @returns {Promise<{ oldStatus: string | null, newStatus: string, row: object }>}
- *   oldStatus is null if the charge_set was created with newStatus (no-op case still returns the row).
  * @throws on DB UPDATE failure (history-write failures are logged, not thrown).
  */
 export async function transitionChargeSetStatus(svc, params) { /* ... */ }
 ```
 
 **Behavior contract:**
-1. Fetch the current row (`SELECT status, ...`).
-2. If `current.status === newStatus` → return `{ oldStatus: currentStatus, newStatus, row: currentRow }` without UPDATE or history write. No-op.
-3. `UPDATE order_charge_sets SET status = newStatus, updated_at = now() WHERE id = chargeSetId AND tenant_id = tenantId`. Throw if the update fails or affects 0 rows.
-4. `INSERT INTO order_charge_sets_status_history ...`. Log and continue on failure (non-fatal — the status change has already been written).
+1. Fetch the current row by `id + tenant_id` (SELECT `status` + any columns the helper needs for the return shape).
+2. If `current.status === newStatus` AND no `extraFields` specified → return `{ oldStatus, newStatus, row: currentRow }` without UPDATE or history write. No-op.
+3. Build UPDATE payload: `{ status: newStatus, ...extraFields }`. Execute the UPDATE with WHERE `id = chargeSetId AND tenant_id = tenantId`. Throw if the update fails or affects 0 rows.
+4. INSERT into `order_charge_sets_status_history` with the prior and new status + actor. Log-and-continue on failure.
 5. Return `{ oldStatus, newStatus, row }` where `row` is the updated charge_set.
+
+**Bulk-site usage pattern:**
+
+The 3 bulk charge_set sites become fetch-then-loop-serial:
+
+```js
+// Before (invoices/index.js:457-461):
+await svc.from('order_charge_sets')
+  .update({ status: 'invoiced', invoice_id: invoice.id, invoiced_at: now })
+  .eq('tenant_id', ctx.tenantId)
+  .in('id', charge_set_ids);
+
+// After:
+for (const chargeSetId of charge_set_ids) {
+  await transitionChargeSetStatus(svc, {
+    tenantId: ctx.tenantId, chargeSetId,
+    newStatus: 'invoiced',
+    actorUserId: ctx.userId,
+    extraFields: { invoice_id: invoice.id, invoiced_at: now },
+  });
+}
+```
+
+**Single-site with multi-field updates** (site 5, `charge-sets/[csId].js`):
+
+The handler's existing `updates` map is refactored so `status` becomes `newStatus` and everything else becomes `extraFields`:
+
+```js
+// The existing PUT handler builds an `updates` object incrementally.
+// Refactor: separate out the status, pass the rest as extraFields.
+const { status: newStatus, ...extraFields } = updates;
+if (newStatus !== undefined) {
+  await transitionChargeSetStatus(svc, {
+    tenantId: ctx.tenantId, chargeSetId: csId,
+    newStatus, actorUserId: ctx.userId, extraFields,
+  });
+} else {
+  // No status change — direct UPDATE for non-status fields, no history row
+  await svc.from('order_charge_sets').update(updates)
+    .eq('tenant_id', ctx.tenantId).eq('id', csId);
+}
+```
 
 ### `lib/routing/moves/transition.js`
 
@@ -234,15 +280,22 @@ for (const { id: moveId } of (movesToComplete || [])) {
 
 All 12 call sites become one-line invocations of the appropriate helper. The before/after shape is illustrative — exact code depends on surrounding context (transactions, error handling, etc.).
 
-### FU-055 (charge_set status) — 5 sites
+### FU-055 (charge_set status) — 5 sites (3 bulk + 2 single)
 
-| # | File | Current status write | New call |
+**Bulk sites** (fetch-then-loop-serial through helper):
+
+| # | File | Current write | Treatment |
 |---|---|---|---|
-| 1 | `pages/api/tenant/ar/invoices/index.js:459` | `await svc.from('order_charge_sets').update({ status: 'invoiced' }).eq('id', ...)` | `await transitionChargeSetStatus(svc, { tenantId, chargeSetId, newStatus: 'invoiced', actorUserId })` |
-| 2 | `pages/api/tenant/ar/invoices/[invoiceId].js:140` | same "invoiced" write | same helper call |
-| 3 | `pages/api/tenant/ar/charge-sets/bulk-send-rate-con.js:274` | `status: 'rate_con_sent'` write | helper call with `newStatus: 'rate_con_sent'` |
-| 4 | `pages/api/tenant/ar/charge-sets/[id]/send-rate-con-email.js:151` | same "rate_con_sent" write | same helper call |
-| 5 | `pages/api/tenant/loads/[id]/charge-sets/[csId].js` | status transition on edit | helper call with the specific newStatus |
+| 1 | `pages/api/tenant/ar/invoices/index.js:457-461` | `.update({ status: 'invoiced', invoice_id, invoiced_at }).in('id', charge_set_ids)` | `for (const chargeSetId of charge_set_ids) await transitionChargeSetStatus(..., { newStatus: 'invoiced', extraFields: { invoice_id, invoiced_at } })` |
+| 2 | `pages/api/tenant/ar/invoices/[invoiceId].js:138-142` | `.update({ status: 'approved', invoice_id: null }).in('id', junctions.map(...))` | Loop over junction charge_set_ids with `newStatus: 'approved'`, `extraFields: { invoice_id: null }` |
+| 3 | `pages/api/tenant/ar/charge-sets/bulk-send-rate-con.js:272-277` | `.update({ status: 'rate_con_sent', send_claimed_at: null }).in('id', sendableCsIds)` | Loop over `sendableCsIds` with `newStatus: 'rate_con_sent'`, `extraFields: { send_claimed_at: null }` |
+
+**Single sites** (direct helper call):
+
+| # | File | Current write | Treatment |
+|---|---|---|---|
+| 4 | `pages/api/tenant/ar/charge-sets/[id]/send-rate-con-email.js:149-153` | `.update({ status: 'rate_con_sent' }).eq('id', id)` | `await transitionChargeSetStatus(svc, { tenantId, chargeSetId: id, newStatus: 'rate_con_sent', actorUserId })` — no extraFields |
+| 5 | `pages/api/tenant/loads/[id]/charge-sets/[csId].js:133-139` | Multi-field PUT handler building `updates` map (status + bill_to, notes, invoice_number_base, invoiced_at, rebill_count, last_rebilled_at, etc.) | Split `updates` into `{ status: newStatus, ...extraFields }`. If `newStatus` is present, call helper with `extraFields`. If only non-status updates, keep direct `.update(updates)` (no history row — nothing changed about status). |
 
 ### FU-056 (move status) — 5 sites in `routing/index.js`
 
@@ -276,12 +329,13 @@ Follow the existing hand-rolled `.test.mjs` pattern (see `lib/load-margin.test.m
 
 ### `tests/charge-sets-transition.test.mjs`
 
-Four cases, minimum:
+Five cases, minimum:
 
-1. **Success path** — given a charge_set with `status='draft'`, call helper with `newStatus='invoiced'`. Assert the row is updated, the return value has `oldStatus='draft'` and `newStatus='invoiced'`, and a history row exists.
-2. **No-op path** — given a charge_set with `status='invoiced'`, call helper with `newStatus='invoiced'`. Assert no UPDATE and no history row. Return value reflects no-change.
-3. **Update failure** — inject a Supabase error on the UPDATE. Assert the helper throws. Assert no history row written.
-4. **History-write failure** — successful UPDATE, injected error on INSERT to history. Assert the helper returns normally (no throw) and logs the error.
+1. **Success path (status only)** — given a charge_set with `status='draft'`, call helper with `newStatus='invoiced'`. Assert the row is updated, the return value has `oldStatus='draft'` and `newStatus='invoiced'`, and a history row exists.
+2. **Success path (status + extraFields)** — given a charge_set with `status='approved'`, call helper with `newStatus='invoiced'`, `extraFields: { invoice_id: 'inv-123', invoiced_at: '2026-04-24T00:00:00Z' }`. Assert the UPDATE payload includes status + all extraFields. Assert the history row reflects the status transition (extraFields don't go in history).
+3. **No-op path** — given a charge_set with `status='invoiced'` and no extraFields, call helper with `newStatus='invoiced'`. Assert no UPDATE and no history row.
+4. **Update failure** — inject a Supabase error on the UPDATE. Assert the helper throws. Assert no history row written.
+5. **History-write failure** — successful UPDATE, injected error on INSERT to history. Assert the helper returns normally (no throw) and logs the error.
 
 ### `tests/routing-moves-transition.test.mjs`
 
