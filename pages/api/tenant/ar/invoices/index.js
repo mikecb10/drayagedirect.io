@@ -9,6 +9,7 @@ import { assignInvoiceNumberBase } from '../../../../../lib/invoice-utils';
 import { computeInvoiceDueDate } from '../../../../../lib/ar-utils';
 import { parseCsvParam } from '../../../../../lib/ar-filter-params';
 import { fetchLoadMarginInputs, computeLoadMargin } from '../../../../../lib/load-margin';
+import { transitionChargeSetStatus } from '../../../../../lib/charge-sets/transition.js';
 
 /**
  * /api/tenant/ar/invoices
@@ -453,12 +454,19 @@ export default async function handler(req, res) {
       });
     }
 
-    // Update charge sets to 'invoiced' status and link invoice_id
-    await svc
-      .from('order_charge_sets')
-      .update({ status: 'invoiced', invoice_id: invoice.id, invoiced_at: new Date().toISOString() })
-      .eq('tenant_id', ctx.tenantId)
-      .in('id', charge_set_ids);
+    // Update charge sets to 'invoiced' status and link invoice_id.
+    // Loop-serial through transitionChargeSetStatus so each transition
+    // gets a history row. N is small (1-10 charge_sets per invoice typical).
+    const invoicedAt = new Date().toISOString();
+    for (const chargeSetId of charge_set_ids) {
+      await transitionChargeSetStatus(svc, {
+        tenantId: ctx.tenantId,
+        chargeSetId,
+        newStatus: 'invoiced',
+        actorUserId: ctx.userId,
+        extraFields: { invoice_id: invoice.id, invoiced_at: invoicedAt },
+      });
+    }
 
     // Copy line items to invoice_line_items
     for (const cs of chargeSets) {
