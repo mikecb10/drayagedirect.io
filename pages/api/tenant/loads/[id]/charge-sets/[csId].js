@@ -6,6 +6,7 @@ import {
 import { logTenantAction, getClientIp } from '../../../../../../lib/tenant-audit';
 import { PERMISSIONS } from '../../../../../../lib/permissions';
 import { assignInvoiceNumberBase } from '../../../../../../lib/invoice-utils';
+import { transitionChargeSetStatus } from '../../../../../../lib/charge-sets/transition.js';
 
 const VALID_STATUSES = [
   'draft',
@@ -130,14 +131,39 @@ export default async function handler(req, res) {
       }
     }
 
-    const { data, error } = await svc
-      .from('order_charge_sets')
-      .update(updates)
-      .eq('tenant_id', ctx.tenantId)
-      .eq('order_id', id)
-      .eq('id', csId)
-      .select()
-      .single();
+    let data;
+    let error;
+    if (updates.status !== undefined) {
+      // Status changed — route through helper for history coverage.
+      // The `.eq('order_id', id)` scoping used before is a belt-and-
+      // suspenders check — `(tenant_id, csId)` already uniquely identifies
+      // the charge_set, which is what the helper uses.
+      const { status: newStatus, ...extraFields } = updates;
+      try {
+        const result = await transitionChargeSetStatus(svc, {
+          tenantId: ctx.tenantId,
+          chargeSetId: csId,
+          newStatus,
+          actorUserId: ctx.userId,
+          extraFields,
+        });
+        data = result.row;
+      } catch (err) {
+        error = { message: err.message };
+      }
+    } else {
+      // No status change — direct UPDATE for non-status fields only
+      const res_ = await svc
+        .from('order_charge_sets')
+        .update(updates)
+        .eq('tenant_id', ctx.tenantId)
+        .eq('order_id', id)
+        .eq('id', csId)
+        .select()
+        .single();
+      data = res_.data;
+      error = res_.error;
+    }
 
     if (error) return res.status(500).json({ error: error.message });
 
