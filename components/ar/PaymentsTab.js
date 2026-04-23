@@ -68,9 +68,12 @@ export default function PaymentsTab({ filters = {} }) {
           notes: form.notes || null,
         }),
       });
+      // Consume the response body exactly once. A Response can only be read
+      // one time — any branch that reads it must share the same parsed object
+      // so later code (the doc-upload step) doesn't see "body used already".
+      const createdBody = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const b = await res.json().catch(() => ({}));
-        throw new Error(b.error || 'Failed to record payment');
+        throw new Error(createdBody.error || 'Failed to record payment');
       }
       // Two-step upload: create the payment first (JSON POST above), then
       // if a supporting doc was attached, multipart POST it to
@@ -78,8 +81,7 @@ export default function PaymentsTab({ filters = {} }) {
       // upload doesn't block the payment record — user sees a warning and
       // can retry via edit. Endpoint accepts .pdf/.png/.jpg/.jpeg, 10MB max.
       if (docFile) {
-        const created = await res.json().catch(() => ({}));
-        const newPaymentId = created.payment?.id || created.id;
+        const newPaymentId = createdBody.payment?.id || createdBody.id;
         if (newPaymentId) {
           const fd = new FormData();
           fd.append('file', docFile);
@@ -92,6 +94,11 @@ export default function PaymentsTab({ filters = {} }) {
             // Non-fatal: payment is already recorded. Surface a warning.
             setError(`Payment recorded, but document upload failed: ${b.error || upRes.status}`);
           }
+        } else {
+          // Shouldn't happen under normal flow (POST returns 201 with
+          // { payment: {...} }) but surface so a silent skip doesn't mask
+          // the failure.
+          setError('Payment recorded, but could not determine new payment id for document upload.');
         }
       }
       setModalOpen(false);

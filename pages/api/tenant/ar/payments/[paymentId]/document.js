@@ -81,30 +81,36 @@ export default async function handler(req, res) {
       }
 
       const filePath = file.filepath || file.path;
-      const buffer = fs.readFileSync(filePath);
+      try {
+        const buffer = fs.readFileSync(filePath);
 
-      const storagePath = `${ctx.tenantId}/payments/${paymentId}${ext}`;
-      const { error: uploadErr } = await svc.storage
-        .from(BUCKET)
-        .upload(storagePath, buffer, { contentType: mime, upsert: true });
-      if (uploadErr) return res.status(500).json({ error: `Upload failed: ${uploadErr.message}` });
+        const storagePath = `${ctx.tenantId}/payments/${paymentId}${ext}`;
+        const { error: uploadErr } = await svc.storage
+          .from(BUCKET)
+          .upload(storagePath, buffer, { contentType: mime, upsert: true });
+        if (uploadErr) return res.status(500).json({ error: `Upload failed: ${uploadErr.message}` });
 
-      const { error: updErr } = await svc
-        .from('payments_received')
-        .update({
+        const { error: updErr } = await svc
+          .from('payments_received')
+          .update({
+            document_url: storagePath,
+            document_filename: originalName,
+          })
+          .eq('id', paymentId)
+          .eq('tenant_id', ctx.tenantId);
+        if (updErr) return res.status(500).json({ error: `DB update failed: ${updErr.message}` });
+
+        return res.status(200).json({
           document_url: storagePath,
           document_filename: originalName,
-        })
-        .eq('id', paymentId)
-        .eq('tenant_id', ctx.tenantId);
-      if (updErr) return res.status(500).json({ error: `DB update failed: ${updErr.message}` });
-
-      try { fs.unlinkSync(filePath); } catch {}
-
-      return res.status(200).json({
-        document_url: storagePath,
-        document_filename: originalName,
-      });
+        });
+      } finally {
+        // Clean up the formidable temp file on every exit path — success,
+        // Storage failure, DB failure, or unexpected throw. Wrapped in its
+        // own try/catch because unlink failures are non-fatal (OS will
+        // sweep temp dirs anyway, and the real error is already surfaced).
+        try { fs.unlinkSync(filePath); } catch {}
+      }
     } catch (e) {
       return res.status(500).json({ error: e.message || 'Upload failed' });
     }
@@ -113,7 +119,10 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     if (!payment.document_url) return res.status(404).json({ error: 'No document attached' });
     try {
-      const signedUrl = await getSignedUrl(svc, payment.document_url);
+      // Pass explicit TTL (15 min) rather than relying on getSignedUrl's
+      // default so a future default change in lib/pdf/storage.js doesn't
+      // silently extend the lifetime of sensitive payment docs.
+      const signedUrl = await getSignedUrl(svc, payment.document_url, 900);
       if (req.query.redirect === '1') {
         res.writeHead(302, { Location: signedUrl });
         return res.end();
@@ -126,15 +135,22 @@ export default async function handler(req, res) {
 
   if (req.method === 'DELETE') {
     if (!payment.document_url) return res.status(200).json({ ok: true });
-    try {
-      await svc.storage.from(BUCKET).remove([payment.document_url]);
-    } catch { /* non-fatal — row-clear is the source of truth */ }
+    // DB first, Storage second. If the DB update fails, we return 500 and
+    // nothing is mutated — user can retry cleanly. If Storage remove fails
+    // after a successful DB clear, the row already looks correct to the
+    // UI (no paperclip icon, no click-through) and the orphan bytes age
+    // out with bucket lifecycle. Reversing this order made a partial
+    // failure reveal an icon that no longer resolved.
+    const oldPath = payment.document_url;
     const { error: updErr } = await svc
       .from('payments_received')
       .update({ document_url: null, document_filename: null })
       .eq('id', paymentId)
       .eq('tenant_id', ctx.tenantId);
     if (updErr) return res.status(500).json({ error: updErr.message });
+    try {
+      await svc.storage.from(BUCKET).remove([oldPath]);
+    } catch { /* non-fatal — row-clear is the source of truth */ }
     return res.status(200).json({ ok: true });
   }
 

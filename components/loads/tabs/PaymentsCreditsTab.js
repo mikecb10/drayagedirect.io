@@ -24,6 +24,7 @@ export default function PaymentsCreditsTab({ load }) {
   const [totalAppliedCents, setTotalAppliedCents] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [reloadTick, setReloadTick] = useState(0);
 
   useEffect(() => {
     if (!load?.id) return;
@@ -48,7 +49,7 @@ export default function PaymentsCreditsTab({ load }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [load?.id]);
+  }, [load?.id, reloadTick]);
 
   if (loading) {
     return (
@@ -58,8 +59,15 @@ export default function PaymentsCreditsTab({ load }) {
 
   if (error) {
     return (
-      <div className="p-4 rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/20 text-sm text-red-700 dark:text-red-300">
-        {error}
+      <div className="p-4 rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/20 text-sm text-red-700 dark:text-red-300 flex items-center justify-between gap-3">
+        <span>{error}</span>
+        <button
+          type="button"
+          onClick={() => setReloadTick((t) => t + 1)}
+          className="shrink-0 text-xs font-semibold text-red-700 dark:text-red-300 hover:text-red-900 dark:hover:text-red-100 px-2 py-1 rounded border border-red-300 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-950/40"
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -86,11 +94,15 @@ export default function PaymentsCreditsTab({ load }) {
         <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-200 mt-0.5">
           {formatCents(totalAppliedCents)}
         </div>
-        <div className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1">
-          {applications.length} application{applications.length !== 1 ? 's' : ''} across{' '}
-          {new Set(applications.map((a) => a.invoice_id)).size} invoice
-          {new Set(applications.map((a) => a.invoice_id)).size !== 1 ? 's' : ''}
-        </div>
+        {(() => {
+          const invoiceCount = new Set(applications.map((a) => a.invoice_id)).size;
+          return (
+            <div className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1">
+              {applications.length} application{applications.length !== 1 ? 's' : ''} across{' '}
+              {invoiceCount} invoice{invoiceCount !== 1 ? 's' : ''}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Applications list */}
