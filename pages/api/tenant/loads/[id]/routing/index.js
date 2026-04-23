@@ -696,14 +696,31 @@ export default async function handler(req, res) {
     // impossible state where status='completed' but the move never happened).
     if (action === 'complete_load') {
       const now = new Date().toISOString();
-      await svc
+
+      // Fetch eligible moves first, then loop-serial through the helper so
+      // each move transition gets a history row. Eligible = started_at set
+      // AND not yet completed.
+      const { data: eligibleMoves } = await svc
         .from('order_container_moves')
-        .update({ completed_at: now, status: 'completed' })
+        .select('id')
         .eq('tenant_id', ctx.tenantId)
         .eq('order_id', id)
         .is('completed_at', null)
         .not('started_at', 'is', null);
 
+      for (const { id: moveId } of (eligibleMoves || [])) {
+        await transitionMoveStatus(svc, {
+          tenantId: ctx.tenantId,
+          moveId,
+          newStatus: 'completed',
+          actorUserId: ctx.userId,
+          extraFields: { completed_at: now },
+        });
+      }
+
+      // NOTE: the orders.status UPDATE below is intentionally left inline.
+      // Out of scope for moves-centralization (FU-056). Tracked as FU-071
+      // for a later session to route through fireStatusChangeTriggers.
       const { data: order, error: orderErr } = await svc
         .from('orders')
         .update({ status: 'completed', actual_delivery_at: now })
@@ -746,21 +763,47 @@ export default async function handler(req, res) {
       //   2. Moves that were never started but somehow got completed (e.g.
       //      from the old complete_load bug that stamped every move) →
       //      revert to 'pending' so they don't show a bogus "completed" pill.
-      await svc
+      //
+      // Now routed through transitionMoveStatus per move so each reopen
+      // writes a history row.
+
+      // Pass 1: started + completed moves → in_progress
+      const { data: startedCompletedMoves } = await svc
         .from('order_container_moves')
-        .update({ completed_at: null, status: 'in_progress' })
+        .select('id')
         .eq('tenant_id', ctx.tenantId)
         .eq('order_id', id)
         .not('started_at', 'is', null)
         .not('completed_at', 'is', null);
 
-      await svc
+      for (const { id: moveId } of (startedCompletedMoves || [])) {
+        await transitionMoveStatus(svc, {
+          tenantId: ctx.tenantId,
+          moveId,
+          newStatus: 'in_progress',
+          actorUserId: ctx.userId,
+          extraFields: { completed_at: null },
+        });
+      }
+
+      // Pass 2: unstarted + completed moves → pending (cleanup for old bug)
+      const { data: unstartedCompletedMoves } = await svc
         .from('order_container_moves')
-        .update({ completed_at: null, status: 'pending' })
+        .select('id')
         .eq('tenant_id', ctx.tenantId)
         .eq('order_id', id)
         .is('started_at', null)
         .not('completed_at', 'is', null);
+
+      for (const { id: moveId } of (unstartedCompletedMoves || [])) {
+        await transitionMoveStatus(svc, {
+          tenantId: ctx.tenantId,
+          moveId,
+          newStatus: 'pending',
+          actorUserId: ctx.userId,
+          extraFields: { completed_at: null },
+        });
+      }
 
       await logTenantAction(svc, {
         tenantId: ctx.tenantId,
