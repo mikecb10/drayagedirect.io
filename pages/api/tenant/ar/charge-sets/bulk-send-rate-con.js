@@ -13,6 +13,7 @@ import { selectActiveConfig } from '../../../../../lib/email-dispatch/select-con
 import { renderRateConPdf } from '../../../../../lib/pdf/render-rate-con';
 import { archiveRateConPdf } from '../../../../../lib/pdf/archive';
 import { checkChargeSetDistanceGate } from '../../../../../lib/charge-set-distance-gate';
+import { transitionChargeSetStatus } from '../../../../../lib/charge-sets/transition.js';
 
 export const config = { runtime: 'nodejs' };
 
@@ -269,12 +270,19 @@ export default async function handler(req, res) {
     // send-rate-con-email.js also only updates status. If a sent_at-like
     // column is ever added, stamp it here alongside status.
     stage = STAGE.postdispatch;
-    const { error: updErr } = await svc
-      .from('order_charge_sets')
-      .update({ status: 'rate_con_sent', send_claimed_at: null })
-      .eq('tenant_id', ctx.tenantId)
-      .in('id', sendableCsIds);
-    if (updErr) throw new Error(`status update: ${updErr.message}`);
+    for (const chargeSetId of sendableCsIds) {
+      try {
+        await transitionChargeSetStatus(svc, {
+          tenantId: ctx.tenantId,
+          chargeSetId,
+          newStatus: 'rate_con_sent',
+          actorUserId: ctx.userId,
+          extraFields: { send_claimed_at: null },
+        });
+      } catch (err) {
+        throw new Error(`status update (${chargeSetId}): ${err.message}`);
+      }
+    }
 
     // Bulk audit log entry.
     await logManualBulkRateConSend(svc, {
