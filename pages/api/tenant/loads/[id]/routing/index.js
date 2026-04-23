@@ -8,6 +8,7 @@ import { PERMISSIONS } from '../../../../../../lib/permissions';
 import { buildRoutingEventsForTemplate } from '../../../../../../lib/routing-template-seed';
 import { deriveOrderStatusFromEvents } from '../../../../../../lib/dispatcher-states';
 import { fireStatusChangeTriggers } from '../../../../../../lib/email-dispatch';
+import { transitionMoveStatus } from '../../../../../../lib/routing/moves/transition.js';
 
 async function snapshotLocation(svc, tenantId, locationId) {
   if (!locationId) return {};
@@ -654,29 +655,35 @@ export default async function handler(req, res) {
     // Start a move — sets started_at + status='in_progress'
     if (action === 'start_move') {
       if (!body.move_id) return res.status(400).json({ error: 'move_id required' });
-      const { data, error } = await svc
-        .from('order_container_moves')
-        .update({ started_at: new Date().toISOString(), status: 'in_progress' })
-        .eq('tenant_id', ctx.tenantId)
-        .eq('id', body.move_id)
-        .select()
-        .single();
-      if (error) return res.status(500).json({ error: error.message });
-      return res.status(200).json({ move: data });
+      try {
+        const { row } = await transitionMoveStatus(svc, {
+          tenantId: ctx.tenantId,
+          moveId: body.move_id,
+          newStatus: 'in_progress',
+          actorUserId: ctx.userId,
+          extraFields: { started_at: new Date().toISOString() },
+        });
+        return res.status(200).json({ move: row });
+      } catch (err) {
+        return res.status(500).json({ error: err.message });
+      }
     }
 
     // Complete a single move
     if (action === 'complete_move') {
       if (!body.move_id) return res.status(400).json({ error: 'move_id required' });
-      const { data, error } = await svc
-        .from('order_container_moves')
-        .update({ completed_at: new Date().toISOString(), status: 'completed' })
-        .eq('tenant_id', ctx.tenantId)
-        .eq('id', body.move_id)
-        .select()
-        .single();
-      if (error) return res.status(500).json({ error: error.message });
-      return res.status(200).json({ move: data });
+      try {
+        const { row } = await transitionMoveStatus(svc, {
+          tenantId: ctx.tenantId,
+          moveId: body.move_id,
+          newStatus: 'completed',
+          actorUserId: ctx.userId,
+          extraFields: { completed_at: new Date().toISOString() },
+        });
+        return res.status(200).json({ move: row });
+      } catch (err) {
+        return res.status(500).json({ error: err.message });
+      }
     }
 
     // Complete the whole load — mark every move completed + order delivered
