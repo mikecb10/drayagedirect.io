@@ -48,11 +48,11 @@ function StatusPill({ status, deliveryStatus }) {
   );
 }
 
-export default function BulkEmailQueue({ groups, groupingKind, docType = 'invoice', onClose, onAllSent }) {
+export default function BulkEmailQueue({ groups, groupingKind, docType = 'invoice', mode = 'first-send', onClose, onAllSent }) {
   const {
     rows, updateRow, sendReady, retryFailed,
     readyCount, failedCount, sentCount, needsEditCount, allSent,
-  } = useBulkEmailQueue(groups, groupingKind, docType);
+  } = useBulkEmailQueue(groups, groupingKind, docType, mode);
 
   const [editingKey, setEditingKey] = useState(null);
   const editingRow = editingKey ? rows.find((r) => r.groupKey === editingKey) : null;

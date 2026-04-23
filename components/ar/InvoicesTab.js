@@ -8,6 +8,9 @@ import Select from '../ui/Select';
 import { formatCents } from '../../lib/ar-utils';
 import EmailComposeSlideOver from './EmailComposeSlideOver';
 import { useEmailCompose } from '../../hooks/useEmailCompose';
+import InvoicesBulkBar from './InvoicesBulkBar';
+import BulkGroupingModal from './BulkGroupingModal';
+import BulkEmailQueue from './BulkEmailQueue';
 
 const STATUS_BADGES = {
   draft: { variant: 'gray', label: 'Draft' },
@@ -31,6 +34,19 @@ export default function InvoicesTab({ filters = {} }) {
   const [approvedSets, setApprovedSets] = useState([]);
   const [selectedSets, setSelectedSets] = useState([]);
   const [creating, setCreating] = useState(false);
+
+  // 2a.4c: bulk resend selection state. Only sent/overdue invoices are
+  // selectable. Mirrors BillingPipelineTab's pattern. Toast is intentionally
+  // omitted — BulkEmailQueue surfaces per-row status pills which is richer
+  // than a single-line toast would be.
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [lastClickedId, setLastClickedId] = useState(null);
+  const [groupingModalInvoices, setGroupingModalInvoices] = useState(null);
+  const [queueState, setQueueState] = useState(null);
+
+  // Derived: "resend" whenever the queue modal is open. Disables row
+  // checkboxes + animates the InvoicesBulkBar icon while mid-send.
+  const bulkAction = queueState ? 'resend' : null;
 
   async function load() {
     setLoading(true);
@@ -78,6 +94,13 @@ export default function InvoicesTab({ filters = {} }) {
   }
 
   useEffect(() => { load(); }, [statusFilter, filters]);
+
+  // Selection is meaningful only within the currently displayed list — when
+  // filter/search changes, rows change, so clear selection.
+  useEffect(() => {
+    setSelectedIds(new Set());
+    setLastClickedId(null);
+  }, [statusFilter, search, filters]);
 
   async function openCreate() {
     setCreateOpen(true);
@@ -127,6 +150,74 @@ export default function InvoicesTab({ filters = {} }) {
       }
       load();
     } catch (e) { setError(e.message); }
+  }
+
+  // 2a.4c: resendable rows are sent or overdue. Drafts have the per-row Send
+  // button already; paid/void are never resent.
+  const resendableInvoices = invoices.filter(
+    (inv) => inv.status === 'sent' || inv.status === 'overdue'
+  );
+  const visibleResendableIds = resendableInvoices.map((inv) => inv.id);
+  const allSelected = visibleResendableIds.length > 0
+    && visibleResendableIds.every((id) => selectedIds.has(id));
+  const someSelected = visibleResendableIds.some((id) => selectedIds.has(id)) && !allSelected;
+  const selectedTotalCents = invoices
+    .filter((inv) => selectedIds.has(inv.id))
+    .reduce((a, inv) => a + (inv.total_amount_cents || 0), 0);
+
+  function toggleAllResendable() {
+    if (allSelected || someSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(visibleResendableIds));
+    }
+  }
+
+  function toggleResendableRow(invId, event) {
+    event.stopPropagation();
+    if (event.shiftKey && lastClickedId) {
+      const startIdx = visibleResendableIds.indexOf(lastClickedId);
+      const endIdx = visibleResendableIds.indexOf(invId);
+      if (startIdx >= 0 && endIdx >= 0) {
+        const [a, b] = [Math.min(startIdx, endIdx), Math.max(startIdx, endIdx)];
+        const rangeIds = visibleResendableIds.slice(a, b + 1);
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          for (const id of rangeIds) next.add(id);
+          return next;
+        });
+      }
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(invId)) next.delete(invId);
+        else next.add(invId);
+        return next;
+      });
+    }
+    setLastClickedId(invId);
+  }
+
+  function handleBulkResend() {
+    const selected = invoices.filter((inv) => selectedIds.has(inv.id));
+    if (selected.length === 0) return;
+
+    // Items shape for BulkGroupingModal (docType='invoice' path). Field paths
+    // mirror the Pipeline tab's handleBulkApproveAndInvoice at
+    // BillingPipelineTab.js:277-285. reference_number comes from
+    // customer_reference on the order (aliased per convention); the invoices
+    // list endpoint exposes it at inv.charge_sets[0].charge_set.order.customer_reference.
+    const items = selected.map((inv) => ({
+      id: inv.id,
+      invoice_id: inv.id,
+      customer_id: inv.customer?.id ?? inv.customer_id ?? null,
+      customer_name: inv.customer?.name ?? '(unknown customer)',
+      reference_number: inv.charge_sets?.[0]?.charge_set?.order?.customer_reference ?? null,
+      invoice_number: inv.invoice_number,
+      total_cents: inv.total_amount_cents ?? 0,
+    }));
+
+    setGroupingModalInvoices(items);
   }
 
   function toggleSet(id) {
@@ -189,6 +280,17 @@ export default function InvoicesTab({ filters = {} }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 dark:border-slate-800 bg-gray-50/60 dark:bg-slate-800/40">
+                <th className="px-3 py-2 w-10">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    ref={(el) => { if (el) el.indeterminate = someSelected; }}
+                    onChange={toggleAllResendable}
+                    disabled={bulkAction != null || visibleResendableIds.length === 0}
+                    aria-label="Select all resendable invoices"
+                    className="rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                </th>
                 <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Invoice #</th>
                 <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Customer</th>
                 <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Status</th>
@@ -201,17 +303,38 @@ export default function InvoicesTab({ filters = {} }) {
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-slate-800">
               {loading ? (
-                <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">Loading...</td></tr>
+                <tr><td colSpan={9} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">Loading...</td></tr>
               ) : invoices.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">No invoices yet.</td></tr>
+                <tr><td colSpan={9} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">No invoices yet.</td></tr>
               ) : (
                 invoices.map((inv) => {
                   const badge = STATUS_BADGES[inv.status] || STATUS_BADGES.draft;
                   const loadNums = (inv.charge_sets || [])
                     .map((jc) => jc.charge_set?.order?.order_number)
                     .filter(Boolean);
+                  const isResendable = inv.status === 'sent' || inv.status === 'overdue';
                   return (
-                    <tr key={inv.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40">
+                    <tr
+                      key={inv.id}
+                      className={`${
+                        selectedIds.has(inv.id)
+                          ? 'bg-blue-50 dark:bg-blue-950/40'
+                          : 'hover:bg-gray-50 dark:hover:bg-slate-800/40'
+                      }`}
+                    >
+                      <td className="px-3 py-2.5 w-10">
+                        {isResendable ? (
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(inv.id)}
+                            onChange={(e) => toggleResendableRow(inv.id, e)}
+                            onClick={(e) => e.stopPropagation()}
+                            disabled={bulkAction != null}
+                            aria-label={`Select invoice ${inv.invoice_number || ''}`}
+                            className="rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                        ) : null}
+                      </td>
                       <td className="px-4 py-2.5">
                         <span className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400">{inv.invoice_number}</span>
                         {inv.is_consolidated && (
@@ -262,6 +385,48 @@ export default function InvoicesTab({ filters = {} }) {
           </table>
         </div>
       </div>
+
+      <InvoicesBulkBar
+        count={selectedIds.size}
+        totalCents={selectedTotalCents}
+        bulkAction={bulkAction}
+        onResend={handleBulkResend}
+        onClear={() => {
+          setSelectedIds(new Set());
+          setLastClickedId(null);
+        }}
+      />
+
+      {groupingModalInvoices && (
+        <BulkGroupingModal
+          invoices={groupingModalInvoices}
+          onCancel={() => setGroupingModalInvoices(null)}
+          onContinue={({ kind, groups }) => {
+            setGroupingModalInvoices(null);
+            setQueueState({ kind, groups });
+          }}
+        />
+      )}
+
+      {queueState && (
+        <BulkEmailQueue
+          groups={queueState.groups}
+          groupingKind={queueState.kind}
+          mode="resend"
+          onClose={() => {
+            setQueueState(null);
+            setSelectedIds(new Set());
+            setLastClickedId(null);
+            load();
+          }}
+          onAllSent={() => {
+            setQueueState(null);
+            setSelectedIds(new Set());
+            setLastClickedId(null);
+            load();
+          }}
+        />
+      )}
 
       <EmailComposeSlideOver
         open={emailCompose.isOpen}
