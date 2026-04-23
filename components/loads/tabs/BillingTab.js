@@ -12,6 +12,7 @@ import Select from '../../ui/Select';
 import EmailComposeSlideOver from '../../ar/EmailComposeSlideOver';
 import DryRunSlideOver from '../routing/DryRunSlideOver';
 import { useEmailCompose } from '../../../hooks/useEmailCompose';
+import MarginBadge from '../../ui/MarginBadge';
 
 const STATUS_STYLES = {
   draft: 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200',
@@ -164,6 +165,30 @@ export default function BillingTab({ load }) {
   return (
     <div className="space-y-4">
       {error && <Alert type="error" message={error} />}
+
+      {load?.margin && (
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900/50 px-3 py-2 text-sm">
+          <span className="text-gray-600 dark:text-slate-400">Revenue</span>
+          <span className="font-medium text-gray-900 dark:text-slate-100">
+            {load.margin.revenueCents > 0 ? formatCents(load.margin.revenueCents) : '—'}
+          </span>
+          <span className="text-gray-400 dark:text-slate-600">·</span>
+          <span className="text-gray-600 dark:text-slate-400">Cost</span>
+          <span className="font-medium text-gray-900 dark:text-slate-100">
+            {load.margin.costCents > 0 ? formatCents(load.margin.costCents) : '—'}
+          </span>
+          <span className="text-gray-400 dark:text-slate-600">·</span>
+          <span className="text-gray-600 dark:text-slate-400">Margin</span>
+          <span className="font-medium text-gray-900 dark:text-slate-100">
+            {load.margin.bucket !== 'neutral' ? formatCents(load.margin.marginCents) : '—'}
+          </span>
+          <MarginBadge
+            marginPct={load.margin.marginPct}
+            bucket={load.margin.bucket}
+            size="sm"
+          />
+        </div>
+      )}
 
       {/* Summary strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

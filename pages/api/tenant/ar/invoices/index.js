@@ -4,10 +4,11 @@ import {
   getServiceClient,
 } from '../../../../../lib/tenant-api';
 import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
-import { PERMISSIONS } from '../../../../../lib/permissions';
+import { PERMISSIONS, hasPermission } from '../../../../../lib/permissions';
 import { assignInvoiceNumberBase } from '../../../../../lib/invoice-utils';
 import { computeInvoiceDueDate } from '../../../../../lib/ar-utils';
 import { parseCsvParam } from '../../../../../lib/ar-filter-params';
+import { fetchLoadMarginInputs, computeLoadMargin } from '../../../../../lib/load-margin';
 
 /**
  * /api/tenant/ar/invoices
@@ -18,7 +19,7 @@ import { parseCsvParam } from '../../../../../lib/ar-filter-params';
 export default async function handler(req, res) {
   const ctx = await requireTenantUser(req, res);
   if (!ctx) return;
-  if (!requirePermission(ctx, [PERMISSIONS.ACCOUNTS_RECEIVABLE, PERMISSIONS.ALL], res)) return;
+  if (!requirePermission(ctx, [PERMISSIONS.ACCOUNTS_RECEIVABLE], res)) return;
 
   const svc = getServiceClient();
 
@@ -240,6 +241,103 @@ export default async function handler(req, res) {
       } else {
         filtered = filtered.filter((inv) => !sentInvoiceIds.has(inv.id));
       }
+    }
+
+    // ── Load Margin: attach margin object per invoice row ─────────────────
+    // Invoices are load-level documents; collect distinct order IDs from
+    // their nested charge_sets, compute margin once per order, then attach.
+    // Gated on ACCOUNTS_RECEIVABLE | REPORTING | super_admin — consistent
+    // with loads list and AR endpoints.
+    const canSeeMargin = hasPermission(ctx, [PERMISSIONS.ACCOUNTS_RECEIVABLE, PERMISSIONS.REPORTING]);
+    if (canSeeMargin && filtered.length > 0) {
+      try {
+        const { data: tenant, error: tErr } = await svc
+          .from('tenants')
+          .select('margin_red_threshold, margin_yellow_threshold, margin_include_dry_runs')
+          .eq('id', ctx.tenantId)
+          .single();
+        if (!tErr && tenant) {
+          // Collect distinct order IDs from nested charge_sets structure.
+          const distinctOrderIds = [...new Set(
+            filtered.flatMap((inv) =>
+              (inv.charge_sets || [])
+                .map((cs) => cs?.charge_set?.order_id)
+                .filter(Boolean)
+            )
+          )];
+          if (distinctOrderIds.length > 0) {
+            const inputs = await fetchLoadMarginInputs(svc, {
+              tenantId: ctx.tenantId,
+              orderIds: distinctOrderIds,
+              includeDryRuns: tenant.margin_include_dry_runs,
+            });
+            const marginByOrder = new Map();
+            for (const id of distinctOrderIds) {
+              const { revenueCents, costCents } = inputs.get(id) ?? { revenueCents: 0, costCents: 0 };
+              marginByOrder.set(id, computeLoadMargin({
+                revenueCents,
+                costCents,
+                redThreshold:    Number(tenant.margin_red_threshold),
+                yellowThreshold: Number(tenant.margin_yellow_threshold),
+              }));
+            }
+            // Attach margin to each invoice. An invoice may span multiple
+            // charge sets / orders (consolidated); attach the first resolved
+            // order's margin, or null for multi-order invoices where it's
+            // ambiguous at the invoice level.
+            for (const inv of filtered) {
+              const orderIds = (inv.charge_sets || [])
+                .map((cs) => cs?.charge_set?.order_id)
+                .filter(Boolean);
+              const uniqueOrderIds = [...new Set(orderIds)];
+              if (uniqueOrderIds.length === 1) {
+                inv.margin = marginByOrder.get(uniqueOrderIds[0]) ?? null;
+              } else if (uniqueOrderIds.length > 1) {
+                // Consolidated invoice: aggregate revenue + cost across all
+                // constituent orders, then compute a single invoice-level margin.
+                let aggRevenue = 0;
+                let aggCost = 0;
+                for (const id of uniqueOrderIds) {
+                  const { revenueCents, costCents } = inputs.get(id) ?? { revenueCents: 0, costCents: 0 };
+                  aggRevenue += revenueCents;
+                  aggCost    += costCents;
+                }
+                inv.margin = computeLoadMargin({
+                  revenueCents:    aggRevenue,
+                  costCents:       aggCost,
+                  redThreshold:    Number(tenant.margin_red_threshold),
+                  yellowThreshold: Number(tenant.margin_yellow_threshold),
+                });
+              } else {
+                inv.margin = null;
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error('AR invoices margin attach failed', err);
+      }
+    }
+
+    // ── Margin range filter ─────────────────────────────────────────────
+    // Runs after the margin-attach block so inv.margin is populated.
+    // Neutral-bucket rows (no revenue or no cost) are excluded from numeric ranges.
+    // Skip entirely when the caller lacks the margin-view permission — no rows
+    // have .margin attached, so filtering would produce an empty result set.
+    const { margin_from, margin_to } = req.query;
+    const marginFrom = margin_from !== '' && margin_from != null
+      ? Number(margin_from) : null;
+    const marginTo   = margin_to   !== '' && margin_to   != null
+      ? Number(margin_to)   : null;
+
+    if (canSeeMargin && (Number.isFinite(marginFrom) || Number.isFinite(marginTo))) {
+      filtered = filtered.filter((inv) => {
+        const m = inv.margin;
+        if (!m || m.bucket === 'neutral') return false;
+        if (Number.isFinite(marginFrom) && m.marginPct < marginFrom) return false;
+        if (Number.isFinite(marginTo)   && m.marginPct > marginTo)   return false;
+        return true;
+      });
     }
 
     const stats = {

@@ -50,6 +50,9 @@ venv/
 # claude code ephemeral
 .claude/worktrees/
 
+# git worktrees (parallel feature workspaces)
+.worktrees/
+
 # editor
 .vscode/
 .idea/

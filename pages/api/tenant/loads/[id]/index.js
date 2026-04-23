@@ -4,8 +4,9 @@ import {
   getServiceClient,
 } from '../../../../../lib/tenant-api';
 import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
-import { PERMISSIONS } from '../../../../../lib/permissions';
+import { PERMISSIONS, hasPermission } from '../../../../../lib/permissions';
 import { fireFieldChangeTriggers, fireStatusChangeTriggers } from '../../../../../lib/email-dispatch';
+import { fetchLoadMarginInputs, computeLoadMargin } from '../../../../../lib/load-margin';
 
 // NOTE: load_type is intentionally NOT editable — the load number has the
 // type letter baked in (M/N/E/O/R/B), so changing the type would make the
@@ -205,6 +206,34 @@ export default async function handler(req, res) {
         reason,
         event_id: ev.id,
       };
+    }
+
+    // ── Margin attach (gated by ACCOUNTS_RECEIVABLE / REPORTING / ALL) ──
+    if (hasPermission(ctx, [PERMISSIONS.ACCOUNTS_RECEIVABLE, PERMISSIONS.REPORTING])) {
+      try {
+        const { data: tenant, error: tErr } = await svc
+          .from('tenants')
+          .select('margin_red_threshold, margin_yellow_threshold, margin_include_dry_runs')
+          .eq('id', ctx.tenantId)
+          .single();
+        if (!tErr && tenant) {
+          const inputs = await fetchLoadMarginInputs(svc, {
+            tenantId: ctx.tenantId,
+            orderIds: [data.id],
+            includeDryRuns: tenant.margin_include_dry_runs,
+          });
+          const { revenueCents, costCents } = inputs.get(data.id) ?? { revenueCents: 0, costCents: 0 };
+          data.margin = computeLoadMargin({
+            revenueCents,
+            costCents,
+            redThreshold:    Number(tenant.margin_red_threshold),
+            yellowThreshold: Number(tenant.margin_yellow_threshold),
+          });
+        }
+      } catch (marginErr) {
+        console.error('[load-margin] attach failed for load', id, marginErr.message);
+        // Non-fatal — load.margin stays undefined; surface renders nothing
+      }
     }
 
     return res.status(200).json({ load: data, holds: holds || [], routing_locks });

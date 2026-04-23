@@ -1,5 +1,7 @@
 import { requireTenantUser, getServiceClient } from '../../../../lib/tenant-api';
 import { parseCsvParam } from '../../../../lib/ar-filter-params';
+import { fetchLoadMarginInputs, computeLoadMargin } from '../../../../lib/load-margin';
+import { PERMISSIONS, hasPermission } from '../../../../lib/permissions';
 
 /**
  * GET /api/tenant/ar
@@ -285,6 +287,68 @@ export default async function handler(req, res) {
     } else {
       scopedSets = scopedSets.filter((cs) => !sentChargeSetIds.has(cs.id));
     }
+  }
+
+  // ── Load Margin: attach margin object per row ─────────────────────────
+  // Gated on ACCOUNTS_RECEIVABLE | REPORTING | super_admin — users without
+  // the permission receive rows without a margin object, and the margin filter
+  // is treated as a no-op so they don't accidentally see empty results.
+  const canSeeMargin = hasPermission(ctx, [PERMISSIONS.ACCOUNTS_RECEIVABLE, PERMISSIONS.REPORTING]);
+
+  if (canSeeMargin && scopedSets.length > 0) {
+    try {
+      const { data: tenant, error: tErr } = await svc
+        .from('tenants')
+        .select('margin_red_threshold, margin_yellow_threshold, margin_include_dry_runs')
+        .eq('id', ctx.tenantId)
+        .single();
+      if (!tErr && tenant) {
+        const distinctOrderIds = [...new Set(scopedSets.map((r) => r.order_id).filter(Boolean))];
+        if (distinctOrderIds.length > 0) {
+          const inputs = await fetchLoadMarginInputs(svc, {
+            tenantId: ctx.tenantId,
+            orderIds: distinctOrderIds,
+            includeDryRuns: tenant.margin_include_dry_runs,
+          });
+          const marginByOrder = new Map();
+          for (const id of distinctOrderIds) {
+            const { revenueCents, costCents } = inputs.get(id) ?? { revenueCents: 0, costCents: 0 };
+            marginByOrder.set(id, computeLoadMargin({
+              revenueCents,
+              costCents,
+              redThreshold:    Number(tenant.margin_red_threshold),
+              yellowThreshold: Number(tenant.margin_yellow_threshold),
+            }));
+          }
+          for (const row of scopedSets) {
+            if (row.order_id) row.margin = marginByOrder.get(row.order_id) ?? null;
+          }
+        }
+      }
+    } catch (err) {
+      console.error('AR margin attach failed', err);
+    }
+  }
+
+  // ── Margin range filter ───────────────────────────────────────────────
+  // Runs after the margin-attach block so row.margin is populated.
+  // Neutral-bucket rows (no revenue or no cost) are excluded from numeric ranges.
+  // Skip entirely when the caller lacks the margin-view permission — no rows
+  // have .margin attached, so filtering would produce an empty result set.
+  const { margin_from, margin_to } = req.query;
+  const marginFrom = margin_from !== '' && margin_from != null
+    ? Number(margin_from) : null;
+  const marginTo   = margin_to   !== '' && margin_to   != null
+    ? Number(margin_to)   : null;
+
+  if (canSeeMargin && (Number.isFinite(marginFrom) || Number.isFinite(marginTo))) {
+    scopedSets = scopedSets.filter((r) => {
+      const m = r.margin;
+      if (!m || m.bucket === 'neutral') return false;
+      if (Number.isFinite(marginFrom) && m.marginPct < marginFrom) return false;
+      if (Number.isFinite(marginTo)   && m.marginPct > marginTo)   return false;
+      return true;
+    });
   }
 
   // Compute counts over the SCOPED set — filter cards reflect the current

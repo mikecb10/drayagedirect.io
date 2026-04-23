@@ -41,6 +41,8 @@ const EMPTY = {
   factor_company: '',
   rate_con_sent_y: '',
   invoice_email_sent_y: '',
+  margin_from: '',
+  margin_to: '',
 };
 
 export default function FilterSidebar({ isOpen, onClose, filters, onApply, section = 'billing' }) {
@@ -80,6 +82,21 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
     if (!isOpen) return;
     setDraft({ ...EMPTY, ...filters });
   }, [isOpen, filters]);
+
+  const [thresholds, setThresholds] = useState({ red: 15, yellow: 30 });
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch('/api/tenant/me/margin-thresholds');
+        if (r.ok) {
+          const d = await r.json();
+          setThresholds({ red: d.red_threshold, yellow: d.yellow_threshold });
+        }
+      } catch {
+        // Keep defaults if fetch fails — the pills still work, just with 15/30.
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -147,7 +164,9 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
     (draft.factor_company === 'yes' || draft.factor_company === 'no' ? 1 : 0) +
     (draft.rate_con_sent_y === 'yes' || draft.rate_con_sent_y === 'no' ? 1 : 0) +
     (draft.invoice_email_sent_y === 'yes' || draft.invoice_email_sent_y === 'no' ? 1 : 0) +
-    (draft.reference_number && draft.reference_number.trim() ? 1 : 0);
+    (draft.reference_number && draft.reference_number.trim() ? 1 : 0) +
+    (draft.margin_from && String(draft.margin_from).trim() ? 1 : 0) +
+    (draft.margin_to && String(draft.margin_to).trim() ? 1 : 0);
 
   const filteredBranches = branchQuery
     ? branches.filter((b) => b.name?.toLowerCase().includes(branchQuery.toLowerCase()))
@@ -653,6 +672,63 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
             </section>
           )}
 
+          {/* Load Margin % — numeric range + quick-pick pills (Billing + Invoices only, per SECTION_KEYS) */}
+          {showKey('margin_from') && (
+            <section className="border-b border-gray-200 dark:border-slate-800 py-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-2">
+                Load Margin %
+              </h3>
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="Min %"
+                  className="w-full rounded border border-gray-300 dark:border-slate-600 px-2 py-1 text-sm bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100"
+                  value={draft.margin_from ?? ''}
+                  onChange={(e) => setDraft((d) => ({ ...d, margin_from: e.target.value }))}
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="Max %"
+                  className="w-full rounded border border-gray-300 dark:border-slate-600 px-2 py-1 text-sm bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100"
+                  value={draft.margin_to ?? ''}
+                  onChange={(e) => setDraft((d) => ({ ...d, margin_to: e.target.value }))}
+                />
+              </div>
+              <div className="flex flex-wrap gap-1">
+                <button
+                  type="button"
+                  onClick={() => setDraft((d) => ({ ...d, margin_from: '', margin_to: String(thresholds.red) }))}
+                  className="text-xs px-2 py-0.5 rounded border border-red-300 text-red-700 dark:border-red-800 dark:text-red-300"
+                >
+                  Red only
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDraft((d) => ({ ...d, margin_from: String(thresholds.red + 0.01), margin_to: '' }))}
+                  className="text-xs px-2 py-0.5 rounded border border-amber-300 text-amber-700 dark:border-amber-800 dark:text-amber-300"
+                >
+                  Yellow+
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDraft((d) => ({ ...d, margin_from: String(thresholds.yellow + 0.01), margin_to: '' }))}
+                  className="text-xs px-2 py-0.5 rounded border border-emerald-300 text-emerald-700 dark:border-emerald-800 dark:text-emerald-300"
+                >
+                  Green+
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDraft((d) => ({ ...d, margin_from: '', margin_to: '' }))}
+                  className="text-xs px-2 py-0.5 rounded border border-gray-300 text-gray-600 dark:border-slate-700 dark:text-slate-400"
+                >
+                  Clear
+                </button>
+              </div>
+            </section>
+          )}
+
           {/* Branches */}
           {showKey('branch_ids') && (
             <section>
@@ -820,6 +896,8 @@ export default function FilterSidebar({ isOpen, onClose, filters, onApply, secti
                 if (draft.pickup_location_ids?.length)   cleaned.pickup_location_ids   = draft.pickup_location_ids;
                 if (draft.delivery_location_ids?.length) cleaned.delivery_location_ids = draft.delivery_location_ids;
                 if (draft.return_location_ids?.length)   cleaned.return_location_ids   = draft.return_location_ids;
+                if (draft.margin_from && String(draft.margin_from).trim()) cleaned.margin_from = draft.margin_from;
+                if (draft.margin_to   && String(draft.margin_to).trim())   cleaned.margin_to   = draft.margin_to;
                 onApply(cleaned);
                 onClose();
               }}

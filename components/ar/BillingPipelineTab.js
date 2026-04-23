@@ -9,6 +9,7 @@ import { formatInvoiceNumber } from '../../lib/invoice-utils';
 import BulkActionBar from './BulkActionBar';
 import BulkGroupingModal from './BulkGroupingModal';
 import BulkEmailQueue from './BulkEmailQueue';
+import MarginBadge from '../ui/MarginBadge';
 
 const STATUS_BADGES = {
   draft: { label: 'Draft', cls: 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300' },
@@ -86,6 +87,10 @@ export default function BillingPipelineTab({ filters = {} }) {
       if (filters.bill_to_additional_customer_ids_exclude?.length) params.set('bill_to_additional_customer_ids_exclude', filters.bill_to_additional_customer_ids_exclude.join(','));
       if (filters.factor_company === 'yes' || filters.factor_company === 'no') params.set('factor_company', filters.factor_company);
       if (filters.rate_con_sent_y === 'yes' || filters.rate_con_sent_y === 'no') params.set('rate_con_sent_y', filters.rate_con_sent_y);
+      if (filters.margin_from && String(filters.margin_from).trim())
+        params.set('margin_from', filters.margin_from);
+      if (filters.margin_to && String(filters.margin_to).trim())
+        params.set('margin_to', filters.margin_to);
       const res = await fetch(`/api/tenant/ar?${params}`);
       if (!res.ok) throw new Error('Failed to load');
       const data = await res.json();
@@ -494,15 +499,16 @@ export default function BillingPipelineTab({ filters = {} }) {
                 <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Status</th>
                 <th className="text-center px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Items</th>
                 <th className="text-right px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Total</th>
+                <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Margin</th>
                 <th className="text-left px-4 py-2.5 font-semibold text-gray-600 dark:text-slate-300 text-xs uppercase tracking-wide">Created</th>
                 <th className="w-10"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-slate-800">
               {loading ? (
-                <tr><td colSpan={10} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">Loading...</td></tr>
+                <tr><td colSpan={11} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">Loading...</td></tr>
               ) : chargeSets.length === 0 ? (
-                <tr><td colSpan={10} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">
+                <tr><td colSpan={11} className="px-4 py-10 text-center text-gray-400 dark:text-slate-500">
                   {activeFilter ? 'No charge sets match this filter.' : 'No charge sets found.'}
                 </td></tr>
               ) : (
@@ -568,6 +574,11 @@ export default function BillingPipelineTab({ filters = {} }) {
                       </td>
                       <td className="px-4 py-2.5 text-center text-xs text-gray-600 dark:text-slate-300">{(cs.line_items || []).length}</td>
                       <td className="px-4 py-2.5 text-right font-semibold text-gray-900 dark:text-slate-100">{formatCents(cs.total_cents)}</td>
+                      <td className="px-4 py-2.5">
+                        {cs.margin
+                          ? <MarginBadge marginPct={cs.margin.marginPct} bucket={cs.margin.bucket} size="sm" />
+                          : null}
+                      </td>
                       <td className="px-4 py-2.5 text-xs text-gray-500 dark:text-slate-400">
                         {cs.created_at ? new Date(cs.created_at).toLocaleDateString() : '—'}
                       </td>
