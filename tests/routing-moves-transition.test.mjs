@@ -221,5 +221,36 @@ console.log('transitionMoveStatus');
   check('noop: no INSERT', svc._calls.inserted.length === 0);
 }
 
+// Case 10: actorType defaults to 'human' when not provided
+{
+  const svc = makeMockClient({
+    fetch: { data: { id: 'm-default', status: 'pending' }, error: null },
+    update: { data: { id: 'm-default', status: 'in_progress' }, error: null },
+    insert: { data: null, error: null },
+  });
+  await transitionMoveStatus(svc, {
+    tenantId: 't-1', moveId: 'm-default', newStatus: 'in_progress', actorUserId: 'u-1',
+  });
+  const histInsert = svc._calls.inserted.find(i => i.table === 'order_container_moves_status_history');
+  check('default actorType: human stamped on history row',
+    histInsert?.payload?.actor_type === 'human');
+}
+
+// Case 11: explicit actorType: 'system' passes through
+{
+  const svc = makeMockClient({
+    fetch: { data: { id: 'm-sys', status: 'pending' }, error: null },
+    update: { data: { id: 'm-sys', status: 'in_progress' }, error: null },
+    insert: { data: null, error: null },
+  });
+  await transitionMoveStatus(svc, {
+    tenantId: 't-1', moveId: 'm-sys', newStatus: 'in_progress', actorUserId: null,
+    actorType: 'system',
+  });
+  const histInsert = svc._calls.inserted.find(i => i.table === 'order_container_moves_status_history');
+  check('explicit system actorType: stamped on history row',
+    histInsert?.payload?.actor_type === 'system');
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
