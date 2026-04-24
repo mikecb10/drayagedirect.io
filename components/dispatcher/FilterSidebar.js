@@ -3,6 +3,7 @@ import { X, RotateCcw, Filter as FilterIcon } from 'lucide-react';
 import Button from '../ui/Button';
 import Select from '../ui/Select';
 import { useAuth } from '../../contexts/AuthContext';
+import { DISPATCHER_BOARD_LOAD_TYPES } from '../../lib/constants/load-types.js';
 
 const FLAG_CHECKBOXES = [
   { key: 'hazmat', label: 'Hazmat' },
@@ -21,14 +22,13 @@ const FLAG_CHECKBOXES = [
   { key: 'liquor', label: 'Liquor' },
 ];
 
-const LOAD_TYPE_OPTIONS = [
-  { value: 'import', label: 'Import' },
-  { value: 'inbound', label: 'Inbound' },
-  { value: 'export', label: 'Export' },
-  { value: 'outbound', label: 'Outbound' },
-  { value: 'road', label: 'Road' },
-  { value: 'bill_only', label: 'Bill Only' },
-];
+// Dispatcher board filter — excludes 'bill_only' (per showsOnDispatcherBoard=false
+// in the central load-types definition). Previous hardcoded list included bill_only;
+// removal is intentional per Task 2 code reviewer + Plan G1 spec.
+const LOAD_TYPE_OPTIONS = DISPATCHER_BOARD_LOAD_TYPES.map((t) => ({
+  value: t.value,
+  label: t.label,
+}));
 
 const STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending' },

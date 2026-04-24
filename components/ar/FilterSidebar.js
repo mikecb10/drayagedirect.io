@@ -1,15 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { X, Search, RotateCcw } from 'lucide-react';
 import { filterKeysForSection } from '../../lib/ar-filter-schema';
+import { LOAD_TYPES } from '../../lib/constants/load-types.js';
 
-const LOAD_TYPE_OPTIONS = [
-  { value: 'import',    label: 'Import' },
-  { value: 'inbound',   label: 'Inbound' },
-  { value: 'export',    label: 'Export' },
-  { value: 'outbound',  label: 'Outbound' },
-  { value: 'road',      label: 'Road' },
-  { value: 'bill_only', label: 'Bill Only' },
-];
+// AR filter surface — uses full LOAD_TYPES list (including bill_only, which
+// is legitimate in AR since bill-only loads are invoice-producing).
+const LOAD_TYPE_OPTIONS = LOAD_TYPES.map((t) => ({
+  value: t.value,
+  label: t.label,
+}));
 
 const FLAG_OPTIONS = [
   { key: 'hazmat',      label: 'Hazmat' },

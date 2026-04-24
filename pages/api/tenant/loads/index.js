@@ -10,20 +10,10 @@ import { computeKpiStats } from '../../../../lib/kpi-engine';
 import { findMatchingCharges, applyChargesToLoad } from '../../../../lib/tariff-engine';
 import { applyBranchFilter } from '../../../../lib/branch-filter';
 import { fetchLoadMarginInputs, computeLoadMargin } from '../../../../lib/load-margin';
+import { VALID_LOAD_TYPES, LOAD_TYPE_LETTER } from '../../../../lib/constants/load-types.js';
 
-const VALID_LOAD_TYPES = ['import', 'inbound', 'export', 'outbound', 'road', 'bill_only'];
 const VALID_STATUSES = ['pending', 'available', 'dispatched', 'in_transit', 'dropped', 'delivered', 'completed', 'cancelled'];
-
-// Single-letter prefix per load type, industry-standard drayage convention.
-// Matches PortPro (M for Main/Import) and user-defined letters for the rest.
-const LOAD_TYPE_LETTER = {
-  import: 'M',
-  inbound: 'N',
-  export: 'E',
-  outbound: 'O',
-  road: 'R',
-  bill_only: 'B',
-};
+// VALID_STATUSES consolidation is a separate FU — stays here for now.
 
 async function generateOrderNumber(svc, tenantId, loadType) {
   // Fetch tenant settings — prefer SCAC code, fall back to legacy order_prefix, then "ORD"

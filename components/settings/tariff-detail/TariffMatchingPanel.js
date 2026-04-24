@@ -3,21 +3,19 @@ import OrgPicker from '../../ui/OrgPicker';
 import ReferenceDataPicker from '../../ui/ReferenceDataPicker';
 import ContainerOwnerPicker from '../../ui/ContainerOwnerPicker';
 import EffectiveDateRange from '../../ui/EffectiveDateRange';
+import { TARIFF_MATCHING_LOAD_TYPES } from '../../../lib/constants/load-types.js';
 
-// Load types available in tariffs.
-// Mirrors the canonical LOAD_TYPES list in components/loads/NewLoadModal.js,
-// EXCLUDING 'Bill Only' — bill-only loads are manual one-offs (no operations,
-// just an invoice) so they should never be matched by an automated tariff.
+// Load types available in tariffs. Sourced from lib/constants/load-types.js
+// (filtered by matchesTariffs flag — excludes 'Bill Only').
 //
-// Stored uppercase in tariffs (e.g. 'IMPORT'), but compared case-insensitively
-// against orders.load_type which is stored lowercase ('import').
-const LOAD_TYPES = [
-  { value: 'IMPORT', label: 'Import' },
-  { value: 'INBOUND', label: 'Inbound' },
-  { value: 'EXPORT', label: 'Export' },
-  { value: 'OUTBOUND', label: 'Outbound' },
-  { value: 'ROAD', label: 'Road' },
-];
+// Storage is UPPERCASE on tariff records ('IMPORT') but the central source
+// stores lowercase. We map to uppercase here — the tariff engine compares
+// case-insensitively against orders.load_type so both formats interoperate.
+// Case-unification is a separate FU; no data migration required for this refactor.
+const LOAD_TYPES = TARIFF_MATCHING_LOAD_TYPES.map((t) => ({
+  value: t.value.toUpperCase(),
+  label: t.label,
+}));
 
 // All flags from FLAG_DEFS
 const FLAG_DEFS = [

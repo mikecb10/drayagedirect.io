@@ -9,6 +9,7 @@ import {
   Check,
   PackageOpen,
   PackageCheck,
+  Container,
 } from 'lucide-react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
@@ -20,45 +21,27 @@ import Alert from '../ui/Alert';
 import OrgPicker from '../ui/OrgPicker';
 import BranchPicker from '../ui/BranchPicker';
 import { useAuth } from '../../contexts/AuthContext';
+import { LOAD_TYPES as CENTRAL_LOAD_TYPES } from '../../lib/constants/load-types.js';
 
-const LOAD_TYPES = [
-  {
-    id: 'import',
-    label: 'Import',
-    description: 'Ocean import from port to consignee',
-    icon: Ship,
-  },
-  {
-    id: 'inbound',
-    label: 'Inbound',
-    description: 'Intermodal/rail delivery to a warehouse',
-    icon: PackageOpen,
-  },
-  {
-    id: 'export',
-    label: 'Export',
-    description: 'Ocean export from shipper to port',
-    icon: Package,
-  },
-  {
-    id: 'outbound',
-    label: 'Outbound',
-    description: 'Rail outbound — load at warehouse → rail → final delivery',
-    icon: PackageCheck,
-  },
-  {
-    id: 'road',
-    label: 'Road',
-    description: 'Over-the-road dry van / trailer move',
-    icon: Truck,
-  },
-  {
-    id: 'bill_only',
-    label: 'Bill Only',
-    description: 'Billing adjustments, no operations',
-    icon: FileText,
-  },
-];
+// Icon map for load types — kept here so constants module stays UI-free.
+const LOAD_TYPE_ICONS = {
+  import: Ship,
+  inbound: PackageOpen,
+  export: Package,
+  outbound: PackageCheck,
+  road: Truck,
+  bill_only: FileText,
+  chassis_reposition: Container,
+};
+
+// Render-time shape: { id, label, description, icon }. Uses value→id rename
+// because the existing JSX downstream references lt.id.
+const LOAD_TYPES = CENTRAL_LOAD_TYPES.map((t) => ({
+  id: t.value,
+  label: t.label,
+  description: t.description,
+  icon: LOAD_TYPE_ICONS[t.value] || Package,
+}));
 
 // Per-type location slot configuration
 const TYPE_CONFIG = {
