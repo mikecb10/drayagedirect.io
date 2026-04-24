@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { Plus, Trash2, UserPlus, Users, Mail, X } from 'lucide-react';
 import Button from '../../ui/Button';
 import Alert from '../../ui/Alert';
-import Modal from '../../ui/Modal';
-import Input from '../../ui/Input';
+import GroupModal from '../GroupModal';
 
 const PURPOSE_BADGE_COLORS = {
   billing:           'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
@@ -218,86 +217,12 @@ export default function GroupsTab({ organization }) {
         </div>
       )}
 
-      <CreateGroupModal
+      <GroupModal
         isOpen={createOpen}
         onClose={() => setCreateOpen(false)}
         orgId={organization.id}
-        contacts={contacts}
         onSuccess={() => { setCreateOpen(false); load(); }}
       />
     </div>
-  );
-}
-
-function CreateGroupModal({ isOpen, onClose, orgId, contacts, onSuccess }) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [selectedIds, setSelectedIds] = useState(new Set());
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    if (isOpen) { setName(''); setDescription(''); setSelectedIds(new Set()); setError(null); }
-  }, [isOpen]);
-
-  function toggleMember(id) {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  }
-
-  async function handleCreate(e) {
-    e.preventDefault();
-    if (!name.trim()) { setError('Group name is required'); return; }
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/tenant/organizations/${orgId}/groups`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description, member_ids: [...selectedIds] }),
-      });
-      if (!res.ok) throw new Error('Failed to create group');
-      onSuccess();
-    } catch (e) { setError(e.message); } finally { setSaving(false); }
-  }
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Create Group" size="md">
-      <form onSubmit={handleCreate} className="space-y-4">
-        {error && <Alert type="error" message={error} />}
-        <Input label="Group Name *" value={name} onChange={(e) => setName(e.target.value)} placeholder='e.g. "Billing Green Team"' required />
-        <Input label="Description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What is this group for?" />
-
-        {contacts.length > 0 && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Add Members</label>
-            <div className="space-y-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 dark:border-slate-700 p-2">
-              {contacts.map((c) => {
-                const name = [c.first_name, c.last_name].filter(Boolean).join(' ');
-                const checked = selectedIds.has(c.id);
-                return (
-                  <button key={c.id} type="button" onClick={() => toggleMember(c.id)}
-                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-sm transition-colors ${
-                      checked ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300' : 'hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-700 dark:text-slate-300'
-                    }`}>
-                    <input type="checkbox" checked={checked} onChange={() => {}} className="rounded text-blue-600 pointer-events-none" />
-                    <span className="font-medium">{name}</span>
-                    {c.email && <span className="text-xs text-gray-400 dark:text-slate-500 ml-auto">{c.email}</span>}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="text-xs text-gray-400 dark:text-slate-500 mt-1">{selectedIds.size} selected</div>
-          </div>
-        )}
-
-        <div className="flex justify-end gap-3 pt-2 border-t border-gray-100 dark:border-slate-800">
-          <Button variant="secondary" type="button" onClick={onClose}>Cancel</Button>
-          <Button type="submit" loading={saving}>Create Group</Button>
-        </div>
-      </form>
-    </Modal>
   );
 }
