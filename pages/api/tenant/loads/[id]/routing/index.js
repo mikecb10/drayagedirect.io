@@ -723,9 +723,18 @@ export default async function handler(req, res) {
         });
       }
 
-      // NOTE: the orders.status UPDATE below is intentionally left inline.
-      // Out of scope for moves-centralization (FU-056). Tracked as FU-071
-      // for a later session to route through fireStatusChangeTriggers.
+      // Fetch current order status BEFORE the update so we can pass it
+      // to fireOrderStatusChangeTriggers (which writes order_status_history
+      // + fires any active status triggers). Closes FU-071.
+      const { data: currentOrder } = await svc
+        .from('orders')
+        .select('status')
+        .eq('tenant_id', ctx.tenantId)
+        .eq('id', id)
+        .is('deleted_at', null)
+        .single();
+      const oldOrderStatus = currentOrder?.status ?? null;
+
       const { data: order, error: orderErr } = await svc
         .from('orders')
         .update({ status: 'completed', actual_delivery_at: now })
@@ -735,6 +744,21 @@ export default async function handler(req, res) {
         .select()
         .single();
       if (orderErr) return res.status(500).json({ error: orderErr.message });
+
+      // Closes FU-071: route through the wrapper so the transition writes
+      // to order_status_history and fires email triggers (delayed + immediate).
+      // Fire-and-forget — does not block the response.
+      try {
+        await fireOrderStatusChangeTriggers(svc, {
+          tenantId: ctx.tenantId,
+          loadId: id,
+          oldStatus: oldOrderStatus,
+          newStatus: 'completed',
+          userId: ctx.userId,
+        });
+      } catch (e) {
+        console.error(`complete_load order trigger fire failed for ${id}:`, e?.message || e);
+      }
 
       await logTenantAction(svc, {
         tenantId: ctx.tenantId,
@@ -753,6 +777,15 @@ export default async function handler(req, res) {
       // Revert to pending_completion (all events still departed) rather
       // than in_transit. The routing read-repair will naturally re-derive
       // the correct status on the next GET based on the actual event state.
+      const { data: currentOrder } = await svc
+        .from('orders')
+        .select('status')
+        .eq('tenant_id', ctx.tenantId)
+        .eq('id', id)
+        .is('deleted_at', null)
+        .single();
+      const oldOrderStatus = currentOrder?.status ?? null;
+
       const { data: order, error: orderErr } = await svc
         .from('orders')
         .update({ status: 'pending_completion', actual_delivery_at: null })
@@ -762,6 +795,19 @@ export default async function handler(req, res) {
         .select()
         .single();
       if (orderErr) return res.status(500).json({ error: orderErr.message });
+
+      // Closes FU-071 (second site).
+      try {
+        await fireOrderStatusChangeTriggers(svc, {
+          tenantId: ctx.tenantId,
+          loadId: id,
+          oldStatus: oldOrderStatus,
+          newStatus: 'pending_completion',
+          userId: ctx.userId,
+        });
+      } catch (e) {
+        console.error(`uncomplete_load order trigger fire failed for ${id}:`, e?.message || e);
+      }
 
       // Reopen any completed moves. We do this in two passes:
       //   1. Moves that WERE started → revert to 'in_progress'
