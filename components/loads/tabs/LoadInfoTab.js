@@ -13,15 +13,6 @@ import { Package, Box, Truck, Ruler } from 'lucide-react';
 import Alert from '../../ui/Alert';
 import { useTenantTimeFormat } from '../../../hooks/useTenantSettings';
 
-const LOAD_TYPE_OPTIONS = [
-  { value: 'import', label: 'Import' },
-  { value: 'inbound', label: 'Inbound' },
-  { value: 'export', label: 'Export' },
-  { value: 'outbound', label: 'Outbound' },
-  { value: 'road', label: 'Road' },
-  { value: 'bill_only', label: 'Bill Only' },
-];
-
 // Per-type location slot labels (matches NewLoadModal TYPE_CONFIG)
 const TYPE_SLOTS = {
   import: {

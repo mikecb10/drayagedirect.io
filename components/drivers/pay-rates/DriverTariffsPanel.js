@@ -18,15 +18,6 @@ const STATUS_BADGES = {
   active: 'green', pending: 'amber', draft: 'gray', expired: 'red',
 };
 
-const LOAD_TYPE_OPTIONS = [
-  { value: 'import', label: 'Import' },
-  { value: 'inbound', label: 'Inbound' },
-  { value: 'export', label: 'Export' },
-  { value: 'outbound', label: 'Outbound' },
-  { value: 'road', label: 'Road' },
-  { value: 'bill_only', label: 'Bill Only' },
-];
-
 export default function DriverTariffsPanel() {
   const [tariffs, setTariffs] = useState([]);
   const [driverGroups, setDriverGroups] = useState([]);

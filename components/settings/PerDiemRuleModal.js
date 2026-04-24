@@ -11,14 +11,14 @@ import CurrencyInput from '../ui/CurrencyInput';
 import OrgPicker from '../ui/OrgPicker';
 import ContainerOwnerPicker from '../ui/ContainerOwnerPicker';
 import ReferenceDataPicker from '../ui/ReferenceDataPicker';
+import { LOAD_TYPES } from '../../lib/constants/load-types.js';
 
-const LOAD_TYPE_OPTIONS = [
-  { value: 'import', label: 'Import' },
-  { value: 'inbound', label: 'Inbound' },
-  { value: 'export', label: 'Export' },
-  { value: 'outbound', label: 'Outbound' },
-  { value: 'road', label: 'Road' },
-];
+// Per-diem applies to types that have container detention. Exclude
+// types whose `allowsNullContainer` is true (bill_only, chassis_reposition).
+// Mirrors the filter on the parent /settings/per-diem page.
+const LOAD_TYPE_OPTIONS = LOAD_TYPES.filter((t) => !t.allowsNullContainer).map(
+  (t) => ({ value: t.value, label: t.label })
+);
 
 function makeEmptyTier(startDay = 1) {
   return { from_day: startDay, to_day: '', amount_cents: null };

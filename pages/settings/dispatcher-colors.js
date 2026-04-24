@@ -14,9 +14,18 @@ import {
   STATE_GROUPS,
   DEFAULT_STATE_COLORS,
 } from '../../lib/dispatcher-states';
+import {
+  LOAD_TYPE_LABELS,
+  LOAD_TYPE_LETTER,
+} from '../../lib/constants/load-types.js';
 
 // ========== Defaults ==========
 
+// Color preferences — the keys here are also the load-type set this
+// page exposes for editing. Kept local because it's settings/UI config,
+// not the canonical load-type list (which lives in lib/constants/load-types.js).
+// chassis_reposition is intentionally excluded for now — its color
+// will be added when stop-off/chassis-split UX is finalized.
 const DEFAULT_LOAD_TYPE_COLORS = {
   import: '#3b82f6',
   inbound: '#0ea5e9',
@@ -24,25 +33,6 @@ const DEFAULT_LOAD_TYPE_COLORS = {
   outbound: '#a855f7',
   road: '#f97316',
   bill_only: '#6b7280',
-};
-
-const LOAD_TYPE_LABELS = {
-  import: 'Import',
-  inbound: 'Inbound',
-  export: 'Export',
-  outbound: 'Outbound',
-  road: 'Road',
-  bill_only: 'Bill Only',
-};
-
-// Same prefix letters used in generateOrderNumber()
-const LOAD_TYPE_LETTER = {
-  import: 'M',
-  inbound: 'N',
-  export: 'E',
-  outbound: 'O',
-  road: 'R',
-  bill_only: 'B',
 };
 
 // Group states for display

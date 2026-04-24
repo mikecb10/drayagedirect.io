@@ -9,15 +9,20 @@ import { PageHeader } from '../../components/ui/ModuleHeader';
 import { SectionCard } from '../../components/ui/FormSection';
 import FieldGroup from '../../components/ui/FieldGroup';
 import Field from '../../components/ui/Field';
+import { LOAD_TYPES } from '../../lib/constants/load-types.js';
 
 
+// Per-diem applies to types that have container detention. Exclude
+// types whose `allowsNullContainer` is true (bill_only, chassis_reposition):
+// these moves don't carry a container and so have no per-diem clock.
+// Filtering at the UI layer here keeps the canonical list in lib/constants
+// and lets us derive the dropdown without a hard-coded duplicate.
 const LOAD_TYPE_OPTIONS = [
   { value: '', label: 'All Load Types' },
-  { value: 'import', label: 'Import' },
-  { value: 'inbound', label: 'Inbound' },
-  { value: 'export', label: 'Export' },
-  { value: 'outbound', label: 'Outbound' },
-  { value: 'road', label: 'Road' },
+  ...LOAD_TYPES.filter((t) => !t.allowsNullContainer).map((t) => ({
+    value: t.value,
+    label: t.label,
+  })),
 ];
 
 function formatCents(cents) {
