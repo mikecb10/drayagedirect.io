@@ -10,7 +10,8 @@ import { computeKpiStats } from '../../../../lib/kpi-engine';
 import { findMatchingCharges, applyChargesToLoad } from '../../../../lib/tariff-engine';
 import { applyBranchFilter } from '../../../../lib/branch-filter';
 import { fetchLoadMarginInputs, computeLoadMargin } from '../../../../lib/load-margin';
-import { VALID_LOAD_TYPES, LOAD_TYPE_LETTER } from '../../../../lib/constants/load-types.js';
+import { LOAD_TYPE_LETTER } from '../../../../lib/constants/load-types.js';
+import { validateLoadPayload } from '../../../../lib/validation/load-payload.js';
 
 const VALID_STATUSES = ['pending', 'available', 'dispatched', 'in_transit', 'dropped', 'delivered', 'completed', 'cancelled'];
 // VALID_STATUSES consolidation is a separate FU — stays here for now.
@@ -317,8 +318,19 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Customer is required' });
     }
 
-    const loadType =
-      body.load_type && VALID_LOAD_TYPES.includes(body.load_type) ? body.load_type : 'import';
+    // Validate load_type + load_type-specific required fields (e.g. chassis
+    // locations for chassis_reposition). Single source of truth lives in
+    // lib/validation/load-payload.js so POST + PUT stay in sync.
+    // Default to 'import' when omitted so the validator sees a known type.
+    const effectivePayload = { ...body, load_type: body.load_type || 'import' };
+    const validation = validateLoadPayload(effectivePayload);
+    if (!validation.ok) {
+      return res
+        .status(400)
+        .json({ error: validation.error, step: 'validate_load_payload' });
+    }
+
+    const loadType = effectivePayload.load_type;
 
     // Auto-generate order_number — format: {SCAC}-{TYPE}{SEQ}
     const orderNumber = await generateOrderNumber(svc, ctx.tenantId, loadType);

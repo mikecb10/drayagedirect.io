@@ -7,6 +7,7 @@ import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
 import { PERMISSIONS, hasPermission } from '../../../../../lib/permissions';
 import { fireFieldChangeTriggers, fireOrderStatusChangeTriggers } from '../../../../../lib/email-dispatch';
 import { fetchLoadMarginInputs, computeLoadMargin } from '../../../../../lib/load-margin';
+import { validateLoadPayload } from '../../../../../lib/validation/load-payload.js';
 
 // NOTE: load_type is intentionally NOT editable — the load number has the
 // type letter baked in (M/N/E/O/R/B), so changing the type would make the
@@ -292,6 +293,32 @@ export default async function handler(req, res) {
       .single();
 
     if (!oldLoad) return res.status(404).json({ error: 'Load not found' });
+
+    // ================================================================
+    // Load-payload validation (chassis_reposition requires hook/terminate
+    // chassis locations, etc.). load_type is NOT in EDITABLE_FIELDS so it
+    // cannot change on PUT — but hook_chassis_location_id and
+    // terminate_chassis_location_id ARE editable. Validate only when one
+    // of the validator's relevant fields is being touched; otherwise we
+    // pay for zero behavior and allow partial updates to unrelated fields.
+    //
+    // Effective payload = existing row merged with incoming updates.
+    // ================================================================
+    const VALIDATION_RELEVANT_FIELDS = [
+      'load_type',
+      'hook_chassis_location_id',
+      'terminate_chassis_location_id',
+    ];
+    const touchesValidation = VALIDATION_RELEVANT_FIELDS.some((f) => f in updates);
+    if (touchesValidation) {
+      const effective = { ...oldLoad, ...updates };
+      const validation = validateLoadPayload(effective);
+      if (!validation.ok) {
+        return res
+          .status(400)
+          .json({ error: validation.error, step: 'validate_load_payload' });
+      }
+    }
 
     // ================================================================
     // Rail/Port Check-In Slip auto-unverify cascade
