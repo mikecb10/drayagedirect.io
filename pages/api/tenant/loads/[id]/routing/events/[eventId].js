@@ -7,6 +7,7 @@ import { logTenantAction, getClientIp } from '../../../../../../../lib/tenant-au
 import { PERMISSIONS } from '../../../../../../../lib/permissions';
 import { deriveOrderStatusFromEvents } from '../../../../../../../lib/dispatcher-states';
 import { fireOrderStatusChangeTriggers, fireRoutingEventTriggers } from '../../../../../../../lib/email-dispatch';
+import { transitionEventStatus } from '../../../../../../../lib/routing/event-status-transition.js';
 
 const EDITABLE = [
   'event_type',
@@ -43,6 +44,45 @@ export default async function handler(req, res) {
       )
     )
       return;
+
+    // ================================================================
+    // Status-transition short-circuit (Task 10 / B.1e)
+    //
+    // When the caller supplies `toStatus`, delegate to the central
+    // transition helper rather than running the field-patch pipeline
+    // below. The helper enforces the state machine (pending → arrived
+    // → departed | skipped), sets timestamps as side-effects, and
+    // writes a history row with actor threading (required by DB CHECK).
+    //
+    // Any other PUT body (EDITABLE field patches, location edits, etc.)
+    // falls through to the existing pipeline.
+    // ================================================================
+    const { toStatus, note, actorContext } = req.body || {};
+    if (toStatus !== undefined) {
+      try {
+        const updated = await transitionEventStatus({
+          supabase: svc,
+          tenantId: ctx.tenantId,
+          eventId,
+          toStatus,
+          actor: {
+            id: ctx.userId,
+            type: 'human', // API call from UI == human origin
+            context: actorContext ?? null,
+          },
+          note,
+        });
+        return res.status(200).json({ event: updated });
+      } catch (err) {
+        if (/Invalid transition/.test(err.message)) {
+          return res.status(409).json({ error: err.message });
+        }
+        if (/^actor/.test(err.message) || /not found/i.test(err.message)) {
+          return res.status(400).json({ error: err.message });
+        }
+        throw err;
+      }
+    }
 
     // Fetch old values for audit + cascade logic
     const { data: oldEvent } = await svc
