@@ -1,4 +1,5 @@
 import { requireTenantUser, requirePermission, getServiceClient } from '../../../../../../../lib/tenant-api';
+import { logTenantAction, getClientIp } from '../../../../../../../lib/tenant-audit';
 import { PERMISSIONS } from '../../../../../../../lib/permissions';
 
 export default async function handler(req, res) {
@@ -10,15 +11,54 @@ export default async function handler(req, res) {
   const svc = getServiceClient();
 
   if (req.method === 'PUT') {
-    const { name, description } = req.body || {};
+    const {
+      name,
+      description,
+      purpose,
+      is_default_for_purpose,
+    } = req.body || {};
+
+    const validPurposes = ['billing', 'operations', 'dispatch', 'rate_confirmation', 'management', 'custom'];
+    if (purpose !== undefined && purpose !== null && !validPurposes.includes(purpose)) {
+      return res.status(400).json({ error: `Invalid purpose. Must be one of: ${validPurposes.join(', ')}` });
+    }
+
+    // Swap logic: if setting default, unset any OTHER group with same purpose as default
+    if (is_default_for_purpose && purpose) {
+      const { error: swapErr } = await svc
+        .from('organization_groups')
+        .update({ is_default_for_purpose: false })
+        .eq('tenant_id', ctx.tenantId)
+        .eq('organization_id', id)
+        .eq('purpose', purpose)
+        .eq('is_default_for_purpose', true)
+        .neq('id', groupId);  // exclude the group we're updating
+      if (swapErr) {
+        return res.status(500).json({ error: `Default swap failed: ${swapErr.message}` });
+      }
+    }
+
     const updates = {};
     if (name !== undefined) updates.name = name;
     if (description !== undefined) updates.description = description;
+    if (purpose !== undefined) updates.purpose = purpose || null;
+    if (is_default_for_purpose !== undefined) updates.is_default_for_purpose = !!is_default_for_purpose;
     updates.updated_at = new Date().toISOString();
 
     const { data, error } = await svc.from('organization_groups').update(updates)
       .eq('tenant_id', ctx.tenantId).eq('organization_id', id).eq('id', groupId).select().single();
     if (error) return res.status(500).json({ error: error.message });
+
+    await logTenantAction(svc, {
+      tenantId: ctx.tenantId,
+      userId: ctx.userId,
+      action: 'contact_group.update',
+      entityType: 'contact_group',
+      entityId: groupId,
+      newValues: updates,
+      ipAddress: getClientIp(req),
+    });
+
     return res.status(200).json({ group: data });
   }
 
