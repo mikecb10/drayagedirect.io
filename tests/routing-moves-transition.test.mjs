@@ -252,5 +252,303 @@ console.log('transitionMoveStatus');
     histInsert?.payload?.actor_type === 'system');
 }
 
+// ---------------------------------------------------------------------------
+// B.1e Task 11 — Cascade pending/arrived events to departed on move completion
+// ---------------------------------------------------------------------------
+//
+// These tests exercise the move→events cascade. They need a richer mock
+// because transitionEventStatus (called from the cascade loop) reads +
+// updates + appends history per-event, and the existing `config.fetch`
+// is a single global value. This mock supports:
+//   - per-table, per-row `fetch` lookups (keyed by id filter via .eq)
+//   - mutable event state so a 2nd maybeSingle after the 1st update
+//     returns the updated row
+//   - per-table captured selected/updated/inserted
+// The existing simpler mock remains for cases 1–11.
+
+function makeCascadeMockClient(initial) {
+  // initial: { moves: [{ id, status }], events: [{ id, event_status, arrived_at, departed_at }] }
+  const state = {
+    order_container_moves: [...(initial.moves ?? [])].map((m) => ({ ...m })),
+    order_routing_events: [...(initial.events ?? [])].map((e) => ({ ...e })),
+  };
+  const calls = {
+    moveUpdates: [],
+    eventUpdates: [],
+    moveHistory: [],
+    eventHistory: [],
+    stuckEventFetches: [],
+  };
+
+  function chain(table) {
+    const c = {
+      _table: table,
+      _mode: null,
+      _payload: null,
+      _filters: {},
+      _inFilter: null,
+      select(..._args) { if (c._mode == null) c._mode = 'select'; return c; },
+      update(payload) { c._mode = 'update'; c._payload = payload; return c; },
+      insert(payload) { c._mode = 'insert'; c._payload = payload; return c; },
+      eq(col, val) { c._filters[col] = val; return c; },
+      in(col, vals) { c._inFilter = { col, vals }; return c; },
+
+      async maybeSingle() {
+        const rows = state[table] ?? [];
+        const match = rows.find((r) =>
+          Object.entries(c._filters).every(([k, v]) => r[k] === v),
+        );
+        return { data: match ? { ...match } : null, error: null };
+      },
+      async single() {
+        if (c._mode === 'update') {
+          return applyUpdate(c);
+        }
+        const rows = state[table] ?? [];
+        const match = rows.find((r) =>
+          Object.entries(c._filters).every(([k, v]) => r[k] === v),
+        );
+        return { data: match ? { ...match } : null, error: null };
+      },
+      then(resolve) {
+        if (c._mode === 'insert') {
+          if (table === 'order_container_moves_status_history') {
+            calls.moveHistory.push({ payload: c._payload });
+          } else if (table === 'order_routing_event_status_history') {
+            calls.eventHistory.push({ payload: c._payload });
+          }
+          resolve({ data: null, error: null });
+          return;
+        }
+        if (c._mode === 'update') {
+          const res = applyUpdateSync(c);
+          resolve(res);
+          return;
+        }
+        if (c._mode === 'select') {
+          // Handles the cascade's stuck-events query:
+          //   .select('id, event_status').eq(tenant).eq(move_id).in('event_status', [...])
+          const rows = state[table] ?? [];
+          const matched = rows.filter((r) => {
+            const eqOk = Object.entries(c._filters).every(([k, v]) => r[k] === v);
+            const inOk = c._inFilter
+              ? c._inFilter.vals.includes(r[c._inFilter.col])
+              : true;
+            return eqOk && inOk;
+          });
+          if (table === 'order_routing_events' && c._inFilter) {
+            calls.stuckEventFetches.push({
+              filters: { ...c._filters },
+              inFilter: { ...c._inFilter },
+              count: matched.length,
+            });
+          }
+          resolve({ data: matched.map((r) => ({ ...r })), error: null });
+          return;
+        }
+        resolve({ data: null, error: null });
+      },
+    };
+    return c;
+  }
+
+  function applyUpdateSync(c) {
+    const rows = state[c._table];
+    const match = rows?.find((r) =>
+      Object.entries(c._filters).every(([k, v]) => r[k] === v),
+    );
+    if (!match) return { data: null, error: null };
+    Object.assign(match, c._payload);
+    if (c._table === 'order_container_moves') {
+      calls.moveUpdates.push({ payload: { ...c._payload }, row: { ...match } });
+    } else if (c._table === 'order_routing_events') {
+      calls.eventUpdates.push({
+        eventId: match.id,
+        payload: { ...c._payload },
+        row: { ...match },
+      });
+    }
+    return { data: { ...match }, error: null };
+  }
+  function applyUpdate(c) { return applyUpdateSync(c); }
+
+  return { from(table) { return chain(table); }, _calls: calls, _state: state };
+}
+
+console.log('\ntransitionMoveStatus — B.1e cascade');
+
+// Case C1: completed with 2 pending events → both become departed (actor=system)
+{
+  const svc = makeCascadeMockClient({
+    moves: [{ id: 'm-C1', tenant_id: 't-1', status: 'in_progress' }],
+    events: [
+      { id: 'ev-1', tenant_id: 't-1', move_id: 'm-C1', event_status: 'pending',
+        arrived_at: null, departed_at: null },
+      { id: 'ev-2', tenant_id: 't-1', move_id: 'm-C1', event_status: 'pending',
+        arrived_at: null, departed_at: null },
+    ],
+  });
+  await transitionMoveStatus(svc, {
+    tenantId: 't-1', moveId: 'm-C1', newStatus: 'completed', actorUserId: 'u-1',
+  });
+  const eventsById = svc._state.order_routing_events.reduce(
+    (acc, e) => { acc[e.id] = e; return acc; }, {},
+  );
+  check('C1: ev-1 ended at departed', eventsById['ev-1'].event_status === 'departed');
+  check('C1: ev-2 ended at departed', eventsById['ev-2'].event_status === 'departed');
+  check('C1: stuck-event fetch fired exactly once', svc._calls.stuckEventFetches.length === 1);
+  // pending → arrived → departed = 2 history rows per event × 2 events = 4 event-history rows
+  check('C1: 4 event-history rows written (2 per pending event)',
+    svc._calls.eventHistory.length === 4);
+  check('C1: all event-history rows actor_type=system',
+    svc._calls.eventHistory.every((h) => h.payload.actor_type === 'system'));
+  check('C1: all event-history rows have cascade note',
+    svc._calls.eventHistory.every((h) => h.payload.note === 'cascaded from parent move completion'));
+  check('C1: all event-history rows include moveId in actor_context',
+    svc._calls.eventHistory.every((h) => h.payload.actor_context?.moveId === 'm-C1'));
+}
+
+// Case C2: completed with 1 pending + 1 arrived → pending gets 2 history rows,
+// arrived gets 1 history row; both end departed.
+{
+  const svc = makeCascadeMockClient({
+    moves: [{ id: 'm-C2', tenant_id: 't-1', status: 'in_progress' }],
+    events: [
+      { id: 'ev-p', tenant_id: 't-1', move_id: 'm-C2', event_status: 'pending',
+        arrived_at: null, departed_at: null },
+      { id: 'ev-a', tenant_id: 't-1', move_id: 'm-C2', event_status: 'arrived',
+        arrived_at: '2026-04-24T08:00:00Z', departed_at: null },
+    ],
+  });
+  await transitionMoveStatus(svc, {
+    tenantId: 't-1', moveId: 'm-C2', newStatus: 'completed', actorUserId: 'u-1',
+  });
+  const eventsById = svc._state.order_routing_events.reduce(
+    (acc, e) => { acc[e.id] = e; return acc; }, {},
+  );
+  check('C2: pending event ended at departed', eventsById['ev-p'].event_status === 'departed');
+  check('C2: arrived event ended at departed', eventsById['ev-a'].event_status === 'departed');
+  const pendingHist = svc._calls.eventHistory.filter((h) => h.payload.event_id === 'ev-p');
+  const arrivedHist = svc._calls.eventHistory.filter((h) => h.payload.event_id === 'ev-a');
+  check('C2: pending event has 2 history rows (pending→arrived, arrived→departed)',
+    pendingHist.length === 2);
+  check('C2: arrived event has 1 history row (arrived→departed)',
+    arrivedHist.length === 1);
+  check('C2: pending history row 1 is pending→arrived',
+    pendingHist[0]?.payload.from_status === 'pending' && pendingHist[0]?.payload.to_status === 'arrived');
+  check('C2: pending history row 2 is arrived→departed',
+    pendingHist[1]?.payload.from_status === 'arrived' && pendingHist[1]?.payload.to_status === 'departed');
+  check('C2: arrived history row is arrived→departed',
+    arrivedHist[0]?.payload.from_status === 'arrived' && arrivedHist[0]?.payload.to_status === 'departed');
+}
+
+// Case C3: completed with 0 stuck events → cascade fetch fires but no transitions
+{
+  const svc = makeCascadeMockClient({
+    moves: [{ id: 'm-C3', tenant_id: 't-1', status: 'in_progress' }],
+    events: [
+      { id: 'ev-d1', tenant_id: 't-1', move_id: 'm-C3', event_status: 'departed',
+        arrived_at: '2026-04-24T07:00:00Z', departed_at: '2026-04-24T07:30:00Z' },
+    ],
+  });
+  let threw = false;
+  try {
+    await transitionMoveStatus(svc, {
+      tenantId: 't-1', moveId: 'm-C3', newStatus: 'completed', actorUserId: 'u-1',
+    });
+  } catch { threw = true; }
+  check('C3: no-stuck cascade does not throw', !threw);
+  check('C3: stuck-event fetch still fired', svc._calls.stuckEventFetches.length === 1);
+  check('C3: no event updates fired', svc._calls.eventUpdates.length === 0);
+  check('C3: no event-history rows written', svc._calls.eventHistory.length === 0);
+}
+
+// Case C4: move → in_progress (NOT completed) → cascade does NOT fire
+{
+  const svc = makeCascadeMockClient({
+    moves: [{ id: 'm-C4', tenant_id: 't-1', status: 'pending' }],
+    events: [
+      { id: 'ev-i1', tenant_id: 't-1', move_id: 'm-C4', event_status: 'pending',
+        arrived_at: null, departed_at: null },
+    ],
+  });
+  await transitionMoveStatus(svc, {
+    tenantId: 't-1', moveId: 'm-C4', newStatus: 'in_progress', actorUserId: 'u-1',
+  });
+  check('C4: no stuck-event fetch fired for non-completed transition',
+    svc._calls.stuckEventFetches.length === 0);
+  check('C4: no event updates fired', svc._calls.eventUpdates.length === 0);
+  check('C4: no event-history rows written', svc._calls.eventHistory.length === 0);
+  // event remains pending
+  const ev = svc._state.order_routing_events[0];
+  check('C4: event remained pending', ev.event_status === 'pending');
+}
+
+// Case C5: individual cascade failure is logged-and-continued (does not abort
+// the move transition nor the sibling cascades).
+{
+  const svc = makeCascadeMockClient({
+    moves: [{ id: 'm-C5', tenant_id: 't-1', status: 'in_progress' }],
+    events: [
+      { id: 'ev-ok-1', tenant_id: 't-1', move_id: 'm-C5', event_status: 'arrived',
+        arrived_at: '2026-04-24T08:00:00Z', departed_at: null },
+      // Poison event: inject a status the state machine cannot advance.
+      // Mutated after initial fetch filter matches ('arrived'): we
+      // instead simulate the failure by marking it with an invalid
+      // status *already stored as arrived* then letting the helper's
+      // re-read catch state mismatch. Easier approach: stub the row
+      // post-fetch so transitionEventStatus rejects. Simpler still:
+      // leave both valid and instead assert best-effort ordering.
+      { id: 'ev-ok-2', tenant_id: 't-1', move_id: 'm-C5', event_status: 'arrived',
+        arrived_at: '2026-04-24T08:05:00Z', departed_at: null },
+    ],
+  });
+  // Swallow console.error so test output stays clean — log-and-continue
+  // is expected to write at least one error for the forced failure.
+  const originalErr = console.error;
+  const errors = [];
+  console.error = (...args) => { errors.push(args.join(' ')); };
+  try {
+    // Force a failure on the 2nd event by mutating its status between
+    // the stuck-event fetch and the first transitionEventStatus read.
+    // Approach: wrap the client so the 2nd event's maybeSingle returns
+    // a status that isValidTransition rejects ('departed' → 'departed').
+    const origFrom = svc.from.bind(svc);
+    let eventReadCount = 0;
+    svc.from = function wrappedFrom(table) {
+      const c = origFrom(table);
+      if (table === 'order_routing_events') {
+        const origMaybeSingle = c.maybeSingle.bind(c);
+        c.maybeSingle = async () => {
+          const result = await origMaybeSingle();
+          if (result.data && result.data.id === 'ev-ok-2' && eventReadCount === 0) {
+            eventReadCount++;
+            // Corrupt: pretend this event is already departed (terminal),
+            // so transitionEventStatus will throw 'Invalid transition'.
+            return { data: { ...result.data, event_status: 'departed' }, error: null };
+          }
+          return result;
+        };
+      }
+      return c;
+    };
+    let threw = false;
+    try {
+      await transitionMoveStatus(svc, {
+        tenantId: 't-1', moveId: 'm-C5', newStatus: 'completed', actorUserId: 'u-1',
+      });
+    } catch { threw = true; }
+    check('C5: cascade failure does NOT bubble up', !threw);
+    check('C5: failure was logged via console.error',
+      errors.some((msg) => msg.includes('cascade failed for event ev-ok-2')));
+    // ev-ok-1 should still have transitioned normally
+    const ev1 = svc._state.order_routing_events.find((e) => e.id === 'ev-ok-1');
+    check('C5: healthy sibling event still cascaded to departed',
+      ev1?.event_status === 'departed');
+  } finally {
+    console.error = originalErr;
+  }
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
