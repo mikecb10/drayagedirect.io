@@ -8,7 +8,10 @@ import { PERMISSIONS } from '../../../../../../lib/permissions';
 import { buildRoutingEventsForTemplate } from '../../../../../../lib/routing-template-seed';
 import { deriveOrderStatusFromEvents } from '../../../../../../lib/dispatcher-states';
 import { fireOrderStatusChangeTriggers } from '../../../../../../lib/email-dispatch';
-import { transitionMoveStatus } from '../../../../../../lib/routing/moves/transition.js';
+import {
+  transitionMoveStatus,
+  revertCascadedEventsForMove,
+} from '../../../../../../lib/routing/moves/transition.js';
 
 async function snapshotLocation(svc, tenantId, locationId) {
   if (!locationId) return {};
@@ -845,6 +848,24 @@ export default async function handler(req, res) {
           actorUserId: ctx.userId,
           extraFields: { completed_at: null },
         });
+        // FU-081: revert events that the prior complete_load cascaded to
+        // 'departed'. Runs AFTER the move's own status is reverted per
+        // spec. Uses history to identify pre-cascade state and skips
+        // events that weren't cascaded.
+        try {
+          await revertCascadedEventsForMove({
+            supabase: svc,
+            tenantId: ctx.tenantId,
+            moveId,
+            actor: {
+              id: ctx.userId ?? null,
+              type: 'system',
+              context: { reason: 'uncomplete_load', loadId: id },
+            },
+          });
+        } catch (e) {
+          console.error(`uncomplete_load revert cascade failed for move ${moveId}:`, e?.message || e);
+        }
       }
 
       // Pass 2: unstarted + completed moves → pending (cleanup for old bug)
@@ -864,6 +885,25 @@ export default async function handler(req, res) {
           actorUserId: ctx.userId,
           extraFields: { completed_at: null },
         });
+        // FU-081: revert events that the prior complete_load cascaded to
+        // 'departed' (see comment on Pass 1 above). An unstarted-but-
+        // completed move from the old bug usually has no cascaded events,
+        // but the revert is a no-op in that case (skips events with no
+        // cascade history rows) so it's safe to call unconditionally.
+        try {
+          await revertCascadedEventsForMove({
+            supabase: svc,
+            tenantId: ctx.tenantId,
+            moveId,
+            actor: {
+              id: ctx.userId ?? null,
+              type: 'system',
+              context: { reason: 'uncomplete_load', loadId: id },
+            },
+          });
+        } catch (e) {
+          console.error(`uncomplete_load revert cascade failed for move ${moveId}:`, e?.message || e);
+        }
       }
 
       await logTenantAction(svc, {

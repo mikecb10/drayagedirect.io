@@ -1,4 +1,7 @@
-import { transitionMoveStatus } from '../lib/routing/moves/transition.js';
+import {
+  transitionMoveStatus,
+  revertCascadedEventsForMove,
+} from '../lib/routing/moves/transition.js';
 
 let passed = 0;
 let failed = 0;
@@ -267,17 +270,28 @@ console.log('transitionMoveStatus');
 // The existing simpler mock remains for cases 1–11.
 
 function makeCascadeMockClient(initial) {
-  // initial: { moves: [{ id, status }], events: [{ id, event_status, arrived_at, departed_at }] }
+  // initial: { moves, events, eventHistory? }
+  //   eventHistory (optional) seeds order_routing_event_status_history rows for
+  //   FU-081 revert tests. Each row: { event_id, from_status, to_status, note, transitioned_at }
   const state = {
     order_container_moves: [...(initial.moves ?? [])].map((m) => ({ ...m })),
     order_routing_events: [...(initial.events ?? [])].map((e) => ({ ...e })),
+    order_container_moves_status_history: [],
+    order_routing_event_status_history: [...(initial.eventHistory ?? [])].map((h) => ({ ...h })),
   };
+  // Clock for generating transitioned_at timestamps on inserted history rows.
+  // Uses a monotonically increasing counter so insert-order matches sort-order
+  // when tests later read history with .order('transitioned_at', desc).
+  let historyClock = (initial.historyClockStart ?? 1_000_000);
   const calls = {
     moveUpdates: [],
     eventUpdates: [],
     moveHistory: [],
     eventHistory: [],
     stuckEventFetches: [],
+    // FU-081: track the departed-event scan + history reads + revert updates
+    departedEventFetches: [],
+    eventHistoryReads: [],
   };
 
   function chain(table) {
@@ -287,11 +301,13 @@ function makeCascadeMockClient(initial) {
       _payload: null,
       _filters: {},
       _inFilter: null,
+      _orderBy: null,
       select(..._args) { if (c._mode == null) c._mode = 'select'; return c; },
       update(payload) { c._mode = 'update'; c._payload = payload; return c; },
       insert(payload) { c._mode = 'insert'; c._payload = payload; return c; },
       eq(col, val) { c._filters[col] = val; return c; },
       in(col, vals) { c._inFilter = { col, vals }; return c; },
+      order(col, opts) { c._orderBy = { col, ascending: opts?.ascending !== false }; return c; },
 
       async maybeSingle() {
         const rows = state[table] ?? [];
@@ -314,8 +330,14 @@ function makeCascadeMockClient(initial) {
         if (c._mode === 'insert') {
           if (table === 'order_container_moves_status_history') {
             calls.moveHistory.push({ payload: c._payload });
+            state.order_container_moves_status_history.push({ ...c._payload });
           } else if (table === 'order_routing_event_status_history') {
-            calls.eventHistory.push({ payload: c._payload });
+            // Stamp a monotonic transitioned_at so later history reads can
+            // order them (matches the real DB DEFAULT now() semantics for
+            // insert-order = time-order purposes of these tests).
+            const stamped = { ...c._payload, transitioned_at: c._payload.transitioned_at ?? String(historyClock++) };
+            calls.eventHistory.push({ payload: stamped });
+            state.order_routing_event_status_history.push(stamped);
           }
           resolve({ data: null, error: null });
           return;
@@ -326,20 +348,54 @@ function makeCascadeMockClient(initial) {
           return;
         }
         if (c._mode === 'select') {
-          // Handles the cascade's stuck-events query:
-          //   .select('id, event_status').eq(tenant).eq(move_id).in('event_status', [...])
+          // Handles two cascade-related queries:
+          //   1. cascade's stuck-events query:
+          //      .select('id, event_status').eq(tenant).eq(move_id).in('event_status', [...])
+          //   2. FU-081 revert's departed-events query:
+          //      .select('id, event_status').eq(tenant).eq(move_id).eq('event_status', 'departed')
+          //   3. FU-081 revert's history read:
+          //      .select(...).eq(tenant).eq(event_id).order('transitioned_at', desc)
           const rows = state[table] ?? [];
-          const matched = rows.filter((r) => {
+          let matched = rows.filter((r) => {
             const eqOk = Object.entries(c._filters).every(([k, v]) => r[k] === v);
             const inOk = c._inFilter
               ? c._inFilter.vals.includes(r[c._inFilter.col])
               : true;
             return eqOk && inOk;
           });
+
+          if (c._orderBy) {
+            const { col, ascending } = c._orderBy;
+            matched = [...matched].sort((a, b) => {
+              const av = a[col]; const bv = b[col];
+              if (av === bv) return 0;
+              if (av == null) return ascending ? -1 : 1;
+              if (bv == null) return ascending ? 1 : -1;
+              return ascending ? (av < bv ? -1 : 1) : (av < bv ? 1 : -1);
+            });
+          }
+
           if (table === 'order_routing_events' && c._inFilter) {
             calls.stuckEventFetches.push({
               filters: { ...c._filters },
               inFilter: { ...c._inFilter },
+              count: matched.length,
+            });
+          }
+          if (
+            table === 'order_routing_events'
+            && !c._inFilter
+            && c._filters.event_status === 'departed'
+          ) {
+            calls.departedEventFetches.push({
+              filters: { ...c._filters },
+              count: matched.length,
+            });
+          }
+          if (table === 'order_routing_event_status_history' && c._orderBy) {
+            calls.eventHistoryReads.push({
+              filters: { ...c._filters },
+              orderBy: { ...c._orderBy },
               count: matched.length,
             });
           }
@@ -548,6 +604,281 @@ console.log('\ntransitionMoveStatus — B.1e cascade');
   } finally {
     console.error = originalErr;
   }
+}
+
+// ---------------------------------------------------------------------------
+// FU-081 — revertCascadedEventsForMove: reverses the complete_load cascade
+// when uncomplete_load fires. Event state machine treats 'departed' as
+// terminal (correctly, for manual actions), so the helper BYPASSES it
+// via raw supabase calls for this system-only reverse path.
+// ---------------------------------------------------------------------------
+
+console.log('\nrevertCascadedEventsForMove — FU-081');
+
+// Case R1: Cascade then revert — 2 pending events cascaded to departed, then
+// reverted. Both should end back at 'pending'. Expected totals:
+//   - Cascade wrote 4 event-history rows (pending→arrived, arrived→departed × 2 events)
+//   - Revert writes 2 event-history rows (one per event, departed→pending)
+//   - All 6 tagged actor_type='system'
+{
+  const svc = makeCascadeMockClient({
+    moves: [{ id: 'm-R1', tenant_id: 't-1', status: 'in_progress' }],
+    events: [
+      { id: 'ev-R1a', tenant_id: 't-1', move_id: 'm-R1', event_status: 'pending',
+        arrived_at: null, departed_at: null },
+      { id: 'ev-R1b', tenant_id: 't-1', move_id: 'm-R1', event_status: 'pending',
+        arrived_at: null, departed_at: null },
+    ],
+  });
+  // Step 1: Cascade via complete_load path
+  await transitionMoveStatus(svc, {
+    tenantId: 't-1', moveId: 'm-R1', newStatus: 'completed', actorUserId: 'u-1',
+  });
+  const cascadeHistCount = svc._calls.eventHistory.length;
+  check('R1: cascade wrote 4 event-history rows', cascadeHistCount === 4);
+  // Step 2: Revert
+  const result = await revertCascadedEventsForMove({
+    supabase: svc, tenantId: 't-1', moveId: 'm-R1',
+    actor: { id: 'u-1', type: 'system', context: { reason: 'uncomplete_load', loadId: 'order-R1' } },
+  });
+  const eventsById = svc._state.order_routing_events.reduce(
+    (acc, e) => { acc[e.id] = e; return acc; }, {},
+  );
+  check('R1: ev-R1a reverted to pending', eventsById['ev-R1a'].event_status === 'pending');
+  check('R1: ev-R1b reverted to pending', eventsById['ev-R1b'].event_status === 'pending');
+  check('R1: ev-R1a departed_at cleared', eventsById['ev-R1a'].departed_at === null);
+  check('R1: ev-R1a arrived_at cleared', eventsById['ev-R1a'].arrived_at === null);
+  check('R1: revertedCount=2', result.revertedCount === 2);
+  check('R1: skippedCount=0', result.skippedCount === 0);
+  // 4 cascade + 2 revert = 6 total event-history rows
+  check('R1: total event-history rows = 6', svc._calls.eventHistory.length === 6);
+  const revertRows = svc._calls.eventHistory.filter(
+    (h) => h.payload.note === 'reverted from uncomplete_load',
+  );
+  check('R1: 2 revert-tagged history rows', revertRows.length === 2);
+  check('R1: all revert rows actor_type=system',
+    revertRows.every((h) => h.payload.actor_type === 'system'));
+  check('R1: all revert rows from_status=departed',
+    revertRows.every((h) => h.payload.from_status === 'departed'));
+  check('R1: all revert rows to_status=pending',
+    revertRows.every((h) => h.payload.to_status === 'pending'));
+  check('R1: all revert rows have moveId in actor_context',
+    revertRows.every((h) => h.payload.actor_context?.moveId === 'm-R1'));
+  // All 6 event-history rows must be actor_type=system (cascade + revert both system-driven)
+  check('R1: all 6 event-history rows actor_type=system',
+    svc._calls.eventHistory.every((h) => h.payload.actor_type === 'system'));
+}
+
+// Case R2: Mixed pre-state — 1 pending event (cascaded) + 1 already-departed
+// event (dispatcher-marked before cascade). Revert should touch ONLY the
+// cascaded event; the pre-existing departed event stays put.
+{
+  // Pre-seed history for ev-R2b: a dispatcher-driven arrived→departed row
+  // exists BEFORE any cascade. The revert must see the lack of cascade rows
+  // for this event and skip it.
+  const svc = makeCascadeMockClient({
+    moves: [{ id: 'm-R2', tenant_id: 't-1', status: 'in_progress' }],
+    events: [
+      { id: 'ev-R2a', tenant_id: 't-1', move_id: 'm-R2', event_status: 'pending',
+        arrived_at: null, departed_at: null },
+      // ev-R2b is already departed (dispatcher marked it before complete_load).
+      { id: 'ev-R2b', tenant_id: 't-1', move_id: 'm-R2', event_status: 'departed',
+        arrived_at: '2026-04-24T07:00:00Z', departed_at: '2026-04-24T07:30:00Z' },
+    ],
+    // Seed ev-R2b's prior dispatcher history (no cascade note).
+    eventHistory: [
+      { tenant_id: 't-1', event_id: 'ev-R2b', from_status: 'pending', to_status: 'arrived',
+        actor_type: 'human', note: null, transitioned_at: '500000' },
+      { tenant_id: 't-1', event_id: 'ev-R2b', from_status: 'arrived', to_status: 'departed',
+        actor_type: 'human', note: null, transitioned_at: '500001' },
+    ],
+    historyClockStart: 1_000_000,
+  });
+  // Cascade: only ev-R2a is pending, so only it gets cascaded (ev-R2b already departed).
+  await transitionMoveStatus(svc, {
+    tenantId: 't-1', moveId: 'm-R2', newStatus: 'completed', actorUserId: 'u-1',
+  });
+  // Revert
+  const result = await revertCascadedEventsForMove({
+    supabase: svc, tenantId: 't-1', moveId: 'm-R2',
+    actor: { type: 'system', context: { reason: 'uncomplete_load', loadId: 'order-R2' } },
+  });
+  const eventsById = svc._state.order_routing_events.reduce(
+    (acc, e) => { acc[e.id] = e; return acc; }, {},
+  );
+  check('R2: cascaded event (ev-R2a) reverted to pending',
+    eventsById['ev-R2a'].event_status === 'pending');
+  check('R2: pre-existing departed event (ev-R2b) UNCHANGED',
+    eventsById['ev-R2b'].event_status === 'departed');
+  check('R2: ev-R2b arrived_at preserved',
+    eventsById['ev-R2b'].arrived_at === '2026-04-24T07:00:00Z');
+  check('R2: ev-R2b departed_at preserved',
+    eventsById['ev-R2b'].departed_at === '2026-04-24T07:30:00Z');
+  check('R2: revertedCount=1 (only cascaded event)', result.revertedCount === 1);
+  check('R2: skippedCount=1 (pre-existing departed skipped)', result.skippedCount === 1);
+  // Only 1 revert-tagged history row written
+  const revertRows = svc._calls.eventHistory.filter(
+    (h) => h.payload.note === 'reverted from uncomplete_load',
+  );
+  check('R2: exactly 1 revert history row', revertRows.length === 1);
+  check('R2: revert row is for ev-R2a',
+    revertRows[0]?.payload.event_id === 'ev-R2a');
+}
+
+// Case R3: No cascade history — event is at 'departed' but has no rows
+// tagged as cascade. Revert must leave it alone (skippedCount=1).
+{
+  const svc = makeCascadeMockClient({
+    moves: [{ id: 'm-R3', tenant_id: 't-1', status: 'in_progress' }],
+    events: [
+      { id: 'ev-R3', tenant_id: 't-1', move_id: 'm-R3', event_status: 'departed',
+        arrived_at: '2026-04-24T06:00:00Z', departed_at: '2026-04-24T06:30:00Z' },
+    ],
+    eventHistory: [
+      { tenant_id: 't-1', event_id: 'ev-R3', from_status: 'pending', to_status: 'arrived',
+        actor_type: 'human', note: null, transitioned_at: '500000' },
+      { tenant_id: 't-1', event_id: 'ev-R3', from_status: 'arrived', to_status: 'departed',
+        actor_type: 'human', note: 'driver marked done via app', transitioned_at: '500001' },
+    ],
+  });
+  const result = await revertCascadedEventsForMove({
+    supabase: svc, tenantId: 't-1', moveId: 'm-R3',
+    actor: { type: 'system' },
+  });
+  const ev = svc._state.order_routing_events[0];
+  check('R3: event status unchanged (still departed)', ev.event_status === 'departed');
+  check('R3: event timestamps unchanged', ev.arrived_at === '2026-04-24T06:00:00Z');
+  check('R3: revertedCount=0', result.revertedCount === 0);
+  check('R3: skippedCount=1', result.skippedCount === 1);
+  check('R3: no revert history rows written',
+    svc._calls.eventHistory.filter((h) => h.payload.note === 'reverted from uncomplete_load').length === 0);
+  check('R3: no event updates',
+    svc._calls.eventUpdates.filter((u) => u.eventId === 'ev-R3').length === 0);
+}
+
+// Case R4: Authority guard — actor.type !== 'system' must throw
+{
+  const svc = makeCascadeMockClient({
+    moves: [{ id: 'm-R4', tenant_id: 't-1', status: 'in_progress' }],
+    events: [],
+  });
+  let threwHuman = false;
+  try {
+    await revertCascadedEventsForMove({
+      supabase: svc, tenantId: 't-1', moveId: 'm-R4',
+      actor: { type: 'human' },
+    });
+  } catch (e) {
+    threwHuman = /actor\.type=system/.test(e.message);
+  }
+  check('R4: actor.type=human throws', threwHuman);
+
+  let threwAgent = false;
+  try {
+    await revertCascadedEventsForMove({
+      supabase: svc, tenantId: 't-1', moveId: 'm-R4',
+      actor: { type: 'agent' },
+    });
+  } catch (e) {
+    threwAgent = /actor\.type=system/.test(e.message);
+  }
+  check('R4: actor.type=agent throws', threwAgent);
+
+  let threwMissing = false;
+  try {
+    await revertCascadedEventsForMove({
+      supabase: svc, tenantId: 't-1', moveId: 'm-R4',
+      actor: null,
+    });
+  } catch (e) {
+    threwMissing = /actor\.type=system/.test(e.message);
+  }
+  check('R4: missing actor throws', threwMissing);
+
+  // System actor with empty events is a valid no-op (returns counts=0).
+  const ok = await revertCascadedEventsForMove({
+    supabase: svc, tenantId: 't-1', moveId: 'm-R4',
+    actor: { type: 'system' },
+  });
+  check('R4: system actor with no events returns {0,0}',
+    ok.revertedCount === 0 && ok.skippedCount === 0);
+}
+
+// Case R5: Mixed pre-state, arrived→cascade→revert. Event was 'arrived'
+// (dispatcher had marked arrival) before cascade pushed it to 'departed'.
+// Revert target should be 'arrived' — NOT 'pending' — per algorithm step 3:
+// "first non-cascade row's to_status is the revert target".
+{
+  const svc = makeCascadeMockClient({
+    moves: [{ id: 'm-R5', tenant_id: 't-1', status: 'in_progress' }],
+    events: [
+      { id: 'ev-R5', tenant_id: 't-1', move_id: 'm-R5', event_status: 'arrived',
+        arrived_at: '2026-04-24T08:00:00Z', departed_at: null },
+    ],
+    eventHistory: [
+      // Dispatcher marked arrival before any cascade.
+      { tenant_id: 't-1', event_id: 'ev-R5', from_status: 'pending', to_status: 'arrived',
+        actor_type: 'human', note: null, transitioned_at: '500000' },
+    ],
+  });
+  // Complete triggers cascade (arrived → departed, 1 row).
+  await transitionMoveStatus(svc, {
+    tenantId: 't-1', moveId: 'm-R5', newStatus: 'completed', actorUserId: 'u-1',
+  });
+  const cascadeEventHist = svc._calls.eventHistory.filter(
+    (h) => h.payload.event_id === 'ev-R5',
+  );
+  check('R5: 1 cascade history row (arrived→departed)',
+    cascadeEventHist.length === 1 && cascadeEventHist[0].payload.from_status === 'arrived');
+  // Revert
+  const result = await revertCascadedEventsForMove({
+    supabase: svc, tenantId: 't-1', moveId: 'm-R5',
+    actor: { type: 'system', context: { reason: 'uncomplete_load', loadId: 'order-R5' } },
+  });
+  const ev = svc._state.order_routing_events[0];
+  check('R5: reverted to arrived (pre-cascade dispatcher state)',
+    ev.event_status === 'arrived');
+  check('R5: arrived_at preserved', ev.arrived_at === '2026-04-24T08:00:00Z');
+  check('R5: departed_at cleared on revert', ev.departed_at === null);
+  check('R5: revertedCount=1', result.revertedCount === 1);
+  const revertRows = svc._calls.eventHistory.filter(
+    (h) => h.payload.note === 'reverted from uncomplete_load',
+  );
+  check('R5: revert row records departed→arrived',
+    revertRows.length === 1
+    && revertRows[0].payload.from_status === 'departed'
+    && revertRows[0].payload.to_status === 'arrived');
+}
+
+// Case R6: All-cascade history fallback — event has ONLY cascade rows
+// (created and immediately cascaded, no prior dispatcher state). Algorithm
+// step 4: revert target = oldest cascade row's from_status (== 'pending'
+// for a freshly-created event).
+{
+  const svc = makeCascadeMockClient({
+    moves: [{ id: 'm-R6', tenant_id: 't-1', status: 'completed' }],
+    events: [
+      { id: 'ev-R6', tenant_id: 't-1', move_id: 'm-R6', event_status: 'departed',
+        arrived_at: '2026-04-24T09:00:00Z', departed_at: '2026-04-24T09:00:00Z' },
+    ],
+    eventHistory: [
+      // Only cascade rows exist for this event.
+      { tenant_id: 't-1', event_id: 'ev-R6', from_status: 'pending', to_status: 'arrived',
+        actor_type: 'system', note: 'cascaded from parent move completion', transitioned_at: '500000' },
+      { tenant_id: 't-1', event_id: 'ev-R6', from_status: 'arrived', to_status: 'departed',
+        actor_type: 'system', note: 'cascaded from parent move completion', transitioned_at: '500001' },
+    ],
+  });
+  const result = await revertCascadedEventsForMove({
+    supabase: svc, tenantId: 't-1', moveId: 'm-R6',
+    actor: { type: 'system' },
+  });
+  const ev = svc._state.order_routing_events[0];
+  check('R6: all-cascade fallback reverts to pending (oldest cascade from_status)',
+    ev.event_status === 'pending');
+  check('R6: revertedCount=1', result.revertedCount === 1);
+  check('R6: arrived_at cleared when reverting to pending', ev.arrived_at === null);
+  check('R6: departed_at cleared when reverting to pending', ev.departed_at === null);
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);
