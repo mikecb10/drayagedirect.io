@@ -36,8 +36,36 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     if (!requirePermission(ctx, [PERMISSIONS.ORDER_ENTRY, PERMISSIONS.ALL], res)) return;
 
-    const { name, description, member_ids } = req.body || {};
+    const {
+      name,
+      description,
+      member_ids,
+      purpose,
+      is_default_for_purpose,
+    } = req.body || {};
     if (!name) return res.status(400).json({ error: 'Group name is required' });
+
+    // Validate purpose if provided
+    const validPurposes = ['billing', 'operations', 'dispatch', 'rate_confirmation', 'management', 'custom'];
+    if (purpose && !validPurposes.includes(purpose)) {
+      return res.status(400).json({ error: `Invalid purpose. Must be one of: ${validPurposes.join(', ')}` });
+    }
+
+    // If setting as default for a purpose, unset any existing default first
+    // (partial unique index would reject otherwise; also keeps API behavior
+    //  matching user intent)
+    if (is_default_for_purpose && purpose) {
+      const { error: swapErr } = await svc
+        .from('organization_groups')
+        .update({ is_default_for_purpose: false })
+        .eq('tenant_id', ctx.tenantId)
+        .eq('organization_id', id)
+        .eq('purpose', purpose)
+        .eq('is_default_for_purpose', true);
+      if (swapErr) {
+        return res.status(500).json({ error: `Default swap failed: ${swapErr.message}` });
+      }
+    }
 
     const { data: group, error } = await svc
       .from('organization_groups')
@@ -46,6 +74,8 @@ export default async function handler(req, res) {
         organization_id: id,
         name,
         description: description || null,
+        purpose: purpose || null,
+        is_default_for_purpose: !!is_default_for_purpose,
       })
       .select().single();
 
@@ -64,8 +94,9 @@ export default async function handler(req, res) {
       action: 'contact_group.create',
       entityType: 'contact_group',
       entityId: group.id,
-      newValues: { name, organization_id: id },
+      newValues: { name, organization_id: id, purpose, is_default_for_purpose },
       ipAddress: getClientIp(req),
+      // actorType defaults to 'human' (human-initiated via UI)
     });
 
     return res.status(201).json({ group: { ...group, members: [], member_count: 0 } });
