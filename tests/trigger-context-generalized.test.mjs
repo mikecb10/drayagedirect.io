@@ -1,4 +1,4 @@
-import { buildMoveTriggerContext } from '../lib/email-dispatch/context-builder.js';
+import { buildMoveTriggerContext, buildChargeSetTriggerContext } from '../lib/email-dispatch/context-builder.js';
 
 let passed = 0;
 let failed = 0;
@@ -91,6 +91,46 @@ console.log('buildMoveTriggerContext');
   check('move: inherits customer_name via parent order', result?.variables?.customer_name === 'Acme Corp');
   check('move: inherits driver_name via parent order', result?.variables?.driver_name === 'Jane Doe');
   check('move: orderId returned for log-keying', result?.orderId === 'ord-1');
+}
+
+console.log('\nbuildChargeSetTriggerContext');
+
+// Case 2: Charge_set context with parent order inheritance
+{
+  const svc = makeMockClient({
+    order_charge_sets: {
+      id: 'cs-1',
+      tenant_id: 't-1',
+      order_id: 'ord-1',
+      status: 'invoiced',
+      total_cents: 15000,
+      charge_set_number: 'CS-5001',
+    },
+    orders: {
+      id: 'ord-1',
+      tenant_id: 't-1',
+      load_number: 'LD-12345',
+      customer_id: 'cust-1',
+      customer: { id: 'cust-1', name: 'Acme Corp' },
+      driver: { id: 'drv-1', first_name: 'Jane', last_name: 'Doe', name: 'Jane Doe' },
+    },
+    tenants: { id: 't-1', name: 'TestCorp', timezone: 'America/New_York' },
+    tenant_format_preferences: { tenant_id: 't-1' },
+  });
+
+  const result = await buildChargeSetTriggerContext(svc, {
+    tenantId: 't-1',
+    chargeSetId: 'cs-1',
+    userId: null,
+  });
+
+  check('charge_set: returns variables object', result && typeof result.variables === 'object');
+  check('charge_set: charge_set_id populated', result?.variables?.charge_set_id === 'cs-1');
+  check('charge_set: charge_set_status populated', result?.variables?.charge_set_status === 'invoiced');
+  check('charge_set: charge_set_total populated (dollars)', result?.variables?.charge_set_total === '150.00');
+  check('charge_set: inherits load_number', result?.variables?.load_number === 'LD-12345');
+  check('charge_set: inherits customer_name', result?.variables?.customer_name === 'Acme Corp');
+  check('charge_set: orderId returned', result?.orderId === 'ord-1');
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);
