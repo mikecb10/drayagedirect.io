@@ -93,6 +93,18 @@ const TYPE_CONFIG = {
     showFinalDelivery: false,
     showTrailer: false,
   },
+  chassis_reposition: {
+    // Chassis reposition = move an empty chassis between yards/terminals.
+    // Slots reuse the form's pickup/delivery fields for UI state, but submit
+    // logic remaps them to hook_chassis_location_id / terminate_chassis_location_id
+    // (see handleSubmit below) per lib/validation/load-payload.js.
+    slot1: { label: 'Hook Chassis Location', orgType: 'yard' },
+    slot2: { label: 'Terminate Chassis Location', orgType: 'yard' },
+    slot3: null,
+    showContainer: false,
+    showFinalDelivery: false,
+    showTrailer: false,
+  },
 };
 
 const DEFAULT_CONTAINER_SIZES = [
@@ -216,15 +228,23 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
       }
       if (!form.customer_id) throw new Error('Customer is required');
 
+      // chassis_reposition reuses the slot1/slot2 form fields for UI state but
+      // maps them to hook_chassis_location_id / terminate_chassis_location_id
+      // at submit time. The API validator (lib/validation/load-payload.js)
+      // requires both chassis fields for this load type and allows null
+      // pickup/delivery/return.
+      const isChassisReposition = form.load_type === 'chassis_reposition';
       const payload = {
         load_type: form.load_type,
         routing_template_id: form.routing_template_id,
         routing_template_name: form.routing_template_name,
         customer_id: form.customer_id,
-        pickup_location_id: form.pickup_location_id,
-        delivery_location_id: form.delivery_location_id,
-        return_location_id: form.return_location_id,
+        pickup_location_id: isChassisReposition ? null : form.pickup_location_id,
+        delivery_location_id: isChassisReposition ? null : form.delivery_location_id,
+        return_location_id: isChassisReposition ? null : form.return_location_id,
         final_delivery_location_id: form.final_delivery_location_id,
+        hook_chassis_location_id: isChassisReposition ? form.pickup_location_id : null,
+        terminate_chassis_location_id: isChassisReposition ? form.delivery_location_id : null,
         container_number: form.container_number || null,
         container_size: form.container_size || null,
         container_size_id: form.container_size_id || null,
@@ -469,7 +489,7 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
               </FormSection>
             )}
 
-            {form.load_type !== 'bill_only' && (
+            {form.load_type !== 'bill_only' && form.load_type !== 'chassis_reposition' && (
               <FormSection title="References">
                 <Input
                   label="Master BOL"
@@ -480,6 +500,21 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
                   label="Booking Number"
                   value={form.booking_number}
                   onChange={(e) => update('booking_number', e.target.value)}
+                />
+              </FormSection>
+            )}
+
+            {form.load_type === 'chassis_reposition' && (
+              <FormSection title="Dates">
+                <DatePicker
+                  label="Pickup Date"
+                  value={form.pickup_date}
+                  onChange={(v) => update('pickup_date', v)}
+                />
+                <DatePicker
+                  label="Delivery Date"
+                  value={form.delivery_date}
+                  onChange={(v) => update('delivery_date', v)}
                 />
               </FormSection>
             )}
