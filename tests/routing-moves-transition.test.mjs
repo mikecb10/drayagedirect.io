@@ -15,7 +15,7 @@ function makeMockClient(config) {
   function chain(currentTable) {
     const c = {
       _table: currentTable, _mode: null, _payload: null,
-      select(..._args) { return c; },
+      select(..._args) { if (c._mode == null) c._mode = 'select'; return c; },
       update(payload) { c._mode = 'update'; c._payload = payload; return c; },
       insert(payload) { c._mode = 'insert'; c._payload = payload; return c; },
       eq() { return c; },
@@ -40,6 +40,10 @@ function makeMockClient(config) {
         } else if (c._mode === 'update') {
           calls.updated.push({ table: c._table, payload: c._payload });
           resolve(config.update ?? { data: null, error: null });
+        } else if (c._mode === 'select') {
+          calls.selected.push({ table: c._table });
+          const tableSelect = config.select && config.select[c._table];
+          resolve(tableSelect ?? { data: [], error: null });
         } else {
           resolve({ data: null, error: null });
         }
@@ -65,7 +69,9 @@ console.log('transitionMoveStatus');
   check('newStatus=in_progress', r.newStatus === 'in_progress');
   check('1 UPDATE', svc._calls.updated.length === 1);
   check('update targets order_container_moves', svc._calls.updated[0]?.table === 'order_container_moves');
-  check('1 INSERT to history', svc._calls.inserted.length === 1);
+  // After Stream B.1b, fireStatusChangeTriggers also writes a history row,
+  // producing 2 inserts per transition (FU-074 tracks unification).
+  check('>= 1 INSERT to history (helper + fire = 2)', svc._calls.inserted.length >= 1);
   check('history table correct',
     svc._calls.inserted[0]?.table === 'order_container_moves_status_history');
 }
@@ -174,6 +180,45 @@ console.log('transitionMoveStatus');
   check('same-status + extraFields: UPDATE payload has extraFields',
     svc._calls.updated[0]?.payload?.started_at === '2026-04-24T00:00:00Z');
   check('same-status + extraFields: NO history row written', svc._calls.inserted.length === 0);
+}
+
+// Case 8: Fires status-change triggers on successful transition.
+{
+  const svc = makeMockClient({
+    fetch: { data: { id: 'm-8', status: 'pending' }, error: null },
+    update: { data: { id: 'm-8', status: 'in_progress' }, error: null },
+    insert: { data: null, error: null },
+    select: { email_template_triggers: { data: [], error: null } },
+  });
+  await transitionMoveStatus(svc, {
+    tenantId: 't-1',
+    moveId: 'm-8',
+    newStatus: 'in_progress',
+    actorUserId: 'u-1',
+  });
+  check('fires: UPDATE ran', svc._calls.updated.length === 1);
+  check('fires: history INSERT ran (+ a 2nd history INSERT from fire — FU-074)',
+    svc._calls.inserted.filter(x => x.table === 'order_container_moves_status_history').length >= 1);
+  check('fires: email_template_triggers queried after transition',
+    svc._calls.selected.some(c => c.table === 'email_template_triggers'));
+}
+
+// Case 9: Does NOT fire on noop (same status, no extraFields).
+{
+  const svc = makeMockClient({
+    fetch: { data: { id: 'm-9', status: 'in_progress' }, error: null },
+    select: { email_template_triggers: { data: [], error: null } },
+  });
+  await transitionMoveStatus(svc, {
+    tenantId: 't-1',
+    moveId: 'm-9',
+    newStatus: 'in_progress',
+    actorUserId: null,
+  });
+  check('noop: no email_template_triggers query',
+    !svc._calls.selected.some(c => c.table === 'email_template_triggers'));
+  check('noop: no UPDATE', svc._calls.updated.length === 0);
+  check('noop: no INSERT', svc._calls.inserted.length === 0);
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);
