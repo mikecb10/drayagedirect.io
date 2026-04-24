@@ -5,6 +5,24 @@ import Alert from '../../ui/Alert';
 import Modal from '../../ui/Modal';
 import Input from '../../ui/Input';
 
+const PURPOSE_BADGE_COLORS = {
+  billing:           'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
+  operations:        'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
+  dispatch:          'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
+  rate_confirmation: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
+  management:        'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300',
+  custom:            'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+};
+
+const PURPOSE_LABELS = {
+  billing:           'Billing',
+  operations:        'Operations',
+  dispatch:          'Dispatch',
+  rate_confirmation: 'Rate Con',
+  management:        'Management',
+  custom:            'Custom',
+};
+
 export default function GroupsTab({ organization }) {
   const [groups, setGroups] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -96,7 +114,23 @@ export default function GroupsTab({ organization }) {
                 {/* Group header */}
                 <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100 dark:border-slate-800">
                   <div>
-                    <div className="text-sm font-semibold text-gray-900 dark:text-slate-100">{group.name}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">{group.name}</span>
+                      {group.purpose && (
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${PURPOSE_BADGE_COLORS[group.purpose] || PURPOSE_BADGE_COLORS.custom}`}>
+                          {PURPOSE_LABELS[group.purpose] || group.purpose}
+                        </span>
+                      )}
+                      {group.is_default_for_purpose && (
+                        <span
+                          className="text-yellow-500 dark:text-yellow-400"
+                          title="Default group for this purpose"
+                          aria-label="Default group"
+                        >
+                          ⭐
+                        </span>
+                      )}
+                    </div>
                     {group.description && (
                       <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">{group.description}</div>
                     )}
