@@ -256,5 +256,36 @@ console.log('transitionChargeSetStatus');
   check('noop: no INSERT', svc._calls.inserted.length === 0);
 }
 
+// Case 10: actorType defaults to 'human' when not provided
+{
+  const svc = makeMockClient({
+    fetch: { data: { id: 'cs-default', status: 'draft' }, error: null },
+    update: { data: { id: 'cs-default', status: 'invoiced' }, error: null },
+    insert: { data: null, error: null },
+  });
+  await transitionChargeSetStatus(svc, {
+    tenantId: 't-1', chargeSetId: 'cs-default', newStatus: 'invoiced', actorUserId: 'u-1',
+  });
+  const histInsert = svc._calls.inserted.find(i => i.table === 'order_charge_sets_status_history');
+  check('default actorType: human stamped on history row',
+    histInsert?.payload?.actor_type === 'human');
+}
+
+// Case 11: explicit actorType: 'agent' passes through
+{
+  const svc = makeMockClient({
+    fetch: { data: { id: 'cs-agent', status: 'draft' }, error: null },
+    update: { data: { id: 'cs-agent', status: 'invoiced' }, error: null },
+    insert: { data: null, error: null },
+  });
+  await transitionChargeSetStatus(svc, {
+    tenantId: 't-1', chargeSetId: 'cs-agent', newStatus: 'invoiced', actorUserId: null,
+    actorType: 'agent',
+  });
+  const histInsert = svc._calls.inserted.find(i => i.table === 'order_charge_sets_status_history');
+  check('explicit agent actorType: stamped on history row',
+    histInsert?.payload?.actor_type === 'agent');
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
