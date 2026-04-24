@@ -1,6 +1,7 @@
 import { requireTenantUser, requirePermission, getServiceClient } from '../../../../../../../lib/tenant-api';
 import { logTenantAction, getClientIp } from '../../../../../../../lib/tenant-audit';
 import { PERMISSIONS } from '../../../../../../../lib/permissions';
+import { swapDefaultGroup } from '../../../../../../../lib/organizations/default-group-swap.js';
 
 export default async function handler(req, res) {
   const ctx = await requireTenantUser(req, res);
@@ -25,14 +26,12 @@ export default async function handler(req, res) {
 
     // Swap logic: if setting default, unset any OTHER group with same purpose as default
     if (is_default_for_purpose && purpose) {
-      const { error: swapErr } = await svc
-        .from('organization_groups')
-        .update({ is_default_for_purpose: false })
-        .eq('tenant_id', ctx.tenantId)
-        .eq('organization_id', id)
-        .eq('purpose', purpose)
-        .eq('is_default_for_purpose', true)
-        .neq('id', groupId);  // exclude the group we're updating
+      const { error: swapErr } = await swapDefaultGroup(svc, {
+        tenantId: ctx.tenantId,
+        organizationId: id,
+        purpose,
+        excludeGroupId: groupId,
+      });
       if (swapErr) {
         return res.status(500).json({ error: `Default swap failed: ${swapErr.message}` });
       }

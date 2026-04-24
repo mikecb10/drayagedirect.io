@@ -1,6 +1,7 @@
 import { requireTenantUser, requirePermission, getServiceClient } from '../../../../../../lib/tenant-api';
 import { logTenantAction, getClientIp } from '../../../../../../lib/tenant-audit';
 import { PERMISSIONS } from '../../../../../../lib/permissions';
+import { swapDefaultGroup } from '../../../../../../lib/organizations/default-group-swap.js';
 
 /**
  * /api/tenant/organizations/[id]/groups
@@ -55,13 +56,11 @@ export default async function handler(req, res) {
     // (partial unique index would reject otherwise; also keeps API behavior
     //  matching user intent)
     if (is_default_for_purpose && purpose) {
-      const { error: swapErr } = await svc
-        .from('organization_groups')
-        .update({ is_default_for_purpose: false })
-        .eq('tenant_id', ctx.tenantId)
-        .eq('organization_id', id)
-        .eq('purpose', purpose)
-        .eq('is_default_for_purpose', true);
+      const { error: swapErr } = await swapDefaultGroup(svc, {
+        tenantId: ctx.tenantId,
+        organizationId: id,
+        purpose,
+      });
       if (swapErr) {
         return res.status(500).json({ error: `Default swap failed: ${swapErr.message}` });
       }
