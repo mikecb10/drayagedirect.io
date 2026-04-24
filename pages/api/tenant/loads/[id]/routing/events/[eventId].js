@@ -6,7 +6,7 @@ import {
 import { logTenantAction, getClientIp } from '../../../../../../../lib/tenant-audit';
 import { PERMISSIONS } from '../../../../../../../lib/permissions';
 import { deriveOrderStatusFromEvents } from '../../../../../../../lib/dispatcher-states';
-import { fireStatusChangeTriggers, fireRoutingEventTriggers } from '../../../../../../../lib/email-dispatch';
+import { fireOrderStatusChangeTriggers, fireRoutingEventTriggers } from '../../../../../../../lib/email-dispatch';
 
 const EDITABLE = [
   'event_type',
@@ -431,7 +431,7 @@ export default async function handler(req, res) {
           .is('deleted_at', null);
 
         // Fire status-change email triggers for this transition
-        fireStatusChangeTriggers(svc, {
+        fireOrderStatusChangeTriggers(svc, {
           tenantId: ctx.tenantId,
           loadId: id,
           oldStatus: currentLoad.status,

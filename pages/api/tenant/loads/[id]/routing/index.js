@@ -7,7 +7,7 @@ import { logTenantAction, getClientIp } from '../../../../../../lib/tenant-audit
 import { PERMISSIONS } from '../../../../../../lib/permissions';
 import { buildRoutingEventsForTemplate } from '../../../../../../lib/routing-template-seed';
 import { deriveOrderStatusFromEvents } from '../../../../../../lib/dispatcher-states';
-import { fireStatusChangeTriggers } from '../../../../../../lib/email-dispatch';
+import { fireOrderStatusChangeTriggers } from '../../../../../../lib/email-dispatch';
 import { transitionMoveStatus } from '../../../../../../lib/routing/moves/transition.js';
 
 async function snapshotLocation(svc, tenantId, locationId) {
@@ -90,7 +90,7 @@ export default async function handler(req, res) {
             .is('deleted_at', null);
 
           // Fire status-change email triggers for the transition
-          fireStatusChangeTriggers(svc, {
+          fireOrderStatusChangeTriggers(svc, {
             tenantId: ctx.tenantId,
             loadId: id,
             oldStatus: currentLoad.status,

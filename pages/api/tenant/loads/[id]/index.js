@@ -5,7 +5,7 @@ import {
 } from '../../../../../lib/tenant-api';
 import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
 import { PERMISSIONS, hasPermission } from '../../../../../lib/permissions';
-import { fireFieldChangeTriggers, fireStatusChangeTriggers } from '../../../../../lib/email-dispatch';
+import { fireFieldChangeTriggers, fireOrderStatusChangeTriggers } from '../../../../../lib/email-dispatch';
 import { fetchLoadMarginInputs, computeLoadMargin } from '../../../../../lib/load-margin';
 
 // NOTE: load_type is intentionally NOT editable — the load number has the
@@ -514,13 +514,13 @@ export default async function handler(req, res) {
     // Also writes to order_status_history for the polled worker to
     // evaluate delayed triggers later.
     if (oldLoad.status !== data.status) {
-      fireStatusChangeTriggers(svc, {
+      fireOrderStatusChangeTriggers(svc, {
         tenantId: ctx.tenantId,
         loadId: id,
         oldStatus: oldLoad.status,
         newStatus: data.status,
         userId: ctx.userId,
-      }).catch((e) => console.error('fireStatusChangeTriggers error:', e));
+      }).catch((e) => console.error('fireOrderStatusChangeTriggers error:', e));
     }
 
     // Auto-recalc on matching-field change. Best-effort: failures are
