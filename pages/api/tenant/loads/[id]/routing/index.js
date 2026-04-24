@@ -726,14 +726,17 @@ export default async function handler(req, res) {
       // Fetch current order status BEFORE the update so we can pass it
       // to fireOrderStatusChangeTriggers (which writes order_status_history
       // + fires any active status triggers). Closes FU-071.
-      const { data: currentOrder } = await svc
+      const { data: currentOrder, error: fetchErr } = await svc
         .from('orders')
         .select('status')
         .eq('tenant_id', ctx.tenantId)
         .eq('id', id)
         .is('deleted_at', null)
-        .single();
-      const oldOrderStatus = currentOrder?.status ?? null;
+        .maybeSingle();
+      if (fetchErr || !currentOrder) {
+        return res.status(404).json({ error: 'Load not found or deleted' });
+      }
+      const oldOrderStatus = currentOrder.status;
 
       const { data: order, error: orderErr } = await svc
         .from('orders')
@@ -777,14 +780,17 @@ export default async function handler(req, res) {
       // Revert to pending_completion (all events still departed) rather
       // than in_transit. The routing read-repair will naturally re-derive
       // the correct status on the next GET based on the actual event state.
-      const { data: currentOrder } = await svc
+      const { data: currentOrder, error: fetchErr } = await svc
         .from('orders')
         .select('status')
         .eq('tenant_id', ctx.tenantId)
         .eq('id', id)
         .is('deleted_at', null)
-        .single();
-      const oldOrderStatus = currentOrder?.status ?? null;
+        .maybeSingle();
+      if (fetchErr || !currentOrder) {
+        return res.status(404).json({ error: 'Load not found or deleted' });
+      }
+      const oldOrderStatus = currentOrder.status;
 
       const { data: order, error: orderErr } = await svc
         .from('orders')
