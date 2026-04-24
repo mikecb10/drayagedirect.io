@@ -353,6 +353,10 @@ export default async function handler(req, res) {
       delivery_location_id: body.delivery_location_id || null,
       return_location_id: body.return_location_id || null,
       final_delivery_location_id: body.final_delivery_location_id || null,
+      // Chassis location fields (migration 065). Required by validator for
+      // chassis_reposition load type; optional for others (chassis split).
+      hook_chassis_location_id: body.hook_chassis_location_id || null,
+      terminate_chassis_location_id: body.terminate_chassis_location_id || null,
       // Snapshot pickup → origin_*
       origin_address: pickupSnap.address_line1 || null,
       origin_city: pickupSnap.city || null,
