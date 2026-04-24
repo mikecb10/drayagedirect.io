@@ -5,6 +5,7 @@ import {
 } from '../../../../lib/tenant-api';
 import { logTenantAction, getClientIp } from '../../../../lib/tenant-audit';
 import { PERMISSIONS } from '../../../../lib/permissions';
+import { coerceBool, coerceInt } from '../../../../lib/utils/coerce.js';
 
 /**
  * /api/tenant/stop-off-types
@@ -42,17 +43,6 @@ function cleanStr(v) {
   if (v == null) return null;
   const s = String(v).trim();
   return s || null;
-}
-
-function coerceBool(v, fallback) {
-  if (v === undefined || v === null) return fallback;
-  return !!v;
-}
-
-function coerceInt(v, fallback) {
-  if (v === undefined || v === null || v === '') return fallback;
-  const n = Number(v);
-  return Number.isFinite(n) ? Math.trunc(n) : fallback;
 }
 
 export default async function handler(req, res) {

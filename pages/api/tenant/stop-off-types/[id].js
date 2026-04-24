@@ -5,6 +5,7 @@ import {
 } from '../../../../lib/tenant-api';
 import { logTenantAction, getClientIp } from '../../../../lib/tenant-audit';
 import { PERMISSIONS } from '../../../../lib/permissions';
+import { coerceBool, coerceInt } from '../../../../lib/utils/coerce.js';
 
 /**
  * /api/tenant/stop-off-types/[id]
@@ -32,14 +33,6 @@ import { PERMISSIONS } from '../../../../lib/permissions';
  * Permission gate: SETTINGS | ALL for writes (PUT, DELETE). GET is available
  * to any authenticated tenant user so picker UIs can read one row without
  * granting full Settings.
- *
- * Note on coerceBool/coerceInt:
- *   Local copies below use string-aware semantics ("false" → false) because
- *   PUT bodies can come from admin forms that serialize booleans as strings.
- *   The sibling index.js has slightly different inline versions whose
- *   semantics (!!v for non-null/undefined) treat "false" as truthy. Leaving
- *   index.js alone intentionally; both helpers pending a reconciliation
- *   pass.
  */
 
 const WRITE_PERMS = [PERMISSIONS.SETTINGS, PERMISSIONS.ALL];
@@ -71,23 +64,6 @@ function cleanStr(v) {
   if (v == null) return null;
   const s = String(v).trim();
   return s || null;
-}
-
-function coerceBool(v, fallback) {
-  if (v === undefined || v === null) return fallback;
-  if (typeof v === 'boolean') return v;
-  if (typeof v === 'string') {
-    const lower = v.toLowerCase().trim();
-    if (lower === 'true') return true;
-    if (lower === 'false') return false;
-  }
-  return Boolean(v);
-}
-
-function coerceInt(v, fallback) {
-  if (v === undefined || v === null || v === '') return fallback;
-  const n = Number(v);
-  return Number.isFinite(n) ? Math.trunc(n) : fallback;
 }
 
 export default async function handler(req, res) {
