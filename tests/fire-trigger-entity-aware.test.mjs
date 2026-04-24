@@ -237,5 +237,26 @@ console.log('fireTrigger (entity-aware)');
     !svc._calls.queries.some(q => q.table === 'order_charge_sets' || q.table === 'order_container_moves'));
 }
 
+// Case 7: fireTrigger email_trigger_log writes stamp actor_type: 'system'
+{
+  const svc = makeMockClient({
+    email_template_triggers: {
+      id: 'trig-sys', tenant_id: 't-1', event_name: 'completed',
+      entity_type: 'order', is_active: true, conditions: {}, template: null,
+    },
+    orders: { id: 'ord-sys', tenant_id: 't-1', load_number: 'LD-SYS', customer: null, driver: null, pickup_org: null, delivery_org: null, return_org: null, final_delivery_org: null, container_owner: null },
+    tenants: { id: 't-1', name: 'TestCorp' },
+    tenant_format_preferences: { tenant_id: 't-1' },
+  });
+  await fireTrigger(svc, {
+    tenantId: 't-1', triggerId: 'trig-sys',
+    entityType: 'order', entityId: 'ord-sys',
+    fireKey: 'key-sys', userId: null, eventName: 'completed',
+  });
+  const logInsert = svc._calls.inserts.find(i => i.table === 'email_trigger_log');
+  check('email_trigger_log stamps actor_type=system',
+    logInsert?.payload?.actor_type === 'system');
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
