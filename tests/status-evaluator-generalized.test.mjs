@@ -80,5 +80,82 @@ console.log('evaluate (generalized status evaluator)');
     svc._calls.selectArgs.some(a => a.args?.includes('move_id')));
 }
 
+// Case 4: Order with current status matching targetStatus → candidate returned
+{
+  const svc = makeMockClient({
+    select: {
+      order_status_history: {
+        data: [{ order_id: 'ord-1', created_at: '2026-04-20T00:00:00Z' }],
+        error: null,
+      },
+      orders: {
+        // Live-status verification: load is still in target status, not soft-deleted
+        data: [{ id: 'ord-1', status: 'completed', deleted_at: null }],
+        error: null,
+      },
+    },
+  });
+  const candidates = await evaluate(svc, 't-1', {
+    id: 'trig-4',
+    event_name: 'completed',
+    entity_type: 'order',
+    conditions: { notify_after: { days: 0, hours: 1, minutes: 0 } },
+  });
+  check('order branch: queries both order_status_history AND orders',
+    svc._calls.queriedTables.includes('order_status_history') &&
+    svc._calls.queriedTables.includes('orders'));
+  check('order branch: returns candidate when status still matches',
+    candidates.length === 1 && candidates[0]?.load_id === 'ord-1');
+}
+
+// Case 5: Order with stale history (current status no longer matches) → filtered out
+{
+  const svc = makeMockClient({
+    select: {
+      order_status_history: {
+        data: [{ order_id: 'ord-2', created_at: '2026-04-20T00:00:00Z' }],
+        error: null,
+      },
+      orders: {
+        // Live-status verification: load HAS moved on — 'completed' → 'voided', say
+        data: [{ id: 'ord-2', status: 'voided', deleted_at: null }],
+        error: null,
+      },
+    },
+  });
+  const candidates = await evaluate(svc, 't-1', {
+    id: 'trig-5',
+    event_name: 'completed',
+    entity_type: 'order',
+    conditions: { notify_after: { days: 0, hours: 1, minutes: 0 } },
+  });
+  check('order branch: filters out loads whose current status no longer matches',
+    candidates.length === 0);
+}
+
+// Case 6: Order that is soft-deleted → filtered out
+{
+  const svc = makeMockClient({
+    select: {
+      order_status_history: {
+        data: [{ order_id: 'ord-3', created_at: '2026-04-20T00:00:00Z' }],
+        error: null,
+      },
+      orders: {
+        data: [], // soft-deleted loads filtered by `.is('deleted_at', null)` → empty
+        error: null,
+      },
+    },
+  });
+  const candidates = await evaluate(svc, 't-1', {
+    id: 'trig-6',
+    event_name: 'completed',
+    entity_type: 'order',
+    conditions: { notify_after: { days: 0, hours: 1, minutes: 0 } },
+  });
+  check('order branch: filters out soft-deleted loads',
+    candidates.length === 0);
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

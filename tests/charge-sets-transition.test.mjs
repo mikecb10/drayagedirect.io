@@ -96,7 +96,7 @@ console.log('transitionChargeSetStatus');
   // producing 2 inserts per transition (FU-074 tracks unification).
   check('writes >= 1 history insert (helper + fire = 2)', svc._calls.inserted.length >= 1);
   check('history table is order_charge_sets_status_history',
-    svc._calls.inserted[0]?.table === 'order_charge_sets_status_history');
+    svc._calls.inserted.some(x => x.table === 'order_charge_sets_status_history'));
 }
 
 // Case 2: Success (status + extraFields)
