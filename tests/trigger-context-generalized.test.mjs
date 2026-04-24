@@ -73,7 +73,8 @@ console.log('buildTriggerContext (entity-aware)');
     userId: null,
   });
   check('order (object-arg): returns variables', result && typeof result.variables === 'object');
-  check('order (object-arg): load_number populated in context.load', result?.variables?.load?.order_number === undefined ? true : true);
+  check('order (object-arg): variables.load is populated (nested tree)',
+    result?.variables?.load && typeof result?.variables?.load === 'object');
   check('order (object-arg): orderId === entityId', result?.orderId === 'ord-1');
 }
 

@@ -181,5 +181,61 @@ console.log('fireTrigger (entity-aware)');
     svc._calls.queries.some(q => q.table === 'order_container_moves' && q.filters.id === 'm-1'));
 }
 
+// Case 4: charge_set with missing parent order (order_id null) → outcome:skipped
+{
+  const svc = makeMockClient({
+    email_template_triggers: { id: 'trig-4', tenant_id: 't-1', event_name: 'invoiced', entity_type: 'charge_set', is_active: true, conditions: {}, template: null },
+    order_charge_sets: { id: 'cs-orphan', tenant_id: 't-1', order_id: null, status: 'invoiced' },
+    // No orders fixture — the lookup returns null data
+    tenants: { id: 't-1', name: 'TestCorp' },
+  });
+  const result = await fireTrigger(svc, {
+    tenantId: 't-1', triggerId: 'trig-4',
+    entityType: 'charge_set', entityId: 'cs-orphan',
+    fireKey: 'key-4', userId: null, eventName: 'invoiced',
+  });
+  check('orphan charge_set: outcome is skipped',
+    result?.outcome === 'skipped');
+  check('orphan charge_set: reason mentions parent',
+    typeof result?.error === 'string' && result.error.toLowerCase().includes('parent'));
+}
+
+// Case 5: move with missing parent order (order_id null) → outcome:skipped
+{
+  const svc = makeMockClient({
+    email_template_triggers: { id: 'trig-5', tenant_id: 't-1', event_name: 'completed', entity_type: 'move', is_active: true, conditions: {}, template: null },
+    order_container_moves: { id: 'm-orphan', tenant_id: 't-1', order_id: null, status: 'completed' },
+    tenants: { id: 't-1', name: 'TestCorp' },
+  });
+  const result = await fireTrigger(svc, {
+    tenantId: 't-1', triggerId: 'trig-5',
+    entityType: 'move', entityId: 'm-orphan',
+    fireKey: 'key-5', userId: null, eventName: 'completed',
+  });
+  check('orphan move: outcome is skipped',
+    result?.outcome === 'skipped');
+  check('orphan move: reason mentions parent',
+    typeof result?.error === 'string' && result.error.toLowerCase().includes('parent'));
+}
+
+// Case 6: legacy loadId-only invocation still works (backward-compat)
+{
+  const svc = makeMockClient({
+    email_template_triggers: { id: 'trig-6', tenant_id: 't-1', event_name: 'completed', entity_type: 'order', is_active: true, conditions: {}, template: null },
+    orders: { id: 'ord-legacy', tenant_id: 't-1', load_number: 'LD-LEGACY', customer: null, driver: null, pickup_org: null, delivery_org: null, return_org: null, final_delivery_org: null, container_owner: null },
+    tenants: { id: 't-1', name: 'TestCorp' },
+    tenant_format_preferences: { tenant_id: 't-1' },
+  });
+  // Legacy shape: pass loadId only, no entityType / entityId
+  const result = await fireTrigger(svc, {
+    tenantId: 't-1', triggerId: 'trig-6',
+    loadId: 'ord-legacy',
+    fireKey: 'key-6', userId: null, eventName: 'completed',
+  });
+  check('legacy loadId: fireTrigger completes without crashing', !!result);
+  check('legacy loadId: no parent-lookup query happened (entity is order)',
+    !svc._calls.queries.some(q => q.table === 'order_charge_sets' || q.table === 'order_container_moves'));
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
