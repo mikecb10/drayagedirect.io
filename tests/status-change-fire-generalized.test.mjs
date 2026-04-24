@@ -178,5 +178,64 @@ console.log('fireStatusChangeTriggers (generalized)');
     historyPayload?.order_id === 'ord-42');
 }
 
+// Case 7: Charge_set immediate fire — now actually attempts (B.1c removes the skip)
+{
+  const svc = makeMockClient({
+    insert: { order_charge_sets_status_history: { data: null, error: null } },
+    select: {
+      email_template_triggers: {
+        data: [{
+          id: 'trig-cs-1',
+          tenant_id: 't-1',
+          event_name: 'invoiced',
+          entity_type: 'charge_set',
+          is_active: true,
+          conditions: { notify_after: { days: 0, hours: 0, minutes: 0 } },
+        }],
+        error: null,
+      },
+    },
+  });
+  const r = await fireStatusChangeTriggers(svc, {
+    tenantId: 't-1',
+    entityType: 'charge_set',
+    entityId: 'cs-1',
+    oldStatus: 'draft',
+    newStatus: 'invoiced',
+    userId: 'u-1',
+  });
+  // firesAttempted should be 1 for the matched trigger (was 0 pre-B.1c due to skip)
+  check('charge_set immediate: firesAttempted >= 1', (r?.firesAttempted ?? 0) >= 1);
+}
+
+// Case 8: Move immediate fire — same as above but for move
+{
+  const svc = makeMockClient({
+    insert: { order_container_moves_status_history: { data: null, error: null } },
+    select: {
+      email_template_triggers: {
+        data: [{
+          id: 'trig-m-1',
+          tenant_id: 't-1',
+          event_name: 'completed',
+          entity_type: 'move',
+          is_active: true,
+          conditions: { notify_after: { days: 0, hours: 0, minutes: 0 } },
+        }],
+        error: null,
+      },
+    },
+  });
+  const r = await fireStatusChangeTriggers(svc, {
+    tenantId: 't-1',
+    entityType: 'move',
+    entityId: 'm-1',
+    oldStatus: 'in_progress',
+    newStatus: 'completed',
+    userId: 'u-1',
+  });
+  check('move immediate: firesAttempted >= 1', (r?.firesAttempted ?? 0) >= 1);
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
