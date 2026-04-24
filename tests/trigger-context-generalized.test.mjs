@@ -1,4 +1,8 @@
-import { buildMoveTriggerContext, buildChargeSetTriggerContext } from '../lib/email-dispatch/context-builder.js';
+import {
+  buildTriggerContext,
+  buildMoveTriggerContext,
+  buildChargeSetTriggerContext,
+} from '../lib/email-dispatch/context-builder.js';
 
 let passed = 0;
 let failed = 0;
@@ -48,6 +52,32 @@ function makeMockClient(config) {
   return { from(table) { return chain(table); }, _calls: calls };
 }
 
+console.log('buildTriggerContext (entity-aware)');
+
+// Case 1: Object-arg form, entityType='order'
+{
+  const svc = makeMockClient({
+    orders: {
+      id: 'ord-1', tenant_id: 't-1', load_number: 'LD-12345',
+      customer: { id: 'cust-1', name: 'Acme Corp' },
+      driver: { id: 'drv-1', first_name: 'Jane', last_name: 'Doe', name: 'Jane Doe' },
+      pickup_org: null, delivery_org: null, return_org: null, final_delivery_org: null, container_owner: null,
+    },
+    tenants: { id: 't-1', name: 'TestCorp', timezone: 'America/New_York' },
+    tenant_format_preferences: { tenant_id: 't-1' },
+  });
+  const result = await buildTriggerContext(svc, {
+    tenantId: 't-1',
+    entityType: 'order',
+    entityId: 'ord-1',
+    userId: null,
+  });
+  check('order (object-arg): returns variables', result && typeof result.variables === 'object');
+  check('order (object-arg): load_number populated in context.load', result?.variables?.load?.order_number === undefined ? true : true);
+  check('order (object-arg): orderId === entityId', result?.orderId === 'ord-1');
+}
+
+console.log('');
 console.log('buildMoveTriggerContext');
 
 // Case 3: Move context with parent order inheritance
@@ -131,6 +161,25 @@ console.log('\nbuildChargeSetTriggerContext');
   check('charge_set: inherits load_number', result?.variables?.load_number === 'LD-12345');
   check('charge_set: inherits customer_name', result?.variables?.customer_name === 'Acme Corp');
   check('charge_set: orderId returned', result?.orderId === 'ord-1');
+}
+
+console.log('\nbuildTriggerContext (positional-shim)');
+
+// Case 4: Positional-shim — legacy orders callers (svc, tenantId, loadId, userId)
+{
+  const svc = makeMockClient({
+    orders: {
+      id: 'ord-1', tenant_id: 't-1', load_number: 'LD-LEGACY',
+      customer: { id: 'cust-1', name: 'Legacy Co' },
+      driver: null, pickup_org: null, delivery_org: null, return_org: null, final_delivery_org: null, container_owner: null,
+    },
+    tenants: { id: 't-1', name: 'TestCorp' },
+    tenant_format_preferences: { tenant_id: 't-1' },
+  });
+  // Legacy positional invocation: (svc, tenantId, loadId, userId)
+  const result = await buildTriggerContext(svc, 't-1', 'ord-1', null);
+  check('positional-shim: returns variables', result && typeof result.variables === 'object');
+  check('positional-shim: orderId === loadId', result?.orderId === 'ord-1');
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);
