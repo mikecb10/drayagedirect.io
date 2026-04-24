@@ -7,7 +7,10 @@ import { logTenantAction, getClientIp } from '../../../../../../../lib/tenant-au
 import { PERMISSIONS } from '../../../../../../../lib/permissions';
 import { deriveOrderStatusFromEvents } from '../../../../../../../lib/dispatcher-states';
 import { fireOrderStatusChangeTriggers, fireRoutingEventTriggers } from '../../../../../../../lib/email-dispatch';
-import { transitionEventStatus } from '../../../../../../../lib/routing/event-status-transition.js';
+import {
+  transitionEventStatus,
+  syncEventStatusFromTimestamps,
+} from '../../../../../../../lib/routing/event-status-transition.js';
 
 const EDITABLE = [
   'event_type',
@@ -84,10 +87,12 @@ export default async function handler(req, res) {
       }
     }
 
-    // Fetch old values for audit + cascade logic
+    // Fetch old values for audit + cascade logic.
+    // event_status is included for FU-082 (legacy direct-timestamp edits
+    // need the prior status to detect drift after the UPDATE).
     const { data: oldEvent } = await svc
       .from('order_routing_events')
-      .select('event_type, location_name, arrived_at, departed_at, move_id, sequence')
+      .select('event_type, location_name, arrived_at, departed_at, move_id, sequence, event_status')
       .eq('id', eventId)
       .maybeSingle();
 
@@ -188,6 +193,47 @@ export default async function handler(req, res) {
       .single();
 
     if (error) return res.status(500).json({ error: error.message });
+
+    // ================================================================
+    // FU-082: Sync event_status with the resulting timestamp state.
+    //
+    // The legacy EDITABLE-fields path above writes arrived_at/departed_at
+    // directly — but `event_status` is not in EDITABLE, so without this
+    // sync the row would be left with timestamps and event_status out of
+    // agreement (e.g. arrived_at set, event_status still 'pending'). This
+    // bites future B.1f UIs that read event_status.
+    //
+    // Intentionally bypasses the strict transitionEventStatus state
+    // machine: this is the "raw timestamp" escape hatch and must allow
+    // transitions the state machine rejects (e.g., pending -> departed
+    // when a dispatcher backfills departed_at only without ever marking
+    // arrived). Normal user flows use the toStatus path above; this is
+    // for direct-timestamp backfills.
+    //
+    // Email triggers stay where they are below — fire-and-forget on
+    // arrived_at/departed_at writes, unchanged by this sync.
+    // ================================================================
+    if ('arrived_at' in updates || 'departed_at' in updates) {
+      try {
+        await syncEventStatusFromTimestamps({
+          supabase: svc,
+          tenantId: ctx.tenantId,
+          eventId,
+          priorStatus: oldEvent?.event_status ?? 'pending',
+          currentTimestamps: {
+            arrived_at: data.arrived_at,
+            departed_at: data.departed_at,
+          },
+          actor: {
+            id: ctx.userId,
+            type: 'human', // legacy path is API-from-UI == human origin
+            context: { reason: 'legacy_timestamp_path' },
+          },
+        });
+      } catch (e) {
+        console.error(`event_status sync failed for ${eventId}:`, e?.message || e);
+      }
+    }
 
     // ================================================================
     // Deliver ↔ Drop pair timestamp cascade
