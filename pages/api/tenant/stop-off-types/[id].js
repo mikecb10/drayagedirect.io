@@ -144,6 +144,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'No editable fields in request' });
     }
 
+    updates.updated_at = new Date().toISOString();
+
     const { data, error } = await svc
       .from('stop_off_types')
       .update(updates)
