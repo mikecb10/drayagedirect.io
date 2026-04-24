@@ -166,16 +166,44 @@ export default async function handler(req, res) {
 
     if (error) return res.status(500).json({ error: error.message });
 
-    // Seed default contact groups
-    const defaultGroups = [
-      { name: 'Billing', purpose: 'billing', is_default_for_purpose: true },
-      { name: 'Operations', purpose: 'operations', is_default_for_purpose: true },
-      { name: 'Dispatch', purpose: 'dispatch', is_default_for_purpose: true },
-      { name: 'Management', purpose: 'management', is_default_for_purpose: true },
+    // Auto-seed 4 default groups for the new organization.
+    // These are empty (no members) until admins populate them.
+    // actorType='system' because seeding is automation following from
+    // the human's org-creation action.
+    const DEFAULT_GROUPS = [
+      { name: 'Billing',            purpose: 'billing',            description: 'Default billing group -- receives invoice emails' },
+      { name: 'Operations',         purpose: 'operations',         description: 'Default operations group -- receives operational notifications' },
+      { name: 'Dispatch',           purpose: 'dispatch',           description: 'Default dispatch group -- receives dispatch notifications' },
+      { name: 'Rate Confirmation',  purpose: 'rate_confirmation',  description: 'Default rate-confirmation group -- receives rate con emails' },
     ];
-    await svc.from('customer_contact_groups').insert(
-      defaultGroups.map((g) => ({ ...g, tenant_id: ctx.tenantId, customer_id: data.id }))
+
+    const { error: seedErr } = await svc.from('organization_groups').insert(
+      DEFAULT_GROUPS.map((g) => ({
+        tenant_id: ctx.tenantId,
+        organization_id: data.id,
+        name: g.name,
+        purpose: g.purpose,
+        is_default_for_purpose: true,
+        description: g.description,
+      }))
     );
+
+    if (seedErr) {
+      // Non-fatal: the org was created successfully. Log the seed failure
+      // and continue. Admin can manually create groups via GroupsTab.
+      console.error(`Default-group seed failed for org ${data.id}:`, seedErr.message);
+    } else {
+      await logTenantAction(svc, {
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        action: 'organization.default_groups_seeded',
+        entityType: 'organization',
+        entityId: data.id,
+        newValues: { groups: DEFAULT_GROUPS.map((g) => g.name) },
+        ipAddress: getClientIp(req),
+        actorType: 'system',  // auto-seed = system action
+      });
+    }
 
     // Create branch assignments if branch_ids provided
     const branchIds = Array.isArray(body.branch_ids) ? body.branch_ids.filter(Boolean) : [];
