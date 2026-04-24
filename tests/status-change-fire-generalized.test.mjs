@@ -237,5 +237,20 @@ console.log('fireStatusChangeTriggers (generalized)');
   check('move immediate: firesAttempted >= 1', (r?.firesAttempted ?? 0) >= 1);
 }
 
+// Case 9: fireStatusChangeTriggers stamps actor_type: 'system' on history insert
+{
+  const svc = makeMockClient({
+    insert: { order_status_history: { data: null, error: null } },
+    select: { email_template_triggers: { data: [], error: null } },
+  });
+  await fireStatusChangeTriggers(svc, {
+    tenantId: 't-1', entityType: 'order', entityId: 'ord-sys',
+    oldStatus: 'pending', newStatus: 'completed', userId: 'u-1',
+  });
+  const histInsert = svc._calls.inserted.find(c => c.table === 'order_status_history');
+  check('fire stamps actor_type=system on history insert',
+    histInsert?.payload?.actor_type === 'system');
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
