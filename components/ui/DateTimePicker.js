@@ -95,6 +95,11 @@ export default function DateTimePicker({
   const wrapperRef = useRef(null);
   const timeListRef = useRef(null);
   const [open, setOpen] = useState(autoOpen);
+  // openUp = render the dropdown ABOVE the input instead of below.
+  // Decided when the user opens the picker by measuring available space.
+  // Only relevant when !autoOpen (autoOpen mode renders inline inside a
+  // parent floater like CellPopover, which handles its own positioning).
+  const [openUp, setOpenUp] = useState(false);
 
   const parsed = parseValue(value);
   const today = new Date();
@@ -137,6 +142,19 @@ export default function DateTimePicker({
       }
     }
   }, [open]);
+
+  // Decide dropdown direction (up vs down) when opening. Skip in autoOpen
+  // mode — the parent floater (e.g. CellPopover) handles positioning.
+  // Reserves 80px at the bottom of the viewport for any fixed-bottom UI
+  // (BulkActionBar etc.) so the dropdown doesn't get hidden behind it.
+  useEffect(() => {
+    if (!open || autoOpen || !wrapperRef.current) return;
+    const rect = wrapperRef.current.getBoundingClientRect();
+    const estimatedHeight = showTime ? 420 : 360;
+    const spaceBelow = window.innerHeight - rect.bottom - 80;
+    const spaceAbove = rect.top - 8;
+    setOpenUp(estimatedHeight > spaceBelow && spaceAbove > spaceBelow);
+  }, [open, autoOpen, showTime]);
 
   function prevMonth() {
     if (viewMonth === 0) { setViewMonth(11); setViewYear((y) => y - 1); }
@@ -220,7 +238,9 @@ export default function DateTimePicker({
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute z-50 mt-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl shadow-lg flex overflow-hidden">
+        <div className={`absolute z-50 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl shadow-lg flex overflow-hidden ${
+          openUp ? 'bottom-full mb-1' : 'mt-1'
+        }`}>
           {/* Calendar */}
           <div className="p-3 w-[280px]">
             {/* Month/Year nav */}
