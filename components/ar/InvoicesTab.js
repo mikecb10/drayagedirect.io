@@ -6,6 +6,7 @@ import Badge from '../ui/Badge';
 import Modal from '../ui/Modal';
 import Select from '../ui/Select';
 import { formatCents } from '../../lib/ar-utils';
+import { appendArFilterParams } from '../../lib/ar-filter-params';
 import EmailComposeSlideOver from './EmailComposeSlideOver';
 import { useEmailCompose } from '../../hooks/useEmailCompose';
 import InvoicesBulkBar from './InvoicesBulkBar';
@@ -57,40 +58,10 @@ export default function InvoicesTab({ filters = {} }) {
       const params = new URLSearchParams();
       if (statusFilter) params.set('status', statusFilter);
       if (search) params.set('search', search);
-      if (filters.customer_ids?.length) params.set('customer_ids', filters.customer_ids.join(','));
-      if (filters.branch_ids?.length)   params.set('branch_ids',   filters.branch_ids.join(','));
-      if (filters.from)                 params.set('from',         filters.from);
-      if (filters.to)                   params.set('to',           filters.to);
-      if (filters.invoiced_from)        params.set('invoiced_from', filters.invoiced_from);
-      if (filters.invoiced_to)          params.set('invoiced_to',   filters.invoiced_to);
-      if (filters.reference_number)     params.set('reference_number', filters.reference_number);
-      if (filters.load_types?.length)       params.set('load_types',       filters.load_types.join(','));
-      if (filters.container_types?.length) params.set('container_types', filters.container_types.join(','));
-      if (filters.container_sizes?.length) params.set('container_sizes', filters.container_sizes.join(','));
-      if (filters.flags?.length) params.set('flags', filters.flags.join(','));
-      if (filters.ssl_codes?.length) params.set('ssl_codes', filters.ssl_codes.join(','));
-      if (filters.driver_ids?.length) params.set('driver_ids', filters.driver_ids.join(','));
-      if (filters.customer_ids_exclude?.length)    params.set('customer_ids_exclude',    filters.customer_ids_exclude.join(','));
-      if (filters.branch_ids_exclude?.length)      params.set('branch_ids_exclude',      filters.branch_ids_exclude.join(','));
-      if (filters.load_types_exclude?.length)      params.set('load_types_exclude',      filters.load_types_exclude.join(','));
-      if (filters.container_types_exclude?.length) params.set('container_types_exclude', filters.container_types_exclude.join(','));
-      if (filters.container_sizes_exclude?.length) params.set('container_sizes_exclude', filters.container_sizes_exclude.join(','));
-      if (filters.flags_exclude?.length)           params.set('flags_exclude',           filters.flags_exclude.join(','));
-      if (filters.ssl_codes_exclude?.length)       params.set('ssl_codes_exclude',       filters.ssl_codes_exclude.join(','));
-      if (filters.driver_ids_exclude?.length)      params.set('driver_ids_exclude',      filters.driver_ids_exclude.join(','));
-      if (filters.pickup_location_ids?.length)   params.set('pickup_location_ids',   filters.pickup_location_ids.join(','));
-      if (filters.delivery_location_ids?.length) params.set('delivery_location_ids', filters.delivery_location_ids.join(','));
-      if (filters.return_location_ids?.length)   params.set('return_location_ids',   filters.return_location_ids.join(','));
-      if (filters.bill_to_primary_customer_ids?.length)    params.set('bill_to_primary_customer_ids',    filters.bill_to_primary_customer_ids.join(','));
-      if (filters.bill_to_primary_customer_ids_exclude?.length) params.set('bill_to_primary_customer_ids_exclude', filters.bill_to_primary_customer_ids_exclude.join(','));
-      if (filters.bill_to_additional_customer_ids?.length) params.set('bill_to_additional_customer_ids', filters.bill_to_additional_customer_ids.join(','));
-      if (filters.bill_to_additional_customer_ids_exclude?.length) params.set('bill_to_additional_customer_ids_exclude', filters.bill_to_additional_customer_ids_exclude.join(','));
-      if (filters.factor_company === 'yes' || filters.factor_company === 'no') params.set('factor_company', filters.factor_company);
-      if (filters.invoice_email_sent_y === 'yes' || filters.invoice_email_sent_y === 'no') params.set('invoice_email_sent_y', filters.invoice_email_sent_y);
-      if (filters.margin_from && String(filters.margin_from).trim())
-        params.set('margin_from', filters.margin_from);
-      if (filters.margin_to && String(filters.margin_to).trim())
-        params.set('margin_to', filters.margin_to);
+      appendArFilterParams(params, filters);
+      if (filters.invoice_email_sent_y === 'yes' || filters.invoice_email_sent_y === 'no') {
+        params.set('invoice_email_sent_y', filters.invoice_email_sent_y);
+      }
       const res = await fetch(`/api/tenant/ar/invoices?${params}`);
       if (!res.ok) throw new Error('Failed to load invoices');
       const data = await res.json();

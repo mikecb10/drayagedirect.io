@@ -1,5 +1,6 @@
 import { requireTenantUser, getServiceClient } from '../../../../lib/tenant-api';
 import { parseCsvParam } from '../../../../lib/ar-filter-params';
+import { isPrimaryChargeSet } from '../../../../lib/ar-utils';
 import { fetchLoadMarginInputs, computeLoadMargin } from '../../../../lib/load-margin';
 import { PERMISSIONS, hasPermission } from '../../../../lib/permissions';
 
@@ -208,37 +209,32 @@ export default async function handler(req, res) {
   }
 
   // ── Phase B4: bill-to primary / additional ─────────────────────────
-  // Primary = charge_set_number does NOT match /_\d+$/ (no _N suffix).
-  // Secondary/additional = matches /_\d+$/.
   // Each filter passes through rows it doesn't apply to — primary filter
   // skips additional rows, and vice versa. This way a user combining both
   // filters gets the union: primary matches of list A + additional matches
   // of list B, not the impossible intersection.
-  const SECONDARY_PATTERN = /_\d+$/;
-  const isPrimaryCs = (cs) => !SECONDARY_PATTERN.test(cs.charge_set_number || '');
-
   if (billToPrimaryCustomerIds.length > 0) {
     const ids = new Set(billToPrimaryCustomerIds);
     scopedSets = scopedSets.filter((cs) =>
-      !isPrimaryCs(cs) || (cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id))
+      !isPrimaryChargeSet(cs) || (cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id))
     );
   }
   if (billToPrimaryCustomerIdsExclude.length > 0) {
     const ids = new Set(billToPrimaryCustomerIdsExclude);
     scopedSets = scopedSets.filter((cs) =>
-      !isPrimaryCs(cs) || !(cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id))
+      !isPrimaryChargeSet(cs) || !(cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id))
     );
   }
   if (billToAdditionalCustomerIds.length > 0) {
     const ids = new Set(billToAdditionalCustomerIds);
     scopedSets = scopedSets.filter((cs) =>
-      isPrimaryCs(cs) || (cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id))
+      isPrimaryChargeSet(cs) || (cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id))
     );
   }
   if (billToAdditionalCustomerIdsExclude.length > 0) {
     const ids = new Set(billToAdditionalCustomerIdsExclude);
     scopedSets = scopedSets.filter((cs) =>
-      isPrimaryCs(cs) || !(cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id))
+      isPrimaryChargeSet(cs) || !(cs.bill_to_customer_id && ids.has(cs.bill_to_customer_id))
     );
   }
 

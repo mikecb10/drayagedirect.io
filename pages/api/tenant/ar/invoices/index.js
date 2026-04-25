@@ -6,7 +6,7 @@ import {
 import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
 import { PERMISSIONS, hasPermission } from '../../../../../lib/permissions';
 import { assignInvoiceNumberBase } from '../../../../../lib/invoice-utils';
-import { computeInvoiceDueDate } from '../../../../../lib/ar-utils';
+import { computeInvoiceDueDate, isPrimaryChargeSet } from '../../../../../lib/ar-utils';
 import { parseCsvParam } from '../../../../../lib/ar-filter-params';
 import { fetchLoadMarginInputs, computeLoadMargin } from '../../../../../lib/load-margin';
 import { transitionChargeSetStatus } from '../../../../../lib/charge-sets/transition.js';
@@ -137,12 +137,9 @@ export default async function handler(req, res) {
       return true;
     };
 
-    const SECONDARY_PATTERN = /_\d+$/;
-    const isPrimaryCs = (cs) => cs && !SECONDARY_PATTERN.test(cs.charge_set_number || '');
-
     const chargeSetBillToMatches = (cs) => {
       if (!cs) return false;
-      const isPrimary = isPrimaryCs(cs);
+      const isPrimary = isPrimaryChargeSet(cs);
       // Primary include — passes through additional rows, requires primary rows to match
       if (billToPrimaryCustomerIds.length > 0 && isPrimary) {
         if (!(cs.bill_to_customer_id && billToPrimaryCustomerIds.includes(cs.bill_to_customer_id))) return false;

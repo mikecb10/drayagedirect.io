@@ -3,6 +3,7 @@ import { PERMISSIONS } from '../../../../../../lib/permissions';
 import { logTenantAction, getClientIp } from '../../../../../../lib/tenant-audit';
 import {
   dispatchEmail,
+  logManualSingleSend,
   resolveFromAddress,
   resolveFromName,
 } from '../../../../../../lib/email-dispatch';
@@ -131,8 +132,6 @@ export default async function handler(req, res) {
       templateId: null,
       configurationId: fullConfig.id,
       sentByUserId: ctx.userId,
-      relatedEntity: { type: 'charge_set', id },
-      eventName: 'manual:rate_con_send',
       // Task 7 precedence helpers: supply objects so dispatcher resolves
       // display name + reply-to via the unified helper path.
       config: fullConfig,
@@ -145,6 +144,17 @@ export default async function handler(req, res) {
       rate_con_pdf_url: pdfStoragePath,
     });
   }
+
+  await logManualSingleSend(svc, {
+    tenantId: ctx.tenantId,
+    relatedEntity: { type: 'charge_set', id },
+    eventName: 'manual:rate_con_send',
+    recipients: { to, cc, bcc },
+    subject,
+    bodyFormat: body_format || null,
+    configurationId: fullConfig.id,
+    sentByUserId: ctx.userId,
+  });
 
   // Step 7: Flip status
   try {
