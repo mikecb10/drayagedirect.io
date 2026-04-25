@@ -15,6 +15,8 @@ import {
   X,
   Check,
   RotateCcw,
+  Activity,
+  UserCheck,
 } from 'lucide-react';
 import CellPopover from './CellPopover';
 import OrgPicker from '../ui/OrgPicker';
@@ -115,6 +117,8 @@ export default function BulkActionBar({
       onClick: handleReadyForReturn,
       active: allReadyForReturn,
     },
+    { key: 'status', label: 'Edit Status', icon: Activity, hasPopover: true },
+    { key: 'csr', label: 'Assign CSR', icon: UserCheck, hasPopover: true },
     { key: 'load_info', label: 'Edit Load Info', icon: FileEdit, hasPopover: true },
     { key: 'dates', label: 'Edit Dates', icon: Calendar, hasPopover: true },
     { key: 'pickup_apt', label: 'Edit Pick Up APT', icon: Clock, hasPopover: true },
@@ -149,9 +153,21 @@ export default function BulkActionBar({
     if (!anchor) return null;
 
     switch (openAction) {
+      case 'status':
+        return (
+          <CellPopover anchorEl={anchor} onClose={() => setOpenAction(null)} width={240}>
+            <StatusForm onSubmit={applyAndClose} />
+          </CellPopover>
+        );
+      case 'csr':
+        return (
+          <CellPopover anchorEl={anchor} onClose={() => setOpenAction(null)} width={260}>
+            <CsrForm onSubmit={applyAndClose} />
+          </CellPopover>
+        );
       case 'dates':
         return (
-          <CellPopover anchorEl={anchor} onClose={() => setOpenAction(null)} width={280}>
+          <CellPopover anchorEl={anchor} onClose={() => setOpenAction(null)} width={380}>
             <DatesForm onSubmit={applyAndClose} />
           </CellPopover>
         );
@@ -281,6 +297,86 @@ export default function BulkActionBar({
 // Form components for each popover
 // ============================================================
 
+// ===== Bulk Status change =====
+const STATUS_OPTIONS = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'available', label: 'Available' },
+  { value: 'dispatched', label: 'Dispatched' },
+  { value: 'in_transit', label: 'In Transit' },
+  { value: 'dropped', label: 'Dropped' },
+  { value: 'delivered', label: 'Delivered' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'cancelled', label: 'Cancelled' },
+];
+
+function StatusForm({ onSubmit }) {
+  const [status, setStatus] = useState('');
+  return (
+    <div className="space-y-2">
+      <SelectField
+        label="New Status"
+        value={status}
+        options={STATUS_OPTIONS}
+        onChange={setStatus}
+      />
+      <FormBtn disabled={!status} onClick={() => onSubmit({ status })}>
+        Set Status
+      </FormBtn>
+    </div>
+  );
+}
+
+// ===== Bulk Assign CSR =====
+function CsrForm({ onSubmit }) {
+  const [users, setUsers] = useState([]);
+  const [userId, setUserId] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/tenant/users')
+      .then((r) => (r.ok ? r.json() : { users: [] }))
+      .then((data) => {
+        // Sort by display name (first_name + last_name, falling back to email).
+        const list = (data.users || [])
+          .filter((u) => u.status !== 'inactive')
+          .map((u) => ({
+            id: u.id,
+            label: u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email,
+          }))
+          .sort((a, b) => a.label.localeCompare(b.label));
+        setUsers(list);
+      })
+      .catch(() => setUsers([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // The "" value submits as null — explicit "Unassign" path.
+  const options = [
+    { value: '__UNASSIGN__', label: '— Unassign CSR —' },
+    ...users.map((u) => ({ value: u.id, label: u.label })),
+  ];
+
+  function handleSubmit() {
+    if (!userId) return;
+    const payload = { csr_user_id: userId === '__UNASSIGN__' ? null : userId };
+    onSubmit(payload);
+  }
+
+  return (
+    <div className="space-y-2">
+      <SelectField
+        label={loading ? 'Loading users…' : 'CSR'}
+        value={userId}
+        options={options}
+        onChange={setUserId}
+      />
+      <FormBtn disabled={!userId || loading} onClick={handleSubmit}>
+        {userId === '__UNASSIGN__' ? 'Unassign CSR' : 'Assign CSR'}
+      </FormBtn>
+    </div>
+  );
+}
+
 function FormBtn({ children, onClick, disabled }) {
   return (
     <button
@@ -343,32 +439,51 @@ function DateField({ label, value, onChange, type = 'date' }) {
 }
 
 // ===== Edit Dates popover =====
+// All 12 date dimensions surfaced by the bulk Edit Dates form. Existing 5
+// (LFD/Empty/PerDiem/CUT/ETA) plus 7 operational dates added via FU-092.
+// type defaults to 'date' (matches the DATE column type in Postgres);
+// timestamp-shaped fields override with 'datetime-local'.
+const DATE_FIELDS = [
+  { key: 'last_free_day', label: 'Last Free Day' },
+  { key: 'empty_date', label: 'Empty Date' },
+  { key: 'per_diem_free_day', label: 'Per Diem Free Day' },
+  { key: 'cutoff_date', label: 'CUT', type: 'datetime-local' },
+  { key: 'container_eta', label: 'ETA', type: 'datetime-local' },
+  { key: 'pickup_date', label: 'Pickup Date' },
+  { key: 'delivery_date', label: 'Delivery Date' },
+  { key: 'vessel_eta', label: 'Vessel ETA' },
+  { key: 'available_date', label: 'Available Date' },
+  { key: 'discharge_date', label: 'Discharge Date' },
+  { key: 'outgate_date', label: 'Outgate Date' },
+  { key: 'ingate_date', label: 'Ingate Date' },
+];
+
 function DatesForm({ onSubmit }) {
-  const [form, setForm] = useState({
-    last_free_day: '',
-    empty_date: '',
-    per_diem_free_day: '',
-    cutoff_date: '',
-    container_eta: '',
-  });
+  const [form, setForm] = useState(
+    Object.fromEntries(DATE_FIELDS.map((f) => [f.key, '']))
+  );
 
   function patch() {
     const out = {};
-    if (form.last_free_day) out.last_free_day = form.last_free_day;
-    if (form.empty_date) out.empty_date = form.empty_date;
-    if (form.per_diem_free_day) out.per_diem_free_day = form.per_diem_free_day;
-    if (form.cutoff_date) out.cutoff_date = form.cutoff_date;
-    if (form.container_eta) out.container_eta = form.container_eta;
+    for (const f of DATE_FIELDS) {
+      if (form[f.key]) out[f.key] = form[f.key];
+    }
     return out;
   }
 
   return (
     <div className="space-y-2">
-      <DateField label="Last Free Day" value={form.last_free_day} onChange={(v) => setForm({ ...form, last_free_day: v })} />
-      <DateField label="Empty Date" value={form.empty_date} onChange={(v) => setForm({ ...form, empty_date: v })} />
-      <DateField label="Per Diem Free Day" value={form.per_diem_free_day} onChange={(v) => setForm({ ...form, per_diem_free_day: v })} />
-      <DateField label="CUT" value={form.cutoff_date} onChange={(v) => setForm({ ...form, cutoff_date: v })} type="datetime-local" />
-      <DateField label="ETA Date" value={form.container_eta} onChange={(v) => setForm({ ...form, container_eta: v })} type="datetime-local" />
+      <div className="grid grid-cols-2 gap-2">
+        {DATE_FIELDS.map((f) => (
+          <DateField
+            key={f.key}
+            label={f.label}
+            value={form[f.key]}
+            onChange={(v) => setForm({ ...form, [f.key]: v })}
+            type={f.type}
+          />
+        ))}
+      </div>
       <FormBtn
         disabled={Object.keys(patch()).length === 0}
         onClick={() => onSubmit(patch())}
@@ -477,6 +592,7 @@ function EquipmentInfoForm({ onSubmit }) {
     steamship_line_scac: '',
     is_liquor: false,
     is_overweight: false,
+    is_overheight: false,
     is_hot: false,
     is_bonded: false,
     is_double: false,
@@ -484,6 +600,10 @@ function EquipmentInfoForm({ onSubmit }) {
     is_oog: false,
     is_ev: false,
     is_tanker: false,
+    is_genset: false,
+    is_scale: false,
+    is_street_turn: false,
+    is_bill_only: false,
   });
   const [sizeOpts, setSizeOpts] = useState([]);
   const [typeOpts, setTypeOpts] = useState([]);
@@ -553,6 +673,7 @@ function EquipmentInfoForm({ onSubmit }) {
         <div className="flex flex-wrap gap-1.5">
           {flagBtn('is_liquor', 'Liquor')}
           {flagBtn('is_overweight', 'Overweight')}
+          {flagBtn('is_overheight', 'Overheight')}
           {flagBtn('is_hot', 'Hot')}
           {flagBtn('is_bonded', 'Bonded')}
           {flagBtn('is_double', 'Double')}
@@ -560,6 +681,10 @@ function EquipmentInfoForm({ onSubmit }) {
           {flagBtn('is_oog', 'OOG')}
           {flagBtn('is_ev', 'EV')}
           {flagBtn('is_tanker', 'Tanker')}
+          {flagBtn('is_genset', 'Genset')}
+          {flagBtn('is_scale', 'Scale')}
+          {flagBtn('is_street_turn', 'Street Turn')}
+          {flagBtn('is_bill_only', 'Bill Only')}
         </div>
       </div>
       <FormBtn disabled={Object.keys(patch()).length === 0} onClick={() => onSubmit(patch())}>
@@ -575,6 +700,7 @@ function LoadInfoForm({ onSubmit, loadIds, onFlash }) {
     pickup_location_id: null,
     delivery_location_id: null,
     return_location_id: null,
+    final_delivery_location_id: null,
     load_note: '',
     driver_note: '',
   });
@@ -587,6 +713,7 @@ function LoadInfoForm({ onSubmit, loadIds, onFlash }) {
     if (form.pickup_location_id) out.pickup_location_id = form.pickup_location_id;
     if (form.delivery_location_id) out.delivery_location_id = form.delivery_location_id;
     if (form.return_location_id) out.return_location_id = form.return_location_id;
+    if (form.final_delivery_location_id) out.final_delivery_location_id = form.final_delivery_location_id;
     return out;
   }
 
@@ -674,6 +801,16 @@ function LoadInfoForm({ onSubmit, loadIds, onFlash }) {
         onChange={(org) => {
           setForm({ ...form, return_location_id: org?.id || null });
           setLabels({ ...labels, return_: org?.name || '' });
+        }}
+      />
+      <OrgPicker
+        placeholder="Final Delivery"
+        type="warehouse"
+        value={form.final_delivery_location_id}
+        valueLabel={labels.final_delivery}
+        onChange={(org) => {
+          setForm({ ...form, final_delivery_location_id: org?.id || null });
+          setLabels({ ...labels, final_delivery: org?.name || '' });
         }}
       />
       <textarea
