@@ -59,6 +59,40 @@ function reducer(state, action) {
       renumberSortOrder(next.movesByDriverId[driverId]);
       return next;
     }
+    case 'UPDATE_TRACKING': {
+      const { moveId, tracking } = action.payload;
+      // Try assigned buckets first
+      const driverId = Object.keys(state.movesByDriverId).find((did) =>
+        state.movesByDriverId[did].some((m) => m.id === moveId),
+      );
+      if (driverId) {
+        return {
+          ...state,
+          movesByDriverId: {
+            ...state.movesByDriverId,
+            [driverId]: state.movesByDriverId[driverId].map((m) =>
+              m.id === moveId ? { ...m, ...tracking } : m,
+            ),
+          },
+        };
+      }
+      // Also check unassigned buckets
+      const bucketKey = Object.keys(state.unassignedBuckets).find((k) =>
+        state.unassignedBuckets[k].some((m) => m.id === moveId),
+      );
+      if (bucketKey) {
+        return {
+          ...state,
+          unassignedBuckets: {
+            ...state.unassignedBuckets,
+            [bucketKey]: state.unassignedBuckets[bucketKey].map((m) =>
+              m.id === moveId ? { ...m, ...tracking } : m,
+            ),
+          },
+        };
+      }
+      return state;
+    }
     case 'ROLLBACK':
       return action.snapshot;
     default:
@@ -95,6 +129,28 @@ function removeMoveEverywhere(state, moveId) {
 
 function renumberSortOrder(arr) {
   arr.forEach((m, i) => (m.sort_order = i));
+}
+
+// ── Tracking-only pre-filter ─────────────────────────────────────────────────
+// Columns written exclusively by the GPS-ping path. A Realtime UPDATE that only
+// touches these columns does NOT affect planner layout — dispatch a targeted
+// UPDATE_TRACKING action instead of a full refetch.
+const TRACKING_ONLY_KEYS = new Set([
+  'tracking_status',
+  'last_ping_at',
+  'ping_count',
+  'session_started_at',
+  'session_ended_at',
+  'eta_recompute_count',
+]);
+
+function isTrackingOnlyChange(oldRow, newRow) {
+  if (!oldRow || !newRow) return false;
+  for (const key of Object.keys(newRow)) {
+    if (newRow[key] === oldRow[key]) continue;
+    if (!TRACKING_ONLY_KEYS.has(key)) return false;
+  }
+  return true;
 }
 
 export default function useDriverPlanner({ date, driverSearch = '', branchId = null, includeInactive = false }) {
@@ -149,6 +205,18 @@ export default function useDriverPlanner({ date, driverSearch = '', branchId = n
           const old = payload.old || {};
           const relevantDate = (m) => m.scheduled_date === date || m.driver_id == null;
           if (!relevantDate(nw) && !relevantDate(old)) return;
+
+          // Tracking-only UPDATE: merge columns directly without a full refetch.
+          // This keeps GPS-ping updates (60 s cadence) from hammering the API.
+          if (payload.eventType === 'UPDATE' && isTrackingOnlyChange(payload.old, payload.new)) {
+            const tracking = {};
+            for (const k of TRACKING_ONLY_KEYS) {
+              if (k in payload.new) tracking[k] = payload.new[k];
+            }
+            dispatch({ type: 'UPDATE_TRACKING', payload: { moveId: payload.new.id, tracking } });
+            return;
+          }
+
           scheduleRefetch();
         }
       )
