@@ -133,7 +133,13 @@ export default function BulkActionBar({
   // ===== Popover content per action =====
 
   async function applyAndClose(patch) {
-    await onApply(patch);
+    // Forms may submit an empty patch when they did all the persistence
+    // themselves (e.g. LoadInfoForm fires bulk-notes directly because the
+    // bulk-update endpoint can't write to order_notes). Just close in that
+    // case — calling onApply with an empty patch would 400 from the API.
+    if (patch && Object.keys(patch).length > 0) {
+      await onApply(patch);
+    }
     setOpenAction(null);
   }
 
@@ -197,7 +203,11 @@ export default function BulkActionBar({
       case 'load_info':
         return (
           <CellPopover anchorEl={anchor} onClose={() => setOpenAction(null)} width={320}>
-            <LoadInfoForm onSubmit={applyAndClose} />
+            <LoadInfoForm
+              onSubmit={applyAndClose}
+              loadIds={Array.from(selectedIds)}
+              onFlash={onFlash}
+            />
           </CellPopover>
         );
       default:
@@ -297,17 +307,21 @@ function TextField({ label, value, onChange, placeholder }) {
 }
 
 function SelectField({ label, value, options, onChange }) {
+  // Native <option> elements inherit the <select>'s text color, so in dark
+  // mode the open dropdown panel (rendered white by Chrome/Windows) shows
+  // light text on white = unreadable. Explicit bg + text per option fixes it.
+  const optionClass = 'bg-white text-gray-900 dark:bg-slate-800 dark:text-slate-100';
   return (
     <div>
       <label className="block text-[11px] font-medium text-gray-600 dark:text-slate-300 mb-0.5">{label}</label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="block w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm text-gray-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40"
+        className="block w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-gray-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40"
       >
-        <option value="">— Select —</option>
+        <option value="" className={optionClass}>— Select —</option>
         {(options || []).map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
+          <option key={o.value} value={o.value} className={optionClass}>{o.label}</option>
         ))}
       </select>
     </div>
@@ -426,19 +440,21 @@ function ReferencesForm({ onSubmit }) {
   }
 
   return (
-    <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-      <TextField label="Master Bill of Lading" value={form.bill_of_lading} onChange={(v) => setForm({ ...form, bill_of_lading: v })} />
-      <TextField label="Booking #" value={form.booking_number} onChange={(v) => setForm({ ...form, booking_number: v })} />
-      <TextField label="House Bill of Lading" value={form.house_bol} onChange={(v) => setForm({ ...form, house_bol: v })} />
-      <TextField label="Pick Up #" value={form.pickup_number} onChange={(v) => setForm({ ...form, pickup_number: v })} />
-      <TextField label="Reference #" value={form.customer_reference} onChange={(v) => setForm({ ...form, customer_reference: v })} />
-      <TextField label="Return #" value={form.return_number} onChange={(v) => setForm({ ...form, return_number: v })} />
-      <TextField label="Shipment #" value={form.shipment_number} onChange={(v) => setForm({ ...form, shipment_number: v })} />
-      <TextField label="Seal #" value={form.seal_number} onChange={(v) => setForm({ ...form, seal_number: v })} />
-      <TextField label="Vessel Name" value={form.vessel_name} onChange={(v) => setForm({ ...form, vessel_name: v })} />
-      <TextField label="Voyage" value={form.voyage_number} onChange={(v) => setForm({ ...form, voyage_number: v })} />
-      <TextField label="Appointment #" value={form.appointment_number} onChange={(v) => setForm({ ...form, appointment_number: v })} />
-      <TextField label="Reservation #" value={form.reservation_number} onChange={(v) => setForm({ ...form, reservation_number: v })} />
+    <div className="space-y-2 max-h-[70vh] overflow-y-auto">
+      <div className="grid grid-cols-2 gap-2">
+        <TextField label="Master Bill of Lading" value={form.bill_of_lading} onChange={(v) => setForm({ ...form, bill_of_lading: v })} />
+        <TextField label="Booking #" value={form.booking_number} onChange={(v) => setForm({ ...form, booking_number: v })} />
+        <TextField label="House Bill of Lading" value={form.house_bol} onChange={(v) => setForm({ ...form, house_bol: v })} />
+        <TextField label="Pick Up #" value={form.pickup_number} onChange={(v) => setForm({ ...form, pickup_number: v })} />
+        <TextField label="Reference #" value={form.customer_reference} onChange={(v) => setForm({ ...form, customer_reference: v })} />
+        <TextField label="Return #" value={form.return_number} onChange={(v) => setForm({ ...form, return_number: v })} />
+        <TextField label="Shipment #" value={form.shipment_number} onChange={(v) => setForm({ ...form, shipment_number: v })} />
+        <TextField label="Seal #" value={form.seal_number} onChange={(v) => setForm({ ...form, seal_number: v })} />
+        <TextField label="Vessel Name" value={form.vessel_name} onChange={(v) => setForm({ ...form, vessel_name: v })} />
+        <TextField label="Voyage" value={form.voyage_number} onChange={(v) => setForm({ ...form, voyage_number: v })} />
+        <TextField label="Appointment #" value={form.appointment_number} onChange={(v) => setForm({ ...form, appointment_number: v })} />
+        <TextField label="Reservation #" value={form.reservation_number} onChange={(v) => setForm({ ...form, reservation_number: v })} />
+      </div>
       <FormBtn disabled={Object.keys(patch()).length === 0} onClick={() => onSubmit(patch())}>
         Add References
       </FormBtn>
@@ -554,25 +570,78 @@ function EquipmentInfoForm({ onSubmit }) {
 }
 
 // ===== Edit Load Info popover =====
-function LoadInfoForm({ onSubmit }) {
+function LoadInfoForm({ onSubmit, loadIds, onFlash }) {
   const [form, setForm] = useState({
     pickup_location_id: null,
     delivery_location_id: null,
     return_location_id: null,
-    notes: '',
-    internal_notes: '',
+    load_note: '',
+    driver_note: '',
   });
   const [labels, setLabels] = useState({});
+  const [submitting, setSubmitting] = useState(false);
 
-  function patch() {
+  // Locations go through bulk-update (orders.* columns).
+  function locationPatch() {
     const out = {};
     if (form.pickup_location_id) out.pickup_location_id = form.pickup_location_id;
     if (form.delivery_location_id) out.delivery_location_id = form.delivery_location_id;
     if (form.return_location_id) out.return_location_id = form.return_location_id;
-    if (form.notes && form.notes.trim()) out.notes = form.notes.trim();
-    if (form.internal_notes && form.internal_notes.trim())
-      out.internal_notes = form.internal_notes.trim();
     return out;
+  }
+
+  // Notes go through the new bulk-notes endpoint into order_notes (audience-tagged),
+  // not orders.notes / orders.internal_notes (which no UI surface reads).
+  function notesToPost() {
+    const out = [];
+    if (form.load_note?.trim()) out.push({ audience: 'load', body: form.load_note.trim() });
+    if (form.driver_note?.trim()) out.push({ audience: 'driver', body: form.driver_note.trim() });
+    return out;
+  }
+
+  function isEmpty() {
+    return Object.keys(locationPatch()).length === 0 && notesToPost().length === 0;
+  }
+
+  async function handleSubmit() {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const locations = locationPatch();
+      const notes = notesToPost();
+
+      // Apply structural updates (always closes the popover via applyAndClose).
+      // When only notes are present, pass an empty patch — applyAndClose
+      // skips the API call but still closes the popover.
+      await onSubmit(Object.keys(locations).length > 0 ? locations : {});
+
+      // Fire one bulk-notes POST per non-empty audience.
+      if (notes.length > 0 && loadIds && loadIds.length > 0) {
+        const results = await Promise.all(
+          notes.map((n) =>
+            fetch('/api/tenant/loads/bulk-notes', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ load_ids: loadIds, audience: n.audience, body: n.body }),
+            }).then(async (res) => {
+              if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || `Failed to save ${n.audience} notes`);
+              }
+              return res.json();
+            })
+          )
+        );
+        const totalCreated = results.reduce((sum, r) => sum + (r.count || 0), 0);
+        onFlash?.(
+          `Added ${totalCreated} note${totalCreated !== 1 ? 's' : ''} across ${loadIds.length} load${loadIds.length !== 1 ? 's' : ''}`
+        );
+      }
+    } catch (err) {
+      onFlash?.(err.message, 'error');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -608,21 +677,21 @@ function LoadInfoForm({ onSubmit }) {
         }}
       />
       <textarea
-        value={form.notes}
-        onChange={(e) => setForm({ ...form, notes: e.target.value })}
+        value={form.load_note}
+        onChange={(e) => setForm({ ...form, load_note: e.target.value })}
         placeholder="Load Notes"
         rows={2}
         className="block w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40 resize-none"
       />
       <textarea
-        value={form.internal_notes}
-        onChange={(e) => setForm({ ...form, internal_notes: e.target.value })}
+        value={form.driver_note}
+        onChange={(e) => setForm({ ...form, driver_note: e.target.value })}
         placeholder="Driver Notes"
         rows={2}
         className="block w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40 resize-none"
       />
-      <FormBtn disabled={Object.keys(patch()).length === 0} onClick={() => onSubmit(patch())}>
-        Add Load Info
+      <FormBtn disabled={isEmpty() || submitting} onClick={handleSubmit}>
+        {submitting ? 'Saving…' : 'Add Load Info'}
       </FormBtn>
     </div>
   );
