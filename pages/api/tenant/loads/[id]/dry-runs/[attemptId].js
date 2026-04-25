@@ -173,6 +173,11 @@ export default async function handler(req, res) {
 
   if (!attempt) return res.status(404).json({ error: 'Dry run not found' });
 
+  // ---- GET ----------------------------------------------------------------
+  if (req.method === 'GET') {
+    return res.status(200).json({ dry_run: attempt });
+  }
+
   // ---- PATCH --------------------------------------------------------------
   if (req.method === 'PATCH') {
     // Guard: invoiced / settled?
