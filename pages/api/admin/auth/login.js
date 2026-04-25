@@ -2,9 +2,7 @@ import bcrypt from 'bcryptjs';
 import { createClient } from '@supabase/supabase-js';
 import { signAdminToken, setAdminCookie } from '../../../../lib/admin-auth';
 import { logAdminAction, getClientIp } from '../../../../lib/admin-audit';
-
-const MAX_ATTEMPTS = 5;
-const LOCKOUT_MINUTES = 30;
+import { MAX_ATTEMPTS, LOCKOUT_MINUTES } from '../../../../lib/auth-config';
 
 function getServiceClient() {
   return createClient(

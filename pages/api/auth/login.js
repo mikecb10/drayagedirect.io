@@ -1,7 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-
-const MAX_ATTEMPTS = 5;
-const LOCKOUT_MINUTES = 30;
+import { MAX_ATTEMPTS, LOCKOUT_MINUTES } from '../../../lib/auth-config';
 
 function getServiceClient() {
   return createClient(
