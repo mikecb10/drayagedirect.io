@@ -5,6 +5,7 @@ import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import MarginBadge from '../../../components/ui/MarginBadge';
 import { computeLoadMargin } from '../../../lib/load-margin';
+import { invalidateMarginPalette } from '../../../hooks/useMarginPalette';
 
 export default function MarginThresholdsPage() {
   const [loading, setLoading] = useState(true);
@@ -14,6 +15,7 @@ export default function MarginThresholdsPage() {
   const [red, setRed] = useState('15');
   const [yellow, setYellow] = useState('30');
   const [includeDryRuns, setIncludeDryRuns] = useState(true);
+  const [palette, setPalette] = useState('default');
 
   useEffect(() => {
     (async () => {
@@ -24,6 +26,7 @@ export default function MarginThresholdsPage() {
         setRed(String(data.red_threshold));
         setYellow(String(data.yellow_threshold));
         setIncludeDryRuns(data.include_dry_runs);
+        setPalette(data.palette || 'default');
       } catch (e) {
         setError(e.message);
       } finally {
@@ -51,12 +54,16 @@ export default function MarginThresholdsPage() {
           red_threshold: redNum,
           yellow_threshold: yellowNum,
           include_dry_runs: includeDryRuns,
+          palette,
         }),
       });
       if (!r.ok) {
         const body = await r.json().catch(() => ({}));
         throw new Error(body.error || `HTTP ${r.status}`);
       }
+      // Bust the per-session palette cache so MarginBadge picks up the
+      // new choice on next render across the app.
+      invalidateMarginPalette();
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (e) {
@@ -154,6 +161,39 @@ export default function MarginThresholdsPage() {
             </label>
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+              Color palette
+            </label>
+            <div className="flex flex-col gap-2">
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-slate-300">
+                <input
+                  type="radio"
+                  name="margin_palette"
+                  value="default"
+                  checked={palette === 'default'}
+                  onChange={() => setPalette('default')}
+                  className="border-gray-300 dark:border-slate-600"
+                />
+                Default <span className="text-gray-500 dark:text-slate-400">— red / yellow / green</span>
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-slate-300">
+                <input
+                  type="radio"
+                  name="margin_palette"
+                  value="colorblind"
+                  checked={palette === 'colorblind'}
+                  onChange={() => setPalette('colorblind')}
+                  className="border-gray-300 dark:border-slate-600"
+                />
+                Colorblind-friendly <span className="text-gray-500 dark:text-slate-400">— orange / yellow / blue</span>
+              </label>
+            </div>
+            <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+              The colorblind-friendly variant swaps red→orange and green→blue so red-green colorblind users (~5% of men) can distinguish the buckets.
+            </p>
+          </div>
+
           {!orderingValid && (
             <div className="rounded border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
               Yellow threshold must be greater than red threshold.
@@ -179,7 +219,7 @@ export default function MarginThresholdsPage() {
             <h2 className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
               Preview with current thresholds
             </h2>
-            <div className="flex flex-wrap gap-3">
+            <div className="space-y-2">
               {previewScenarios.map((s) => {
                 const m = computeLoadMargin({
                   revenueCents: s.revenue,
@@ -188,9 +228,12 @@ export default function MarginThresholdsPage() {
                   yellowThreshold: orderingValid ? yellowNum : 30,
                 });
                 return (
-                  <div key={s.label} className="text-sm text-gray-600 dark:text-slate-400">
-                    <span className="mr-2">{s.label}:</span>
-                    <MarginBadge marginPct={m.marginPct} bucket={m.bucket} size="sm" />
+                  <div key={s.label} className="flex items-center gap-3 text-sm text-gray-600 dark:text-slate-400">
+                    <span className="w-24">{s.label}:</span>
+                    <MarginBadge marginPct={m.marginPct} bucket={m.bucket} size="sm" palette={palette} />
+                    <span className="text-xs text-gray-400 dark:text-slate-500">
+                      {palette === 'colorblind' ? 'colorblind preview' : 'default preview'}
+                    </span>
                   </div>
                 );
               })}

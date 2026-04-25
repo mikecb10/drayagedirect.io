@@ -19,7 +19,7 @@ async function handleGet(req, res, ctx) {
   const svc = getServiceClient();
   const { data, error } = await svc
     .from('tenants')
-    .select('margin_red_threshold, margin_yellow_threshold, margin_include_dry_runs')
+    .select('margin_red_threshold, margin_yellow_threshold, margin_include_dry_runs, margin_palette')
     .eq('id', ctx.tenantId)
     .single();
 
@@ -32,6 +32,7 @@ async function handleGet(req, res, ctx) {
     red_threshold:    Number(data.margin_red_threshold),
     yellow_threshold: Number(data.margin_yellow_threshold),
     include_dry_runs: !!data.margin_include_dry_runs,
+    palette:          data.margin_palette || 'default',
   });
 }
 
@@ -39,7 +40,7 @@ async function handlePut(req, res, ctx) {
   // Permission check: only SETTINGS (or super_admin / 'all') can write
   if (!requirePermission(ctx, [PERMISSIONS.SETTINGS], res)) return;
 
-  const { red_threshold, yellow_threshold, include_dry_runs } = req.body ?? {};
+  const { red_threshold, yellow_threshold, include_dry_runs, palette } = req.body ?? {};
 
   // Validate inputs
   const red    = Number(red_threshold);
@@ -57,15 +58,22 @@ async function handlePut(req, res, ctx) {
   if (typeof include_dry_runs !== 'boolean') {
     return res.status(400).json({ error: 'include_dry_runs must be a boolean' });
   }
+  // Palette is optional — when omitted, leave the existing value alone.
+  if (palette !== undefined && palette !== 'default' && palette !== 'colorblind') {
+    return res.status(400).json({ error: 'palette must be "default" or "colorblind"' });
+  }
+
+  const updates = {
+    margin_red_threshold:    red,
+    margin_yellow_threshold: yellow,
+    margin_include_dry_runs: include_dry_runs,
+  };
+  if (palette !== undefined) updates.margin_palette = palette;
 
   const svc = getServiceClient();
   const { error } = await svc
     .from('tenants')
-    .update({
-      margin_red_threshold:    red,
-      margin_yellow_threshold: yellow,
-      margin_include_dry_runs: include_dry_runs,
-    })
+    .update(updates)
     .eq('id', ctx.tenantId);
 
   if (error) {
