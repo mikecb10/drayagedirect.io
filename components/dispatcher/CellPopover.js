@@ -59,6 +59,18 @@ export default function CellPopover({ anchorEl, onClose, children, width = 260 }
     return () => cancelAnimationFrame(raf);
   }, [reposition]);
 
+  // Reposition when the popover's content size changes (e.g. an internal
+  // dropdown opens — DateTimePicker calendar, ReferenceDataPicker list).
+  // Without this, the initial position is computed against the COLLAPSED
+  // size; expanded content overflows below the viewport (or behind any
+  // fixed bars at the bottom of the screen).
+  useEffect(() => {
+    if (!coords || !popRef.current || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => reposition());
+    observer.observe(popRef.current);
+    return () => observer.disconnect();
+  }, [coords !== null, reposition]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Close on outside click / Escape, reposition on scroll/resize
   useEffect(() => {
     function handleClick(e) {
