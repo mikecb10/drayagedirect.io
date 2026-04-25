@@ -96,6 +96,128 @@ export default async function handler(req, res) {
       .eq('id', eventId)
       .maybeSingle();
 
+    // ====== Dispatcher override flow ======
+    //
+    // When dispatcher_override_driver: true is in the body, this is an explicit
+    // override of a driver-tap transition. Routes through transitionEventStatus
+    // (FU-082-aware) and captures the original driver record in actor_context.
+    //
+    // For toStatus='pending', the state machine doesn't allow arrived→pending,
+    // so we do a direct revert (mirrors the undo path in
+    // /api/driver/moves/[id]/undo.js).
+    if (req.body?.dispatcher_override_driver === true) {
+      const toStatus = req.body.to_status;
+      const overrideTimestamp = req.body.override_timestamp;  // ISO string, optional
+      const reason = req.body.reason ?? null;
+
+      if (!['arrived', 'departed', 'pending', 'skipped'].includes(toStatus)) {
+        return res.status(400).json({ error: 'invalid_to_status' });
+      }
+
+      // Find driver-app history row(s) we're overriding to capture original_*
+      const { data: driverHistory } = await svc
+        .from('order_routing_event_status_history')
+        .select('id, transitioned_at, actor_context')
+        .eq('tenant_id', ctx.tenantId)
+        .eq('event_id', eventId)
+        .eq('actor_type', 'human')
+        .order('transitioned_at', { ascending: false })
+        .limit(5);
+      const driverRow = (driverHistory || []).find((r) => r.actor_context?.source === 'driver_app');
+
+      try {
+        // For pending revert (rare — clear timestamp + return to pending), direct revert.
+        if (toStatus === 'pending') {
+          const update = { event_status: 'pending', arrived_at: null, departed_at: null };
+          const { error: updErr } = await svc
+            .from('order_routing_events')
+            .update(update)
+            .eq('id', eventId)
+            .eq('tenant_id', ctx.tenantId);
+          if (updErr) return res.status(500).json({ error: updErr.message });
+          await svc.from('order_routing_event_status_history').insert({
+            tenant_id: ctx.tenantId,
+            event_id: eventId,
+            from_status: oldEvent?.event_status ?? null,
+            to_status: 'pending',
+            actor_id: ctx.userId,
+            actor_type: 'human',
+            actor_context: {
+              source: 'dispatcher_ui',
+              overrode_driver: !!driverRow,
+              original_driver_timestamp: driverRow ? driverRow.transitioned_at : null,
+              original_ping_id: driverRow?.actor_context?.ping_id ?? null,
+              reason,
+            },
+            note: reason || 'dispatcher revert',
+          });
+          return res.status(200).json({ event_id: eventId, to_status: 'pending' });
+        }
+
+        // For arrived/departed/skipped — go through the helper.
+        const updated = await transitionEventStatus({
+          supabase: svc,
+          tenantId: ctx.tenantId,
+          eventId,
+          toStatus,
+          actor: {
+            id: ctx.userId,
+            type: 'human',
+            context: {
+              source: 'dispatcher_ui',
+              overrode_driver: !!driverRow,
+              original_driver_timestamp: driverRow ? driverRow.transitioned_at : null,
+              original_ping_id: driverRow?.actor_context?.ping_id ?? null,
+              reason,
+            },
+          },
+          note: reason || 'dispatcher override',
+        });
+
+        // Override the timestamp set by the helper if dispatcher chose a specific
+        // value (helper used now() — this lets the dispatcher correct the time).
+        if (overrideTimestamp) {
+          const colName = toStatus === 'arrived' ? 'arrived_at' : 'departed_at';
+          await svc
+            .from('order_routing_events')
+            .update({ [colName]: overrideTimestamp })
+            .eq('id', eventId)
+            .eq('tenant_id', ctx.tenantId);
+        }
+
+        return res.status(200).json({ event: updated });
+      } catch (e) {
+        if (e.message?.startsWith('Invalid transition')) {
+          return res.status(409).json({ error: 'invalid_transition', detail: e.message });
+        }
+        return res.status(500).json({ error: e.message });
+      }
+    }
+
+    // ====== Implicit-override rejection ======
+    //
+    // If the body is editing arrived_at or departed_at via the EDITABLE_FIELDS
+    // whitelist AND the event already has a driver-app history row, reject —
+    // the dispatcher must use the explicit dispatcher_override_driver flow.
+    const directTimestampEdit =
+      req.body.arrived_at !== undefined || req.body.departed_at !== undefined;
+    if (directTimestampEdit) {
+      const { data: driverHist } = await svc
+        .from('order_routing_event_status_history')
+        .select('id')
+        .eq('tenant_id', ctx.tenantId)
+        .eq('event_id', eventId)
+        .eq('actor_type', 'human')
+        .filter('actor_context->>source', 'eq', 'driver_app')
+        .limit(1);
+      if ((driverHist?.length ?? 0) > 0) {
+        return res.status(400).json({
+          error: 'dispatcher_override_required',
+          detail: 'This event has driver-app history. Use the override flow with dispatcher_override_driver: true.',
+        });
+      }
+    }
+
     const updates = {};
     for (const f of EDITABLE) {
       if (req.body[f] !== undefined) updates[f] = req.body[f];
