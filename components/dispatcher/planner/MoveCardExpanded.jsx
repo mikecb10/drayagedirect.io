@@ -3,21 +3,7 @@ import Link from 'next/link';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import MoveCardCompact from './MoveCardCompact';
 import { EVENT_DOT_COLOR } from '../../../lib/dispatcher/event-colors';
-
-function fmtAptShort(iso) {
-  if (!iso) return null;
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return null;
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    const hh = String(d.getHours()).padStart(2, '0');
-    const mi = String(d.getMinutes()).padStart(2, '0');
-    return `${mm}/${dd} ${hh}:${mi}`;
-  } catch {
-    return null;
-  }
-}
+import { fmtAptShort } from '../../../lib/dispatcher/date-fmt';
 
 /**
  * Right-rail card. Wraps MoveCardCompact with an inline chevron expand

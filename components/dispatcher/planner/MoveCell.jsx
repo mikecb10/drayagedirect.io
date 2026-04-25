@@ -6,6 +6,7 @@ import {
   freshnessColor, freshnessColorClass,
 } from '../../../lib/dispatcher/tracking-display.js';
 import MoveCardCompact from './MoveCardCompact';
+import { fmtApt } from '../../../lib/dispatcher/date-fmt';
 
 const STATUS_BG = {
   unassigned: 'bg-gray-100 dark:bg-gray-800',
@@ -15,21 +16,6 @@ const STATUS_BG = {
   completed: 'bg-green-50 dark:bg-green-950',
   cancelled: 'bg-gray-100 dark:bg-gray-800 line-through',
 };
-
-function fmtApt(iso) {
-  if (!iso) return null;
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return null;
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    const hh = String(d.getHours()).padStart(2, '0');
-    const mi = String(d.getMinutes()).padStart(2, '0');
-    return `${mm}/${dd} ${hh}:${mi}`;
-  } catch {
-    return null;
-  }
-}
 
 function TrackingLine({ move, events }) {
   const [, force] = useState(0);
