@@ -370,6 +370,18 @@ function AptWindowForm({ fromField, toField, submitLabel, onSubmit }) {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
 
+  // Auto-mirror From → To when To is empty or was previously auto-copied
+  // (still matches the old From). Treats the appointment as a firm time by
+  // default; the user can override To for a buffer window. Mirrors the same
+  // behavior in components/loads/tabs/LoadInfoTab.js.
+  function handleFromChange(v) {
+    const oldFrom = from;
+    setFrom(v);
+    if (v && (!to || to === oldFrom)) {
+      setTo(v);
+    }
+  }
+
   function patch() {
     const out = {};
     if (from) out[fromField] = from;
@@ -379,7 +391,7 @@ function AptWindowForm({ fromField, toField, submitLabel, onSubmit }) {
 
   return (
     <div className="space-y-2">
-      <DateField label="From" value={from} onChange={setFrom} type="datetime-local" />
+      <DateField label="From" value={from} onChange={handleFromChange} type="datetime-local" />
       <DateField label="To" value={to} onChange={setTo} type="datetime-local" />
       <FormBtn disabled={Object.keys(patch()).length === 0} onClick={() => onSubmit(patch())}>
         {submitLabel}
