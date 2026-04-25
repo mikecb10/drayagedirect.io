@@ -292,7 +292,9 @@ git commit -m "feat(driver-tracking): migration 102 — GPS pings + tracking ses
 
 - [ ] **Step 3: Apply to live Supabase**
 
-User opens Supabase SQL Editor, pastes contents of `102_driver_move_tracking.sql`, runs. Verify in dashboard:
+⚠️ **PREREQUISITE:** Migration 036 (`supabase/migrations/036_driver_tracking.sql`) must be applied first. It was committed long ago as ELD-integration scaffolding but never landed on the live database, so `driver_location_pings` (which 102 extends) doesn't exist in production. 036 is idempotent (every CREATE/ADD uses `IF NOT EXISTS`) so applying it now is safe even if some columns happen to already exist. Apply 036 first, then 102.
+
+User opens Supabase SQL Editor, pastes contents of `036_driver_tracking.sql`, runs (`Success. No rows returned.`), then pastes contents of `102_driver_move_tracking.sql`, runs. Verify in dashboard after both:
 - `move_position_snapshots` table exists with 3 indexes
 - `order_container_moves` has 8 new columns (tracking_status default 'idle')
 - `order_routing_events` has 3 new ETA columns
