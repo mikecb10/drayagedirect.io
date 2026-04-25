@@ -72,9 +72,10 @@ console.log('transitionMoveStatus');
   check('newStatus=in_progress', r.newStatus === 'in_progress');
   check('1 UPDATE', svc._calls.updated.length === 1);
   check('update targets order_container_moves', svc._calls.updated[0]?.table === 'order_container_moves');
-  // After Stream B.1b, fireStatusChangeTriggers also writes a history row,
-  // producing 2 inserts per transition (FU-074 tracks unification).
-  check('>= 1 INSERT to history (helper + fire = 2)', svc._calls.inserted.length >= 1);
+  // FU-074 closed: the transition helper is the sole history-writer for
+  // move transitions. fireStatusChangeTriggers is called with
+  // skipHistoryWrite: true, so exactly 1 history row lands per transition.
+  check('1 INSERT to history (helper only)', svc._calls.inserted.length === 1);
   check('history table correct',
     svc._calls.inserted.some(x => x.table === 'order_container_moves_status_history'));
 }
@@ -200,8 +201,8 @@ console.log('transitionMoveStatus');
     actorUserId: 'u-1',
   });
   check('fires: UPDATE ran', svc._calls.updated.length === 1);
-  check('fires: history INSERT ran (+ a 2nd history INSERT from fire — FU-074)',
-    svc._calls.inserted.filter(x => x.table === 'order_container_moves_status_history').length >= 1);
+  check('fires: history INSERT ran (helper-only after FU-074)',
+    svc._calls.inserted.filter(x => x.table === 'order_container_moves_status_history').length === 1);
   check('fires: email_template_triggers queried after transition',
     svc._calls.selected.some(c => c.table === 'email_template_triggers'));
 }
