@@ -59,6 +59,18 @@ export default function CellPopover({ anchorEl, onClose, children, width = 260 }
     return () => cancelAnimationFrame(raf);
   }, [reposition]);
 
+  // Reposition when the popover's own bounding box changes — covers cases
+  // where children mount/render in multiple passes (12-field forms in
+  // particular were positioning against an empty popRef before children
+  // populated, anchoring the popover against the bulk bar with bottom
+  // content overflowing past the viewport).
+  useEffect(() => {
+    if (!coords || !popRef.current || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => reposition());
+    observer.observe(popRef.current);
+    return () => observer.disconnect();
+  }, [coords !== null, reposition]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Close on outside click / Escape, reposition on scroll/resize
   useEffect(() => {
     function handleClick(e) {

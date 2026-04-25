@@ -440,7 +440,7 @@ function ReferencesForm({ onSubmit }) {
   }
 
   return (
-    <div className="space-y-2 max-h-[70vh] overflow-y-auto">
+    <div className="space-y-2">
       <div className="grid grid-cols-2 gap-2">
         <TextField label="Master Bill of Lading" value={form.bill_of_lading} onChange={(v) => setForm({ ...form, bill_of_lading: v })} />
         <TextField label="Booking #" value={form.booking_number} onChange={(v) => setForm({ ...form, booking_number: v })} />
