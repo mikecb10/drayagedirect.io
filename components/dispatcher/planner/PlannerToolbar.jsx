@@ -1,5 +1,5 @@
 import { useRouter } from 'next/router';
-import { Search } from 'lucide-react';
+import { Search, Send } from 'lucide-react';
 
 function todayIso() {
   const d = new Date();
@@ -9,12 +9,32 @@ function todayIso() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-export default function PlannerToolbar({ date, driverSearch, onDriverSearchChange, includeInactive, onIncludeInactiveChange }) {
+export default function PlannerToolbar({
+  date,
+  driverSearch,
+  onDriverSearchChange,
+  includeInactive,
+  onIncludeInactiveChange,
+  pendingDispatchCount = 0,
+  pendingDriverCount = 0,
+  onBulkDispatch,
+  bulkDispatching = false,
+}) {
   const router = useRouter();
 
   function setDate(next) {
     const query = { ...router.query, tab: 'planner', date: next };
     router.replace({ pathname: '/dispatcher', query }, undefined, { shallow: true });
+  }
+
+  function handleBulkDispatchClick() {
+    if (!onBulkDispatch || pendingDispatchCount === 0 || bulkDispatching) return;
+    const moveLbl = pendingDispatchCount === 1 ? 'move' : 'moves';
+    const driverLbl = pendingDriverCount === 1 ? 'driver' : 'drivers';
+    const ok = window.confirm(
+      `Dispatch ${pendingDispatchCount} ${moveLbl} to ${pendingDriverCount} ${driverLbl}?`
+    );
+    if (ok) onBulkDispatch();
   }
 
   return (
@@ -49,6 +69,25 @@ export default function PlannerToolbar({ date, driverSearch, onDriverSearchChang
         />
         Include inactive drivers
       </label>
+
+      <button
+        type="button"
+        onClick={handleBulkDispatchClick}
+        disabled={pendingDispatchCount === 0 || bulkDispatching}
+        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+          pendingDispatchCount === 0 || bulkDispatching
+            ? 'bg-gray-100 text-gray-400 dark:bg-slate-800 dark:text-slate-500 cursor-not-allowed'
+            : 'bg-emerald-600 text-white hover:bg-emerald-700'
+        }`}
+        title={
+          pendingDispatchCount === 0
+            ? 'No pending assigned moves to dispatch'
+            : `Dispatch ${pendingDispatchCount} pending move${pendingDispatchCount === 1 ? '' : 's'} across ${pendingDriverCount} driver${pendingDriverCount === 1 ? '' : 's'}`
+        }
+      >
+        <Send className="w-4 h-4" />
+        {bulkDispatching ? 'Dispatching…' : `Dispatch All Pending (${pendingDispatchCount})`}
+      </button>
     </div>
   );
 }

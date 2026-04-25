@@ -337,6 +337,38 @@ export default function useDriverPlanner({ date, driverSearch = '', branchId = n
         throw e;
       }
     },
+    // Bulk dispatch — fires N OPTIMISTIC_DISPATCH dispatches up front so the
+    // grid flips visually right away, then sends a single POST. On error,
+    // rolls back to the pre-bulk snapshot and refetches. The endpoint
+    // returns { dispatched, failed: [...], requested } so the caller can
+    // surface partial-success results.
+    async bulkDispatch({ moveIds }) {
+      if (!Array.isArray(moveIds) || moveIds.length === 0) {
+        return { dispatched: 0, failed: [], requested: 0 };
+      }
+      const snapshot = state;
+      for (const moveId of moveIds) {
+        dispatch({ type: 'OPTIMISTIC_DISPATCH', moveId });
+      }
+      try {
+        const r = await fetch('/api/tenant/dispatcher/planner/bulk-dispatch', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ moveIds }),
+        });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const result = await r.json();
+        // If any failed, refetch so the optimistic flips on those revert
+        // to truth without rolling back the successful ones.
+        if (result.failed && result.failed.length > 0) {
+          fetchPlanner();
+        }
+        return result;
+      } catch (e) {
+        dispatch({ type: 'ROLLBACK', snapshot });
+        fetchPlanner();
+        throw e;
+      }
+    },
     // Not currently wired to any UI — DnD drops fire `assign` for every
     // slot target (including same-driver-same-date), and `assign.js`
     // handles in-row resequencing correctly. Kept as a clean API surface

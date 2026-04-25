@@ -21,17 +21,62 @@ export default function DriverPlannerView() {
   const [driverSearch, setDriverSearch] = useState('');
   const [includeInactive, setIncludeInactive] = useState(false);
   const [previewMove, setPreviewMove] = useState(null);
+  const [bulkDispatching, setBulkDispatching] = useState(false);
   // Local toast — mirrors the dispatcher page's bulkFlash pattern. Replaces
   // blocking browser alert() calls for mutation-failure / drag-blocked errors.
-  const [toast, setToast] = useState(null); // { message, kind: 'error' | 'info' }
+  const [toast, setToast] = useState(null); // { message, kind: 'error' | 'info' | 'success' }
 
   function showToast(message, kind = 'error') {
     setToast({ message, kind });
-    setTimeout(() => setToast((t) => (t?.message === message ? null : t)), 3500);
+    setTimeout(() => setToast((t) => (t?.message === message ? null : t)), 4500);
   }
 
   const { drivers, movesByDriverId, unassignedBuckets, isLoading, error, mutations, refetch } =
     useDriverPlanner({ date, driverSearch, includeInactive });
+
+  // Compute the ordered list of moves eligible for bulk dispatch:
+  // status === 'pending' && driver assigned. Order = drivers left-to-right
+  // (the `drivers` array order, which matches the grid render order),
+  // moves within each driver in their existing display order.
+  const dispatchPlan = useMemo(() => {
+    const moveIds = [];
+    const driverIds = new Set();
+    for (const d of drivers || []) {
+      const moves = movesByDriverId[d.id] || [];
+      for (const m of moves) {
+        if (m.status === 'pending' && m.driver_id) {
+          moveIds.push(m.id);
+          driverIds.add(d.id);
+        }
+      }
+    }
+    return { moveIds, driverCount: driverIds.size };
+  }, [drivers, movesByDriverId]);
+
+  async function handleBulkDispatch() {
+    if (dispatchPlan.moveIds.length === 0 || bulkDispatching) return;
+    setBulkDispatching(true);
+    try {
+      const result = await mutations.bulkDispatch({ moveIds: dispatchPlan.moveIds });
+      const okCount = result?.dispatched ?? 0;
+      const failedCount = result?.failed?.length ?? 0;
+      if (failedCount === 0) {
+        showToast(
+          `Dispatched ${okCount} move${okCount === 1 ? '' : 's'}`,
+          'success'
+        );
+      } else {
+        showToast(
+          `Dispatched ${okCount}; ${failedCount} failed (${result.failed[0]?.reason || 'see audit'})`,
+          'error'
+        );
+      }
+    } catch (e) {
+      showToast(`Bulk dispatch failed: ${e.message}`);
+    } finally {
+      setBulkDispatching(false);
+    }
+  }
 
   // Fast driver lookup for the preview panel's Assignment row and anywhere
   // else we need to render a name from a driver_id on the move.
@@ -103,6 +148,10 @@ export default function DriverPlannerView() {
           onDriverSearchChange={setDriverSearch}
           includeInactive={includeInactive}
           onIncludeInactiveChange={setIncludeInactive}
+          pendingDispatchCount={dispatchPlan.moveIds.length}
+          pendingDriverCount={dispatchPlan.driverCount}
+          onBulkDispatch={handleBulkDispatch}
+          bulkDispatching={bulkDispatching}
         />
 
         <div className="flex-1 flex overflow-hidden">
@@ -140,10 +189,12 @@ export default function DriverPlannerView() {
       {toast && (
         <div
           className={[
-            'fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg shadow-lg text-sm font-medium max-w-md',
+            'fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg shadow-lg text-sm font-medium max-w-md cursor-pointer',
             toast.kind === 'error'
               ? 'bg-red-600 text-white'
-              : 'bg-slate-700 text-white',
+              : toast.kind === 'success'
+                ? 'bg-emerald-600 text-white'
+                : 'bg-slate-700 text-white',
           ].join(' ')}
           role="alert"
           onClick={() => setToast(null)}
