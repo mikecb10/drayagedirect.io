@@ -45,6 +45,27 @@ function cleanStr(v) {
   return s || null;
 }
 
+/**
+ * Verify that `branchId` (if provided) belongs to `tenantId`. Prevents a
+ * tenant user from scoping their email config to a branch in another
+ * tenant — a data-integrity violation that could leak rows into the wrong
+ * branch-scoped UI later.
+ *
+ * Returns `{ ok: true }` when branchId is null/empty (no-op) or when the
+ * branch is in-tenant. Returns `{ ok: false, error }` otherwise.
+ */
+export async function validateBranchScope(svc, branchId, tenantId) {
+  if (!branchId) return { ok: true };
+  const { data: branch } = await svc
+    .from('branches')
+    .select('id')
+    .eq('id', branchId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+  if (!branch) return { ok: false, error: 'branch_id does not belong to this tenant' };
+  return { ok: true };
+}
+
 // Normalize the sender_kind enum + ids into the 3-column shape the
 // schema expects. Exactly one of the three must end up truthy.
 export function resolveSenderColumns(body) {
@@ -182,6 +203,9 @@ export default async function handler(req, res) {
 
     const sender = resolveSenderColumns(body);
     if (!sender.ok) return res.status(400).json({ error: sender.error });
+
+    const branchScope = await validateBranchScope(svc, body.branch_id, ctx.tenantId);
+    if (!branchScope.ok) return res.status(400).json({ error: branchScope.error });
 
     // If user is setting is_default=true, unset it from the existing default
     // (the partial unique index allows only one default per tenant).

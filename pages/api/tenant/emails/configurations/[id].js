@@ -5,7 +5,7 @@ import {
 } from '../../../../../lib/tenant-api';
 import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
 import { PERMISSIONS } from '../../../../../lib/permissions';
-import { resolveSenderColumns } from './index';
+import { resolveSenderColumns, validateBranchScope } from './index';
 import { fetchFullConfiguration } from '../../../../../lib/email-configuration-helpers';
 
 /**
@@ -96,9 +96,12 @@ export default async function handler(req, res) {
         : null;
     }
     if ('branch_id' in body) {
-      updates.branch_id = typeof body.branch_id === 'string' && body.branch_id
+      const branchId = typeof body.branch_id === 'string' && body.branch_id
         ? body.branch_id
         : null;
+      const branchScope = await validateBranchScope(svc, branchId, ctx.tenantId);
+      if (!branchScope.ok) return res.status(400).json({ error: branchScope.error });
+      updates.branch_id = branchId;
     }
 
     // Sender kind change — must flip all 3 columns atomically

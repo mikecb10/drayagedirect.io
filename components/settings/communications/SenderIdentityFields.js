@@ -41,9 +41,7 @@ export default function SenderIdentityFields({
   const previewName = (value.from_display_name || tenant.name || 'DrayageDirect Notifications').trim();
 
   return (
-    <section className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Sender Identity</h3>
-
+    <div className="space-y-4">
       <div>
         <label htmlFor="sender-identity-display-name" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
           Display Name
@@ -93,6 +91,6 @@ export default function SenderIdentityFields({
         replyToEmail={value.reply_to_email}
         replyToName={value.reply_to_name}
       />
-    </section>
+    </div>
   );
 }

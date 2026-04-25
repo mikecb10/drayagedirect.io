@@ -91,7 +91,12 @@ async function handlePost(req, res) {
   // Seed tenant defaults
   await supabase.rpc('seed_new_tenant', { p_tenant_id: tenant.id });
 
-  // Auto-provision platform sender address + default email config
+  // Auto-provision platform sender address + default email config.
+  // Outcome captured in `senderProvisioning` so the audit trail records
+  // whether the auto-provision succeeded or failed silently — otherwise
+  // the only evidence of failure is a server-side console.error.
+  let senderProvisioning;
+
   const { data: platformDomain } = await supabase
     .from('tenant_sender_domains')
     .select('id')
@@ -99,8 +104,8 @@ async function handlePost(req, res) {
     .maybeSingle();
 
   if (!platformDomain) {
-    // Platform domain not yet seeded (migration 082 pending) — skip silently.
     console.error('[tenant-create] Platform tenant_sender_domains row missing — skipping auto-provision');
+    senderProvisioning = { status: 'skipped_no_platform_domain' };
   } else {
     const { data: newAddress, error: addrErr } = await supabase
       .from('tenant_sender_addresses')
@@ -116,6 +121,7 @@ async function handlePost(req, res) {
 
     if (addrErr) {
       console.error('[tenant-create] Sender address provisioning failed:', addrErr.message);
+      senderProvisioning = { status: 'failed_address', error: addrErr.message };
     } else {
       const { error: configErr } = await supabase.from('email_configurations').insert({
         tenant_id:         tenant.id,
@@ -128,6 +134,9 @@ async function handlePost(req, res) {
 
       if (configErr) {
         console.error('[tenant-create] Default config provisioning failed:', configErr.message);
+        senderProvisioning = { status: 'failed_config', error: configErr.message };
+      } else {
+        senderProvisioning = { status: 'success', sender_address_id: newAddress.id };
       }
     }
   }
@@ -137,7 +146,7 @@ async function handlePost(req, res) {
     employeeId: admin.id,
     action: 'tenant_created',
     targetTenantId: tenant.id,
-    details: { name, slug, contact_email },
+    details: { name, slug, contact_email, sender_provisioning: senderProvisioning },
     ipAddress: getClientIp(req),
   });
 
