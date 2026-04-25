@@ -42,7 +42,10 @@ export default function MoveCardExpanded({ move, tenantColors = null, onAssign =
   return (
     <div>
       {/* Compact view (always visible) */}
-      <div onClick={() => setExpanded((v) => !v)} className="cursor-pointer">
+      <div
+        onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
+        className="cursor-pointer"
+      >
         <MoveCardCompact move={move} tenantColors={tenantColors} />
       </div>
 
