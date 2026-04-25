@@ -17,6 +17,7 @@ import {
   DEFAULT_FROZEN,
   computeWarnings,
 } from '../../lib/dispatcher-columns';
+import { DEFAULT_LOAD_TYPE_COLORS } from '../../lib/dispatcher/load-type-colors';
 import {
   deriveState,
   DEFAULT_STATE_COLORS as DEFAULT_EVENT_STATE_COLORS,
@@ -39,15 +40,6 @@ import { useTheme } from '../../contexts/ThemeContext';
 // State colors now come from lib/dispatcher-states.js (17 fine-grained states).
 // Tenants can override any of them via /settings/dispatcher-colors.
 const DEFAULT_STATE_COLORS = DEFAULT_EVENT_STATE_COLORS;
-
-const DEFAULT_LOAD_TYPE_COLORS = {
-  import: '#3b82f6',
-  inbound: '#0ea5e9',
-  export: '#8b5cf6',
-  outbound: '#a855f7',
-  road: '#f97316',
-  bill_only: '#6b7280',
-};
 
 /**
  * Composite a #rrggbb hex color over a dark background at the given alpha.
