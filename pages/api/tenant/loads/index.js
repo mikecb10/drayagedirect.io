@@ -173,9 +173,21 @@ export default async function handler(req, res) {
     if (liquor === 'true') query = query.eq('is_liquor', true);
 
     if (search) {
-      query = query.or(
-        `order_number.ilike.%${search}%,container_number.ilike.%${search}%,bill_of_lading.ilike.%${search}%,booking_number.ilike.%${search}%,house_bol.ilike.%${search}%`
-      );
+      // Support comma-separated multi-term search (e.g. paste from the bulk-bar
+      // Copy Container output: "MSDU1234, MSDU5678, ..."). Without splitting,
+      // commas inside the search value collide with PostgREST's OR-clause
+      // separator and produce a "failed to parse logic tree" 400.
+      const terms = search.split(',').map((s) => s.trim()).filter(Boolean);
+      const fields = ['order_number', 'container_number', 'bill_of_lading', 'booking_number', 'house_bol'];
+      const clauses = [];
+      for (const term of terms) {
+        for (const f of fields) {
+          clauses.push(`${f}.ilike.%${term}%`);
+        }
+      }
+      if (clauses.length > 0) {
+        query = query.or(clauses.join(','));
+      }
     }
 
     const { data, error } = await query;
