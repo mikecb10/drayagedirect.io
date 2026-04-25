@@ -665,6 +665,22 @@ function EquipmentInfoForm({ onSubmit }) {
   const [typeOpts, setTypeOpts] = useState([]);
   const [chassisSizeOpts, setChassisSizeOpts] = useState([]);
   const [chassisTypeOpts, setChassisTypeOpts] = useState([]);
+  // Mode toggle for the flags grid: 'on' (default — selected flags get
+  // is_X=true) or 'off' (selected flags get is_X=false). Switching modes
+  // clears the selection so a single submit always emits one direction.
+  const [flagMode, setFlagMode] = useState('on');
+
+  function setFlagModeAndClear(mode) {
+    if (mode === flagMode) return;
+    setForm((f) => {
+      const next = { ...f };
+      for (const k of Object.keys(next)) {
+        if (typeof next[k] === 'boolean') next[k] = false;
+      }
+      return next;
+    });
+    setFlagMode(mode);
+  }
 
   // Fetch reference data once on mount
   useEffect(() => {
@@ -684,7 +700,12 @@ function EquipmentInfoForm({ onSubmit }) {
   function patch() {
     const out = {};
     for (const [k, v] of Object.entries(form)) {
-      if (typeof v === 'boolean' && v === true) out[k] = true;
+      if (typeof v === 'boolean') {
+        // Boolean (is_*) fields are flag toggles. Emit only the ones the
+        // user actively selected; the value depends on flagMode (true in
+        // 'on' mode, false in 'off' mode).
+        if (v === true) out[k] = (flagMode === 'on');
+      }
       else if (typeof v === 'string' && v.trim()) out[k] = v.trim();
       else if (typeof v === 'number') out[k] = v;
     }
@@ -693,13 +714,16 @@ function EquipmentInfoForm({ onSubmit }) {
 
   function flagBtn(key, label) {
     const active = form[key];
+    const activeClass = flagMode === 'on'
+      ? 'bg-blue-500 text-white border-blue-500'
+      : 'bg-red-500 text-white border-red-500';
     return (
       <button
         type="button"
         onClick={() => setForm({ ...form, [key]: !active })}
         className={`text-[11px] px-2 py-1 rounded border ${
           active
-            ? 'bg-blue-500 text-white border-blue-500'
+            ? activeClass
             : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-300 border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500'
         }`}
       >
@@ -723,8 +747,34 @@ function EquipmentInfoForm({ onSubmit }) {
         <TextField label="Genset Route" value={form.genset_route} onChange={(v) => setForm({ ...form, genset_route: v })} />
       </div>
       <div className="pt-2 border-t border-gray-100 dark:border-slate-800">
-        <div className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-slate-400 mb-1.5">
-          Toggle flags (only enabled flags will be set to true)
+        <div className="flex items-center justify-between mb-1.5 gap-2">
+          <div className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-slate-400">
+            Selected flags will be set to {flagMode === 'on' ? 'TRUE' : 'FALSE'}
+          </div>
+          <div className="inline-flex rounded-md border border-gray-300 dark:border-slate-600 overflow-hidden shrink-0">
+            <button
+              type="button"
+              onClick={() => setFlagModeAndClear('on')}
+              className={`px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                flagMode === 'on'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'
+              }`}
+            >
+              Apply ON
+            </button>
+            <button
+              type="button"
+              onClick={() => setFlagModeAndClear('off')}
+              className={`px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                flagMode === 'off'
+                  ? 'bg-red-500 text-white'
+                  : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'
+              }`}
+            >
+              Apply OFF
+            </button>
+          </div>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {flagBtn('is_liquor', 'Liquor')}
