@@ -701,6 +701,7 @@ export default function DispatcherIndex() {
         onApply={applyBulkPatch}
         onClear={clearSelection}
         onFlash={showBulkFlash}
+        onRefresh={() => fetchLoads()}
       />
 
       {/* Bulk operation toast */}

@@ -18,6 +18,7 @@ import {
   Activity,
   UserCheck,
   MapPin,
+  Trash2,
 } from 'lucide-react';
 import CellPopover from './CellPopover';
 import OrgPicker from '../ui/OrgPicker';
@@ -51,6 +52,7 @@ export default function BulkActionBar({
   onApply,
   onClear,
   onFlash,
+  onRefresh,
 }) {
   const [openAction, setOpenAction] = useState(null);
   const anchorRefs = useRef({});
@@ -100,6 +102,40 @@ export default function BulkActionBar({
     onFlash?.(`${name} coming soon`, 'info');
   }
 
+  // Soft-delete the selected loads. Confirms with the user first since
+  // this is destructive and affects multiple rows. Calls the new
+  // bulk-soft-delete endpoint, clears selection, and refetches via the
+  // parent's onRefresh so the deleted loads disappear from the board.
+  async function handleBulkSoftDelete() {
+    if (count === 0) return;
+    const ok = window.confirm(
+      `Delete ${count} load${count !== 1 ? 's' : ''}? They'll be hidden from the dispatcher view but can be restored from Trash.`
+    );
+    if (!ok) return;
+    try {
+      const res = await fetch('/api/tenant/loads/bulk-soft-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ load_ids: Array.from(selectedIds) }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Bulk delete failed');
+      }
+      const data = await res.json();
+      const deleted = data.deleted ?? 0;
+      const skipped = data.skipped ?? 0;
+      const msg = skipped > 0
+        ? `Deleted ${deleted}; ${skipped} already gone`
+        : `Deleted ${deleted} load${deleted === 1 ? '' : 's'}`;
+      onFlash?.(msg);
+      onClear?.();
+      onRefresh?.();
+    } catch (e) {
+      onFlash?.(e.message, 'error');
+    }
+  }
+
   function handleOpen(actionKey, e) {
     e?.stopPropagation();
     setOpenAction(openAction === actionKey ? null : actionKey);
@@ -134,6 +170,7 @@ export default function BulkActionBar({
     { key: 'live_share', label: 'Live Share', icon: Share2, onClick: () => handleStub('Live Share'), disabled: true },
     { key: 'copy_container', label: 'Copy Container', icon: Copy, onClick: handleCopyContainers },
     { key: 'print', label: 'Print', icon: Printer, onClick: () => handleStub('Print') },
+    { key: 'delete', label: 'Delete', icon: Trash2, onClick: handleBulkSoftDelete, destructive: true },
   ];
 
   // ===== Popover content per action =====
@@ -274,6 +311,8 @@ export default function BulkActionBar({
                     ? 'text-white/30 cursor-not-allowed'
                     : btn.active
                     ? 'bg-emerald-500/30 text-white ring-1 ring-emerald-400/60 hover:bg-emerald-500/40'
+                    : btn.destructive
+                    ? 'text-red-300 hover:bg-red-500/30 hover:text-white'
                     : 'text-white/80 hover:bg-white/10 hover:text-white'
                 } ${openAction === btn.key ? 'bg-white/15 text-white' : ''}`}
                 title={btn.active ? 'All selected loads are already marked — click to unmark' : undefined}
