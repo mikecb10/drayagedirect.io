@@ -79,3 +79,27 @@ test('transitionEventStatus pending → skipped does NOT fire trigger (no timest
   });
   assert.equal(fireCalls.length, 0, 'skip does not fire triggers');
 });
+
+test('transitionEventStatus departed with forgotten arrival fires BOTH arrived + departed triggers', async () => {
+  // Edge case: event was somehow set to 'arrived' status without a timestamp
+  // (race, raw SQL bypass, or upstream bug). The departed transition auto-fills
+  // arrived_at, which means BOTH triggers should fire — same physical moment,
+  // two semantic events for the dispatcher's email pipeline.
+  fireCalls.length = 0;
+  const svc = makeMockClient({
+    event: {
+      id: 'e1', tenant_id: 't1', order_id: 'o1',
+      event_type: 'deliver', event_status: 'arrived',
+      arrived_at: null, departed_at: null,
+    },
+  });
+  await transitionEventStatus({
+    supabase: svc, tenantId: 't1', eventId: 'e1', toStatus: 'departed',
+    actor: { type: 'human' },
+  });
+  assert.equal(fireCalls.length, 2, 'expected both arrived + departed triggers to fire');
+  assert.equal(fireCalls[0].timestampField, 'arrived_at', 'arrived fires first');
+  assert.equal(fireCalls[1].timestampField, 'departed_at', 'departed fires second');
+  assert.equal(fireCalls[0].eventType, 'deliver');
+  assert.equal(fireCalls[1].eventType, 'deliver');
+});
