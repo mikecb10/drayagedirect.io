@@ -7,6 +7,7 @@ import StatusButton from './StatusButton';
 import { EVENT_LABELS } from '../../../lib/routing-template-seed';
 import DryRunList from './DryRunList';
 import DryRunSlideOver from './DryRunSlideOver';
+import OverrideDriverModal from '../tracking/OverrideDriverModal';
 
 const DRY_RUN_ELIGIBLE_EVENTS = new Set(['pull', 'pickup', 'deliver', 'return', 'drop', 'hook']);
 
@@ -102,6 +103,79 @@ function DistanceDisplay({ event, legMetrics, onOverride, onResetToAuto }) {
 
 function labelFor(eventType) {
   return EVENT_LABELS[eventType] || (eventType || '').replace(/^./, (c) => c.toUpperCase());
+}
+
+/**
+ * HistoryBadges — shows a green "driver" badge when the most recent
+ * history entry for a given event+field came from the driver app, or an
+ * amber "override" badge when a dispatcher overrode a driver timestamp.
+ *
+ * Fetches /api/tenant/loads/[loadId]/tracking once on mount (per-row,
+ * v1 acceptable per plan). Click on the driver badge opens the override
+ * modal.
+ */
+function HistoryBadges({ eventId, loadId, fieldName, currentValue }) {
+  const [latestRow, setLatestRow] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    if (!currentValue) { setLatestRow(null); return; }
+    let cancelled = false;
+    (async () => {
+      const res = await fetch(`/api/tenant/loads/${loadId}/tracking`);
+      if (!res.ok || cancelled) return;
+      const data = await res.json();
+      const targetStatus = fieldName === 'arrived_at' ? 'arrived' : 'departed';
+      const eventHistory = (data.events_history || [])
+        .filter((h) => h.event_id === eventId && h.to_status === targetStatus)
+        .sort((a, b) => new Date(b.transitioned_at) - new Date(a.transitioned_at));
+      if (!cancelled) setLatestRow(eventHistory[0] ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [eventId, loadId, fieldName, currentValue]);
+
+  if (!latestRow) return null;
+  const ctx = latestRow.actor_context || {};
+  const wasDriver = ctx.source === 'driver_app';
+  const wasOverride = ctx.overrode_driver === true;
+
+  return (
+    <>
+      {wasDriver && (
+        <button
+          type="button"
+          onClick={() => setShowModal(true)}
+          className="ml-1 inline-flex items-center text-[10px] px-1 py-0.5 rounded bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900"
+          title={`Driver tapped at ${new Date(latestRow.transitioned_at).toLocaleString()}${
+            ctx.gps_distance_at_arrival_m != null
+              ? ` (GPS within ${(ctx.gps_distance_at_arrival_m / 1609).toFixed(2)} mi)`
+              : ''
+          }. Click to override.`}
+        >
+          📱 driver
+        </button>
+      )}
+      {wasOverride && (
+        <span
+          className="ml-1 inline-flex items-center text-[10px] px-1 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300"
+          title={`Override${ctx.original_driver_timestamp ? ` (driver had: ${new Date(ctx.original_driver_timestamp).toLocaleString()})` : ''}${ctx.reason ? `\nReason: ${ctx.reason}` : ''}`}
+        >
+          🔄 override
+        </span>
+      )}
+      {showModal && (
+        <OverrideDriverModal
+          event={{ id: eventId, location_name: latestRow.event?.location_name }}
+          driverTimestamp={latestRow.transitioned_at}
+          driverGpsDistanceM={ctx.gps_distance_at_arrival_m}
+          fieldName={fieldName}
+          loadId={loadId}
+          onClose={() => setShowModal(false)}
+          onSaved={() => window.location.reload()}
+        />
+      )}
+    </>
+  );
 }
 
 /**
@@ -320,13 +394,23 @@ export default function EventRow({
             <span className="text-xs font-medium text-gray-500 dark:text-slate-400 w-20 shrink-0">
               {isDropEvent ? 'Dropped' : 'Arrival'}
             </span>
-            <StatusButton
-              label={isDropEvent ? 'Dropped' : 'Arrived'}
-              value={event.arrived_at}
-              onChange={handleArrived}
-              use24h={use24h}
-              disabled={loadCompleted || !moveStarted}
-            />
+            <div className="flex items-center flex-wrap gap-1">
+              <StatusButton
+                label={isDropEvent ? 'Dropped' : 'Arrived'}
+                value={event.arrived_at}
+                onChange={handleArrived}
+                use24h={use24h}
+                disabled={loadCompleted || !moveStarted}
+              />
+              {orderId && (
+                <HistoryBadges
+                  eventId={event.id}
+                  loadId={orderId}
+                  fieldName="arrived_at"
+                  currentValue={event.arrived_at}
+                />
+              )}
+            </div>
           </div>
 
           {/* Departure row — hidden for Drop events (auto-set to match arrival) */}
@@ -335,7 +419,17 @@ export default function EventRow({
               <div className="border-t border-gray-50 dark:border-slate-800" />
               <div className="flex items-center px-4 py-2 gap-3">
                 <span className="text-xs font-medium text-gray-500 dark:text-slate-400 w-20 shrink-0">Departure</span>
-                <StatusButton label="Departed" value={event.departed_at} onChange={handleDeparted} use24h={use24h} disabled={loadCompleted || !moveStarted} />
+                <div className="flex items-center flex-wrap gap-1">
+                  <StatusButton label="Departed" value={event.departed_at} onChange={handleDeparted} use24h={use24h} disabled={loadCompleted || !moveStarted} />
+                  {orderId && (
+                    <HistoryBadges
+                      eventId={event.id}
+                      loadId={orderId}
+                      fieldName="departed_at"
+                      currentValue={event.departed_at}
+                    />
+                  )}
+                </div>
               </div>
             </>
           )}

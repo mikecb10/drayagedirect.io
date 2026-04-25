@@ -86,6 +86,38 @@ export default function DriverMobilePermissionsTab({ form, update }) {
         values={perms}
         onChange={setPerms}
       />
+
+      {/* Location tracking — top-level driver column (NOT nested in mobile_permissions JSONB).
+          Per migration 102, drivers.location_tracking_enabled is a top-level boolean read by
+          requireDriver middleware + 3-gate helper. Keep this toggle outside the PermissionGroup
+          iterators so it routes through update('location_tracking_enabled', value) directly. */}
+      <div>
+        <h4 className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-3">Location tracking</h4>
+        <div className="space-y-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg p-4">
+          <Checkbox
+            checked={form?.location_tracking_enabled !== false}
+            onChange={(v) => update('location_tracking_enabled', v)}
+            label="Track driver location during moves"
+          />
+          <p className="text-xs text-gray-500 dark:text-slate-400 ml-6">
+            When enabled and the tenant feature is on, the driver mobile app reports GPS pings during active moves.
+            Driver consent on first login is still required.
+          </p>
+        </div>
+      </div>
+
+      {(form?.tracking_consented_at || form?.tracking_revoked_at) && (
+        <div className="text-xs text-gray-600 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 pt-3">
+          {form.tracking_consented_at && (
+            <div>Last consented: {new Date(form.tracking_consented_at).toLocaleString()} (v{form.tracking_consent_version || '?'})</div>
+          )}
+          {form.tracking_revoked_at && (
+            <div className="text-amber-700 dark:text-amber-400">
+              Revoked: {new Date(form.tracking_revoked_at).toLocaleString()}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

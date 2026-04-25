@@ -82,19 +82,67 @@ export default async function handler(req, res) {
     } catch {}
   }
 
-  // Get routing events for the sidebar
+  // Get routing events for the sidebar (extended with ETA + event_status columns)
   const { data: routingEvents } = await svc
     .from('order_routing_events')
-    .select('id, sequence, event_type, location_name, city, state, arrived_at, departed_at, move_id')
+    .select(`
+      id, sequence, event_type, location_name, city, state, arrived_at, departed_at, move_id,
+      event_status,
+      eta_arrival_at, eta_updated_at, eta_distance_remaining_miles
+    `)
     .eq('order_id', id)
     .order('sequence', { ascending: true });
 
-  // Get moves for grouping
+  // Get moves for grouping (extended with tracking session columns + driver join)
   const { data: movesData } = await svc
     .from('order_container_moves')
-    .select('id, sequence, status, started_at, completed_at')
+    .select(`
+      id, sequence, status, started_at, completed_at,
+      tracking_status, session_started_at, session_ended_at, last_ping_at,
+      ping_count, eta_recompute_count,
+      driver:drivers(id, name, location_tracking_enabled, tracking_consented_at, tracking_revoked_at, tracking_consent_version)
+    `)
     .eq('order_id', id)
     .order('sequence', { ascending: true });
+
+  // Pings — latest 1000 per load (filtered by move_ids in this load)
+  const moveIds = (movesData || []).map((m) => m.id);
+  let pings = [];
+  if (moveIds.length > 0) {
+    const { data } = await svc
+      .from('driver_location_pings')
+      .select('id, move_id, latitude, longitude, accuracy_meters, speed_mph, heading, recorded_at, received_at')
+      .eq('tenant_id', ctx.tenantId)
+      .in('move_id', moveIds)
+      .order('recorded_at', { ascending: false })
+      .limit(1000);
+    pings = data || [];
+  }
+
+  // Event-status transitions for the activity log
+  let events_history = [];
+  const eventIds = (routingEvents || []).map((e) => e.id);
+  if (eventIds.length > 0) {
+    const { data } = await svc
+      .from('order_routing_event_status_history')
+      .select('id, event_id, from_status, to_status, transitioned_at, actor_id, actor_type, actor_context, note')
+      .eq('tenant_id', ctx.tenantId)
+      .in('event_id', eventIds)
+      .order('transitioned_at', { ascending: false });
+    events_history = data || [];
+  }
+
+  // Move-tracking session transitions for the activity log
+  let moves_history = [];
+  if (moveIds.length > 0) {
+    const { data } = await svc
+      .from('move_tracking_session_history')
+      .select('id, move_id, from_status, to_status, transitioned_at, actor_id, actor_type, actor_context, note')
+      .eq('tenant_id', ctx.tenantId)
+      .in('move_id', moveIds)
+      .order('transitioned_at', { ascending: false });
+    moves_history = data || [];
+  }
 
   return res.status(200).json({
     last_ping: lastPing,
@@ -109,5 +157,8 @@ export default async function handler(req, res) {
       delivery: load.delivery_org || null,
       return: load.return_org || null,
     },
+    pings,
+    events_history,
+    moves_history,
   });
 }

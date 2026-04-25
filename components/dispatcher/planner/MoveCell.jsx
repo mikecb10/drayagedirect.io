@@ -1,5 +1,10 @@
+import { useEffect, useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { Check, X } from 'lucide-react';
+import {
+  fmtRelativeETA, fmtAbsoluteETA, fmtOnSiteDuration,
+  freshnessColor, freshnessColorClass,
+} from '../../../lib/dispatcher/tracking-display.js';
 
 const STATUS_BG = {
   unassigned: 'bg-gray-100 dark:bg-gray-800',
@@ -34,6 +39,55 @@ function fmtApt(iso) {
   } catch {
     return null;
   }
+}
+
+function TrackingLine({ move, events }) {
+  // tick every 1s when on_site to refresh the counter
+  const [, force] = useState(0);
+  useEffect(() => {
+    if (move.tracking_status !== 'on_site') return;
+    const t = setInterval(() => force((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [move.tracking_status]);
+
+  const nextPending = events.find((e) => e.event_status === 'pending');
+  const arrived = events.find((e) => e.event_status === 'arrived');
+  const dot = freshnessColorClass(freshnessColor(move.last_ping_at));
+
+  if (move.tracking_status === 'in_transit') {
+    if (!nextPending) return null;
+    return (
+      <div className="px-2 pb-1 text-[10px] flex items-center gap-1">
+        <span className={`w-1.5 h-1.5 rounded-full ${dot}`} title={`Last ping ${move.last_ping_at || 'unknown'}`} />
+        <span className="text-blue-700 dark:text-blue-400">▶</span>
+        <span className="text-gray-700 dark:text-gray-300">
+          ETA {fmtAbsoluteETA(nextPending.eta_arrival_at)} · {fmtRelativeETA(nextPending.eta_arrival_at)}
+        </span>
+      </div>
+    );
+  }
+  if (move.tracking_status === 'on_site') {
+    if (!arrived) return null;
+    return (
+      <div className="px-2 pb-1 text-[10px] flex items-center gap-1">
+        <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
+        <span>📍</span>
+        <span className="text-green-700 dark:text-green-400">On-site {fmtOnSiteDuration(arrived.arrived_at)}</span>
+      </div>
+    );
+  }
+  if (move.tracking_status === 'paused') {
+    const pausedFor = move.last_ping_at
+      ? Math.round((Date.now() - new Date(move.last_ping_at).getTime()) / 60000)
+      : null;
+    return (
+      <div className="px-2 pb-1 text-[10px] flex items-center gap-1 text-amber-700 dark:text-amber-400">
+        <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
+        <span>⏸ Paused {pausedFor != null ? `${pausedFor}m` : ''}</span>
+      </div>
+    );
+  }
+  return null;
 }
 
 export default function MoveCell({ move, onClickPreview, onOpenLoad, onDispatch, onUnassign }) {
@@ -126,6 +180,10 @@ export default function MoveCell({ move, onClickPreview, onOpenLoad, onDispatch,
         <div className="px-2 pb-1 text-[10px] text-gray-500 dark:text-gray-500">
           Assigned: {fmtApt(move.assigned_at)}
         </div>
+      )}
+
+      {move.tracking_status && move.tracking_status !== 'idle' && move.tracking_status !== 'completed' && (
+        <TrackingLine move={move} events={move.events || []} />
       )}
 
       <div className="flex-1 px-2 pb-2 space-y-1">

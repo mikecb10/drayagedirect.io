@@ -138,7 +138,53 @@ export default function DriverModal({ isOpen, onClose, onSuccess, editing = null
             <DriverPreferencesTab form={form} update={update} />
           )}
           {activeTab === 'mobile' && (
-            <DriverMobilePermissionsTab form={form} update={update} />
+            <>
+              <DriverMobilePermissionsTab form={form} update={update} />
+              {/* Driver app access — only shown for existing drivers, not on Add Driver */}
+              {editing?.id && (
+                <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Driver app access</h3>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!confirm(`Reset password for ${editing.name}? You'll need to relay the new temporary password to them.`)) return;
+                        const res = await fetch(`/api/tenant/drivers/${editing.id}/reset-password`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({}),
+                        });
+                        const data = await res.json();
+                        if (!res.ok) {
+                          alert(`Reset failed: ${data.error || res.status}`);
+                          return;
+                        }
+                        alert(`New temporary password: ${data.temp_password}\n\nThe driver will be required to change it on next login.`);
+                      }}
+                      className="px-3 py-1.5 text-sm rounded border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
+                      Reset password
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!confirm(`Kill ${editing.name}'s active session? They'll be signed out and need to log in again.`)) return;
+                        const res = await fetch(`/api/tenant/drivers/${editing.id}/kill-session`, { method: 'POST' });
+                        if (res.ok) {
+                          alert('Session killed.');
+                        } else {
+                          const data = await res.json().catch(() => ({}));
+                          alert(`Kill failed: ${data.error || res.status}`);
+                        }
+                      }}
+                      className="px-3 py-1.5 text-sm rounded border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950"
+                    >
+                      Kill session
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
           {activeTab === 'notes' && <DriverNotesTab form={form} update={update} />}
         </div>

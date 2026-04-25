@@ -23,7 +23,7 @@ const EDITABLE_FIELDS = [
   'endorsements',
   'pay_type', 'pay_rate_cents', 'pay_percentage', 'hst_pct',
   'disable_driver_pay', 'hide_settlements',
-  'mobile_permissions',
+  'mobile_permissions', 'location_tracking_enabled',
   'status', 'notes', 'branch_id',
 ];
 
