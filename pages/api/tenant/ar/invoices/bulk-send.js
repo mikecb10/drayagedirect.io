@@ -197,6 +197,11 @@ export default async function handler(req, res) {
     const sendableInvoiceIds = [];
     for (const invoiceId of claimedIds) {
       const chargeSetIds = chargeSetsByInvoice[invoiceId] ?? [];
+      // `blocked` is intentionally re-initialized per invoice — multi-CS
+      // per invoice is supported (chargeSetsByInvoice is an array). Within
+      // an invoice, the inner loop only flips blocked true (never back to
+      // false), so any single failing CS gates the whole invoice. Audited
+      // per FU-018: the multi-CS behavior here is correct.
       let blocked = false;
       let blockReason = null;
       let blockNames = [];
