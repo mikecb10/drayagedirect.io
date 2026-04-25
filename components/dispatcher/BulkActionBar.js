@@ -17,6 +17,7 @@ import {
   RotateCcw,
   Activity,
   UserCheck,
+  MapPin,
 } from 'lucide-react';
 import CellPopover from './CellPopover';
 import OrgPicker from '../ui/OrgPicker';
@@ -118,6 +119,7 @@ export default function BulkActionBar({
       active: allReadyForReturn,
     },
     { key: 'status', label: 'Edit Status', icon: Activity, hasPopover: true },
+    { key: 'terminal_status', label: 'Terminal Status', icon: MapPin, hasPopover: true },
     { key: 'csr', label: 'Assign CSR', icon: UserCheck, hasPopover: true },
     { key: 'load_info', label: 'Edit Load Info', icon: FileEdit, hasPopover: true },
     { key: 'dates', label: 'Edit Dates', icon: Calendar, hasPopover: true },
@@ -163,6 +165,12 @@ export default function BulkActionBar({
         return (
           <CellPopover anchorEl={anchor} onClose={() => setOpenAction(null)} width={260}>
             <CsrForm onSubmit={applyAndClose} />
+          </CellPopover>
+        );
+      case 'terminal_status':
+        return (
+          <CellPopover anchorEl={anchor} onClose={() => setOpenAction(null)} width={260}>
+            <TerminalStatusForm onSubmit={applyAndClose} />
           </CellPopover>
         );
       case 'dates':
@@ -321,6 +329,54 @@ function StatusForm({ onSubmit }) {
       />
       <FormBtn disabled={!status} onClick={() => onSubmit({ status })}>
         Set Status
+      </FormBtn>
+    </div>
+  );
+}
+
+// ===== Bulk Terminal Status =====
+// Free-form text — no enum on orders.terminal_status. Dispatchers use
+// tenant-specific terminology (e.g. "READY", "HELD", "ROW 3"). The Clear
+// toggle sends null so a bulk clear is one click.
+function TerminalStatusForm({ onSubmit }) {
+  const [value, setValue] = useState('');
+  const [clear, setClear] = useState(false);
+
+  function handleSubmit() {
+    if (clear) {
+      onSubmit({ terminal_status: null });
+    } else if (value.trim()) {
+      onSubmit({ terminal_status: value.trim() });
+    }
+  }
+
+  const canSubmit = clear || !!value.trim();
+
+  return (
+    <div className="space-y-2">
+      <TextField
+        label="Terminal Status"
+        value={value}
+        onChange={(v) => {
+          setValue(v);
+          if (v.trim()) setClear(false);
+        }}
+        placeholder="e.g. READY, HELD, ROW 3"
+      />
+      <label className="flex items-center gap-2 text-xs text-gray-700 dark:text-slate-300">
+        <input
+          type="checkbox"
+          checked={clear}
+          onChange={(e) => {
+            setClear(e.target.checked);
+            if (e.target.checked) setValue('');
+          }}
+          className="rounded"
+        />
+        Clear terminal status (set to empty)
+      </label>
+      <FormBtn disabled={!canSubmit} onClick={handleSubmit}>
+        {clear ? 'Clear Terminal Status' : 'Set Terminal Status'}
       </FormBtn>
     </div>
   );
