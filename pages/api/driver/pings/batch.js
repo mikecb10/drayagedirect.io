@@ -32,9 +32,33 @@ export default async function handler(req, res) {
   if (items.length === 0) return res.status(200).json({ accepted: 0 });
   if (items.length > MAX_BATCH_SIZE) return res.status(413).json({ error: 'batch_too_large' });
 
+  // Move-ownership pre-check: a driver may only post pings for moves they
+  // own. Without this, a driver could poison another driver's ping_count
+  // (triggering false stale-ping pause) or seed bogus breadcrumb pings on
+  // someone else's move. Pre-fetch the set of move IDs assigned to this
+  // driver and filter the batch — items pointing at unowned/unknown moves
+  // are silently dropped from the insert + reflected in the response.
+  const requestedMoveIds = [...new Set(items.map((i) => i.moveId).filter(Boolean))];
+  const ownedMoveIds = new Set();
+  if (requestedMoveIds.length > 0) {
+    const { data: ownedMoves, error: ownedErr } = await svc
+      .from('order_container_moves')
+      .select('id')
+      .eq('tenant_id', ctx.tenantId)
+      .eq('driver_id', ctx.driverId)
+      .in('id', requestedMoveIds);
+    if (ownedErr) return res.status(500).json({ error: 'lookup_failed' });
+    for (const m of ownedMoves ?? []) ownedMoveIds.add(m.id);
+  }
+  const validItems = items.filter((i) => ownedMoveIds.has(i.moveId));
+  const rejectedCount = items.length - validItems.length;
+  if (validItems.length === 0) {
+    return res.status(200).json({ accepted: 0, rejected: rejectedCount });
+  }
+
   // Single multi-row INSERT (atomic enough for v1 — partial failures surface
   // as a single error and we accept that limitation).
-  const rows = items.map((item) => ({
+  const rows = validItems.map((item) => ({
     tenant_id: ctx.tenantId,
     move_id: item.moveId,
     driver_id: ctx.driverId,
@@ -48,12 +72,16 @@ export default async function handler(req, res) {
     recorded_at: item.gpsPing.recorded_at,
   }));
   const { error } = await svc.from('driver_location_pings').insert(rows);
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) {
+    console.error('batch ping insert failed:', error.message);
+    return res.status(500).json({ error: 'insert_failed' });
+  }
 
   // Bump last_ping_at + ping_count per move (best-effort, group by move_id and
   // pick latest recorded_at). v1: scan + update from highest recorded_at.
+  // Only iterates validItems so unowned moves are never touched.
   const byMove = new Map();
-  for (const item of items) {
+  for (const item of validItems) {
     const cur = byMove.get(item.moveId);
     if (!cur || item.gpsPing.recorded_at > cur.recorded_at) {
       byMove.set(item.moveId, {
@@ -86,8 +114,9 @@ export default async function handler(req, res) {
   }
 
   // Update driver's last_* from the absolute-latest ping in the batch
+  // (only over validated items)
   let latestPing = null;
-  for (const item of items) {
+  for (const item of validItems) {
     if (!latestPing || item.gpsPing.recorded_at > latestPing.recorded_at) {
       latestPing = item.gpsPing;
     }
@@ -107,5 +136,5 @@ export default async function handler(req, res) {
       .eq('tenant_id', ctx.tenantId);
   }
 
-  return res.status(200).json({ accepted: items.length });
+  return res.status(200).json({ accepted: validItems.length, rejected: rejectedCount });
 }

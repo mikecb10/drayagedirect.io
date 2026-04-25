@@ -98,6 +98,6 @@ export default async function handler(req, res) {
     if (e.message?.startsWith('forbidden')) return res.status(403).json({ error: 'forbidden' });
     if (e.message?.startsWith('Invalid transition')) return res.status(409).json({ error: 'invalid_transition', detail: e.message });
     console.error('driver arrive error:', e);
-    return res.status(500).json({ error: 'internal_error', detail: e.message });
+    return res.status(500).json({ error: 'internal_error' });
   }
 }

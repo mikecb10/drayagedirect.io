@@ -190,7 +190,8 @@ export default async function handler(req, res) {
         if (e.message?.startsWith('Invalid transition')) {
           return res.status(409).json({ error: 'invalid_transition', detail: e.message });
         }
-        return res.status(500).json({ error: e.message });
+        console.error('dispatcher override error:', e);
+        return res.status(500).json({ error: 'override_failed' });
       }
     }
 

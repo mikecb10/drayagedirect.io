@@ -107,16 +107,20 @@ export default async function handler(req, res) {
     }
   }
 
-  // 5. ETA recompute (if eligible: in_transit/paused, last update >90s ago, recompute count <50)
+  // 5. ETA recompute (if eligible: in_transit/paused, last ETA update >90s ago,
+  //    recompute count <50). Read the throttle gate from nextEvent.eta_updated_at,
+  //    NOT move.last_ping_at — last_ping_at was updated by step 3b above on every
+  //    ping, so using it here would mean elapsed≈0 and the throttle would never
+  //    fire, blowing through the recompute cap. eta_updated_at on the event row
+  //    is the authoritative "when did we last call Distance Matrix for this dest"
+  //    timestamp.
   let eta = null;
   if (move.tracking_status === 'in_transit' || move.tracking_status === 'paused') {
-    const lastEtaUpdate = move.last_ping_at ? new Date(move.last_ping_at).getTime() : 0;
-    const elapsed = Date.now() - lastEtaUpdate;
-    if (elapsed >= ETA_THROTTLE_MS && (move.eta_recompute_count ?? 0) < ETA_RECOMPUTE_CAP) {
+    if ((move.eta_recompute_count ?? 0) < ETA_RECOMPUTE_CAP) {
       // Find next pending event in this move
       const { data: nextEvent } = await svc
         .from('order_routing_events')
-        .select('id, location:customers(latitude, longitude)')
+        .select('id, eta_updated_at, location:customers(latitude, longitude)')
         .eq('tenant_id', ctx.tenantId)
         .eq('move_id', moveId)
         .eq('event_status', 'pending')
@@ -124,7 +128,17 @@ export default async function handler(req, res) {
         .limit(1)
         .maybeSingle();
 
-      if (nextEvent?.location?.latitude != null && nextEvent.location?.longitude != null) {
+      const lastEtaUpdate = nextEvent?.eta_updated_at
+        ? new Date(nextEvent.eta_updated_at).getTime()
+        : 0;
+      const elapsed = Date.now() - lastEtaUpdate;
+      const throttleOk = elapsed >= ETA_THROTTLE_MS;
+
+      if (
+        throttleOk &&
+        nextEvent?.location?.latitude != null &&
+        nextEvent.location?.longitude != null
+      ) {
         try {
           const result = await recomputeETA({
             origin: { lat: gpsPing.latitude, lng: gpsPing.longitude },
@@ -143,7 +157,8 @@ export default async function handler(req, res) {
                 eta_updated_at: new Date().toISOString(),
                 eta_distance_remaining_miles: result.distance_remaining_miles,
               })
-              .eq('id', nextEvent.id);
+              .eq('id', nextEvent.id)
+              .eq('tenant_id', ctx.tenantId);  // tenant guard — defense in depth
             if (!result.cached) {
               await svc
                 .from('order_container_moves')
