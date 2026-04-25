@@ -18,22 +18,7 @@ import {
   LOAD_TYPE_LABELS,
   LOAD_TYPE_LETTER,
 } from '../../lib/constants/load-types.js';
-
-// ========== Defaults ==========
-
-// Color preferences — the keys here are also the load-type set this
-// page exposes for editing. Kept local because it's settings/UI config,
-// not the canonical load-type list (which lives in lib/constants/load-types.js).
-// chassis_reposition is intentionally excluded for now — its color
-// will be added when stop-off/chassis-split UX is finalized.
-const DEFAULT_LOAD_TYPE_COLORS = {
-  import: '#3b82f6',
-  inbound: '#0ea5e9',
-  export: '#8b5cf6',
-  outbound: '#a855f7',
-  road: '#f97316',
-  bill_only: '#6b7280',
-};
+import { DEFAULT_LOAD_TYPE_COLORS } from '../../lib/dispatcher/load-type-colors';
 
 // Group states for display
 const STATES_BY_GROUP = STATE_GROUPS.reduce((acc, group) => {
