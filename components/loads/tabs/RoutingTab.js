@@ -229,6 +229,11 @@ export default function RoutingTab({ load, onLoadRefresh }) {
 
     async function computeMetrics() {
       const metrics = {};
+      // Loop starts at i=1 by design — the first event in a move (the pull)
+      // has no preceding leg, so its estimated_miles stays NULL. Migration
+      // 089's column comment makes this convention canonical, and per-mile
+      // billing rolls up at the load level via COALESCE(actual_miles,
+      // estimated_miles) summed across legs by trigger.
       for (let i = 1; i < sorted.length; i++) {
         const prev = sorted[i - 1];
         const curr = sorted[i];
