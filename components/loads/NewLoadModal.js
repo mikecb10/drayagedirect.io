@@ -132,8 +132,14 @@ const EMPTY_FORM = {
   trailer_number: '',
   container_number: '',
   container_size: '',
-  pickup_date: '',
-  delivery_date: '',
+  // Appointment windows — modal exposes a single "Appointment" input per
+  // location that sets both _from and _to to the same value (firm appt).
+  // The user can widen the window later via Load Detail → Load Info.
+  // These map to the columns the dispatcher table actually displays.
+  pickup_apt_from: '',
+  pickup_apt_to: '',
+  delivery_apt_from: '',
+  delivery_apt_to: '',
   bill_of_lading: '',
   booking_number: '',
   branch_id: null,
@@ -201,6 +207,17 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
+  // Single-input appointment helper — sets both _from and _to to the same
+  // value so the appointment is firm by default. Mirrors the bulk-bar APT
+  // form's auto-mirror behavior.
+  function updateApt(prefix, value) {
+    setForm((f) => ({
+      ...f,
+      [`${prefix}_apt_from`]: value || '',
+      [`${prefix}_apt_to`]: value || '',
+    }));
+  }
+
   function selectTemplate(tpl) {
     setForm((f) => ({
       ...f,
@@ -248,8 +265,10 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
         container_number: form.container_number || null,
         container_size: form.container_size || null,
         container_size_id: form.container_size_id || null,
-        pickup_date: form.pickup_date || null,
-        delivery_date: form.delivery_date || null,
+        pickup_apt_from: form.pickup_apt_from || null,
+        pickup_apt_to: form.pickup_apt_to || null,
+        delivery_apt_from: form.delivery_apt_from || null,
+        delivery_apt_to: form.delivery_apt_to || null,
         bill_of_lading: form.bill_of_lading || null,
         booking_number: form.booking_number || null,
         branch_id: form.branch_id || null,
@@ -455,14 +474,18 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
                   options={containerSizes}
                 />
                 <DatePicker
-                  label="Pickup Date"
-                  value={form.pickup_date}
-                  onChange={(v) => update('pickup_date', v)}
+                  showTime
+                  label="Pickup Appointment"
+                  value={form.pickup_apt_from}
+                  onChange={(v) => updateApt('pickup', v)}
+                  helpText="Sets both From + To. Edit to a window via Load Detail."
                 />
                 <DatePicker
-                  label="Delivery Date"
-                  value={form.delivery_date}
-                  onChange={(v) => update('delivery_date', v)}
+                  showTime
+                  label="Delivery Appointment"
+                  value={form.delivery_apt_from}
+                  onChange={(v) => updateApt('delivery', v)}
+                  helpText="Sets both From + To. Edit to a window via Load Detail."
                 />
               </FormSection>
             )}
@@ -477,14 +500,18 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
                 />
                 <div />
                 <DatePicker
-                  label="Pickup Date"
-                  value={form.pickup_date}
-                  onChange={(v) => update('pickup_date', v)}
+                  showTime
+                  label="Pickup Appointment"
+                  value={form.pickup_apt_from}
+                  onChange={(v) => updateApt('pickup', v)}
+                  helpText="Sets both From + To. Edit to a window via Load Detail."
                 />
                 <DatePicker
-                  label="Delivery Date"
-                  value={form.delivery_date}
-                  onChange={(v) => update('delivery_date', v)}
+                  showTime
+                  label="Delivery Appointment"
+                  value={form.delivery_apt_from}
+                  onChange={(v) => updateApt('delivery', v)}
+                  helpText="Sets both From + To. Edit to a window via Load Detail."
                 />
               </FormSection>
             )}
@@ -505,16 +532,20 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
             )}
 
             {form.load_type === 'chassis_reposition' && (
-              <FormSection title="Dates">
+              <FormSection title="Appointments">
                 <DatePicker
-                  label="Pickup Date"
-                  value={form.pickup_date}
-                  onChange={(v) => update('pickup_date', v)}
+                  showTime
+                  label="Pickup Appointment"
+                  value={form.pickup_apt_from}
+                  onChange={(v) => updateApt('pickup', v)}
+                  helpText="Sets both From + To. Edit to a window via Load Detail."
                 />
                 <DatePicker
-                  label="Delivery Date"
-                  value={form.delivery_date}
-                  onChange={(v) => update('delivery_date', v)}
+                  showTime
+                  label="Delivery Appointment"
+                  value={form.delivery_apt_from}
+                  onChange={(v) => updateApt('delivery', v)}
+                  helpText="Sets both From + To. Edit to a window via Load Detail."
                 />
               </FormSection>
             )}

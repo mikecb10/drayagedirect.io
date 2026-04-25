@@ -386,6 +386,12 @@ export default async function handler(req, res) {
       seal_number: body.seal_number || null,
       pickup_date: body.pickup_date || null,
       delivery_date: body.delivery_date || null,
+      // Appointment windows — written by NewLoadModal so the dispatcher
+      // table's Pick Up Apt / Delivery Apt columns light up immediately.
+      pickup_apt_from: body.pickup_apt_from || null,
+      pickup_apt_to: body.pickup_apt_to || null,
+      delivery_apt_from: body.delivery_apt_from || null,
+      delivery_apt_to: body.delivery_apt_to || null,
       bill_of_lading: body.bill_of_lading || null,
       booking_number: body.booking_number || null,
       created_by: ctx.userId,
