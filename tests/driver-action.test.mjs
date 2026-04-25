@@ -7,7 +7,7 @@ function makeMockClient(state) {
   const calls = { inserts: [], updates: [], selects: [] };
   function chain(table) {
     const c = {
-      _table: table, _filters: {}, _payload: null,
+      _table: table, _filters: {}, _negFilters: [], _payload: null, _terminated: false,
       select() { return c; },
       insert(p) {
         calls.inserts.push({ table, payload: p });
@@ -27,6 +27,7 @@ function makeMockClient(state) {
         return c;
       },
       eq(col, val) { c._filters[col] = val; return c; },
+      neq(col, val) { c._negFilters.push([col, val]); return c; },
       maybeSingle() {
         calls.selects.push({ table, filters: { ...c._filters } });
         if (table === 'order_container_moves') {
@@ -45,6 +46,21 @@ function makeMockClient(state) {
           return Promise.resolve({ data: { ...c._payload, id: c._filters.id ?? 'mock' }, error: null });
         }
         return Promise.resolve({ data: null, error: null });
+      },
+      // Thenable: when a query is awaited directly (no .single/.maybeSingle
+      // terminator), resolve with the predefined array. Used by the depart
+      // path's laterEvents query.
+      then(onFulfilled, onRejected) {
+        calls.selects.push({ table, filters: { ...c._filters }, neq: [...c._negFilters] });
+        let data = null;
+        if (table === 'order_routing_events') {
+          // Caller is asking for "events on this move that aren't departed/skipped/me"
+          data = state.laterEvents ?? [];
+        } else if (c._payload != null) {
+          // An UPDATE without .select() — resolve to {data:null, error:null}
+          data = null;
+        }
+        return Promise.resolve({ data, error: null }).then(onFulfilled, onRejected);
       },
     };
     return c;
@@ -157,9 +173,9 @@ test('applyDriverAction rejects start when tracking_status is not idle', async (
   );
 });
 
-test('applyDriverAction rejects ping over 40-cap', async () => {
+test('applyDriverAction rejects ping over PING_CAP (500)', async () => {
   const svc = makeMockClient({
-    move: { id: 'm1', tenant_id: 't1', driver_id: 'd1', tracking_status: 'in_transit', ping_count: 40 },
+    move: { id: 'm1', tenant_id: 't1', driver_id: 'd1', tracking_status: 'in_transit', ping_count: 500 },
     events: [],
   });
   await assert.rejects(
@@ -170,6 +186,23 @@ test('applyDriverAction rejects ping over 40-cap', async () => {
     }),
     /ping_cap_reached/,
   );
+});
+
+test('applyDriverAction allows ping at 499 (just under cap)', async () => {
+  const svc = makeMockClient({
+    move: { id: 'm1', tenant_id: 't1', driver_id: 'd1', tracking_status: 'idle', ping_count: 499 },
+    events: [],
+  });
+  // Should NOT throw
+  await applyDriverAction({
+    supabase: svc, tenantId: 't1', moveId: 'm1', actionType: 'start',
+    driverId: 'd1',
+    gpsPing: { latitude: 37.1, longitude: -122.5, recorded_at: '2026-04-24T12:00:00Z' },
+  });
+  const counterUpdate = svc.__calls.updates.find(
+    (u) => u.table === 'order_container_moves' && u.payload.ping_count === 500,
+  );
+  assert.ok(counterUpdate, 'expected ping_count to land at exactly the cap');
 });
 
 test('applyDriverAction rejects when driver does not own the move', async () => {
@@ -185,4 +218,66 @@ test('applyDriverAction rejects when driver does not own the move', async () => 
     }),
     /forbidden/,
   );
+});
+
+test('applyDriverAction rejects when move has no driver assigned (move_unassigned)', async () => {
+  const svc = makeMockClient({
+    move: { id: 'm1', tenant_id: 't1', driver_id: null, tracking_status: 'idle', ping_count: 0 },
+    events: [],
+  });
+  await assert.rejects(
+    applyDriverAction({
+      supabase: svc, tenantId: 't1', moveId: 'm1', actionType: 'start',
+      driverId: 'd1',
+      gpsPing: { latitude: 37.1, longitude: -122.5, recorded_at: '2026-04-24T12:00:00Z' },
+    }),
+    /move_unassigned/,
+  );
+});
+
+test('applyDriverAction(depart) with remaining events flips tracking_status → in_transit', async () => {
+  const svc = makeMockClient({
+    move: { id: 'm1', tenant_id: 't1', driver_id: 'd1', tracking_status: 'on_site', ping_count: 5 },
+    events: [{
+      id: 'e1', tenant_id: 't1', order_id: 'o1',
+      event_type: 'pull', event_status: 'arrived',
+      arrived_at: '2026-04-24T12:00:00Z', departed_at: null,
+    }],
+    // The laterEvents query returns a non-empty array → in_transit
+    laterEvents: [{ id: 'e2', event_status: 'pending' }, { id: 'e3', event_status: 'pending' }],
+  });
+  await applyDriverAction({
+    supabase: svc, tenantId: 't1', moveId: 'm1', actionType: 'depart',
+    driverId: 'd1', targetEventId: 'e1',
+    gpsPing: { latitude: 37.1, longitude: -122.5, recorded_at: '2026-04-24T12:30:00Z' },
+  });
+  const eventUpdate = svc.__calls.updates.find(
+    (u) => u.table === 'order_routing_events' && u.payload.event_status === 'departed',
+  );
+  assert.ok(eventUpdate, 'expected event_status update to departed');
+  const trackingUpdate = svc.__calls.updates.find(
+    (u) => u.table === 'order_container_moves' && u.payload.tracking_status === 'in_transit',
+  );
+  assert.ok(trackingUpdate, 'expected tracking_status update to in_transit (events remain)');
+});
+
+test('applyDriverAction(depart) with no remaining events flips tracking_status → completed', async () => {
+  const svc = makeMockClient({
+    move: { id: 'm1', tenant_id: 't1', driver_id: 'd1', tracking_status: 'on_site', ping_count: 5 },
+    events: [{
+      id: 'e1', tenant_id: 't1', order_id: 'o1',
+      event_type: 'return', event_status: 'arrived',
+      arrived_at: '2026-04-24T12:00:00Z', departed_at: null,
+    }],
+    laterEvents: [],  // last event of the move
+  });
+  await applyDriverAction({
+    supabase: svc, tenantId: 't1', moveId: 'm1', actionType: 'depart',
+    driverId: 'd1', targetEventId: 'e1',
+    gpsPing: { latitude: 37.1, longitude: -122.5, recorded_at: '2026-04-24T13:00:00Z' },
+  });
+  const trackingUpdate = svc.__calls.updates.find(
+    (u) => u.table === 'order_container_moves' && u.payload.tracking_status === 'completed',
+  );
+  assert.ok(trackingUpdate, 'expected tracking_status update to completed (last event)');
 });
