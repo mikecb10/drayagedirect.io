@@ -11,21 +11,32 @@ import Checkbox from '../ui/Checkbox';
  * driver, dates, or status (all reset to fresh pending loads).
  */
 export default function DuplicateLoadModal({ isOpen, onClose, load, onSuccess }) {
-  const [count, setCount] = useState(1);
+  // String state — lets the user clear the input mid-typing without it
+  // snapping back to "1" on every keystroke. Validated + clamped on blur
+  // and at submit time.
+  const [count, setCount] = useState('1');
   const [skipPricing, setSkipPricing] = useState(false);
   const [skipNotes, setSkipNotes] = useState(true);
   const [withRouting, setWithRouting] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState(null);
 
+  function clampedCount() {
+    const n = parseInt(count, 10);
+    if (!Number.isFinite(n) || n < 1) return 1;
+    if (n > 50) return 50;
+    return n;
+  }
+
   async function handleCreate() {
-    if (count < 1 || count > 50) return;
+    const n = clampedCount();
+    if (n < 1 || n > 50) return;
     setCreating(true);
     setError(null);
 
     try {
       const results = [];
-      for (let i = 0; i < count; i++) {
+      for (let i = 0; i < n; i++) {
         const payload = {
           customer_id: load.customer_id,
           load_type: load.load_type,
@@ -92,7 +103,8 @@ export default function DuplicateLoadModal({ isOpen, onClose, load, onSuccess })
             min={1}
             max={50}
             value={count}
-            onChange={(e) => setCount(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
+            onChange={(e) => setCount(e.target.value)}
+            onBlur={() => setCount(String(clampedCount()))}
             className="block w-24 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 text-sm text-gray-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40"
           />
         </div>
