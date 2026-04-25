@@ -5,6 +5,7 @@ import {
 } from '../../../../../lib/tenant-api';
 import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
 import { PERMISSIONS } from '../../../../../lib/permissions';
+import { syncLoadDriverFromMoves } from '../../../../../lib/dispatcher/sync-load-driver';
 
 const BLOCKED_STATUSES = new Set(['in_progress', 'completed', 'cancelled']);
 
@@ -43,7 +44,7 @@ export default async function handler(req, res) {
   // Load the move; check tenant + status
   const { data: move, error: moveErr } = await svc
     .from('order_container_moves')
-    .select('id, tenant_id, driver_id, status, scheduled_date, sort_order')
+    .select('id, tenant_id, order_id, driver_id, status, scheduled_date, sort_order')
     .eq('id', moveId)
     .eq('tenant_id', ctx.tenantId)
     .maybeSingle();
@@ -139,6 +140,15 @@ export default async function handler(req, res) {
     );
     const priorErr = priorResults.find((r) => r.error);
     if (priorErr) return res.status(500).json({ error: priorErr.error.message });
+  }
+
+  // Mirror the move-level assignment to orders.driver_id (load-level) so
+  // the Dispatcher Load Board's DRIVER column reflects planner state.
+  // Wrapped in try/catch — a sync failure must NOT break the assignment.
+  try {
+    await syncLoadDriverFromMoves(svc, move.order_id, ctx.tenantId);
+  } catch (e) {
+    console.error('[planner/assign] syncLoadDriverFromMoves failed:', e?.message);
   }
 
   await logTenantAction(svc, {

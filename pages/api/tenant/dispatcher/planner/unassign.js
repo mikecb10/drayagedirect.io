@@ -5,6 +5,7 @@ import {
 } from '../../../../../lib/tenant-api';
 import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
 import { PERMISSIONS } from '../../../../../lib/permissions';
+import { syncLoadDriverFromMoves } from '../../../../../lib/dispatcher/sync-load-driver';
 
 const BLOCKED_STATUSES = new Set(['in_progress', 'completed', 'cancelled']);
 
@@ -26,7 +27,7 @@ export default async function handler(req, res) {
 
   const { data: move, error: moveErr } = await svc
     .from('order_container_moves')
-    .select('id, tenant_id, driver_id, scheduled_date, sort_order, status')
+    .select('id, tenant_id, order_id, driver_id, scheduled_date, sort_order, status')
     .eq('id', moveId)
     .eq('tenant_id', ctx.tenantId)
     .maybeSingle();
@@ -79,6 +80,15 @@ export default async function handler(req, res) {
           .eq('tenant_id', ctx.tenantId)
       )
     );
+  }
+
+  // Mirror the unassignment to orders.driver_id (load-level). If this was
+  // the last assigned move on the load, orders.driver_id will clear.
+  // Wrapped in try/catch — a sync failure must NOT break the unassignment.
+  try {
+    await syncLoadDriverFromMoves(svc, move.order_id, ctx.tenantId);
+  } catch (e) {
+    console.error('[planner/unassign] syncLoadDriverFromMoves failed:', e?.message);
   }
 
   await logTenantAction(svc, {
