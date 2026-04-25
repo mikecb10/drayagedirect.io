@@ -255,3 +255,50 @@ body {
 .dd-row-flash > td {
   animation: dd-row-flash-kf 1.5s ease-out;
 }
+
+/* ═══════════════════════════════════════════════════════ */
+/* Scrollbar styling — global override for the chunky      */
+/* OS defaults. Thin, semi-transparent slate thumb on a    */
+/* transparent track. Light + dark mode aware.             */
+/* ═══════════════════════════════════════════════════════ */
+
+/* Webkit (Chrome, Edge, Safari, Opera) */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35); /* slate-400 @ 35% */
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.55); /* slate-500 @ 55% */
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Dark mode — slightly darker base, lighter on hover for contrast */
+.dark *::-webkit-scrollbar-thumb {
+  background: rgba(71, 85, 105, 0.55); /* slate-600 @ 55% */
+  background-clip: padding-box;
+}
+.dark *::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.75); /* slate-500 @ 75% */
+  background-clip: padding-box;
+}
+
+/* Firefox (newer standard property) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+}
+.dark * {
+  scrollbar-color: rgba(71, 85, 105, 0.55) transparent;
+}
