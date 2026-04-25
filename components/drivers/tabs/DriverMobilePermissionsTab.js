@@ -28,6 +28,7 @@ const OTHER_PERMISSIONS = [
   { key: 'require_geofence_clock_in', label: "Require driver to clock into geofenced location first" },
   { key: 'allow_view_documents', label: 'Allow driver to view document types in General Settings' },
   { key: 'allow_add_weight_pieces', label: 'Allow to add weight and pieces for commodities' },
+  { key: 'location_tracking_enabled', label: 'Track driver location during moves' },
 ];
 
 const PROFILE_PERMISSIONS = [
@@ -86,6 +87,18 @@ export default function DriverMobilePermissionsTab({ form, update }) {
         values={perms}
         onChange={setPerms}
       />
+      {(form?.tracking_consented_at || form?.tracking_revoked_at) && (
+        <div className="text-xs text-gray-600 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 pt-3">
+          {form.tracking_consented_at && (
+            <div>Last consented: {new Date(form.tracking_consented_at).toLocaleString()} (v{form.tracking_consent_version || '?'})</div>
+          )}
+          {form.tracking_revoked_at && (
+            <div className="text-amber-700 dark:text-amber-400">
+              Revoked: {new Date(form.tracking_revoked_at).toLocaleString()}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
