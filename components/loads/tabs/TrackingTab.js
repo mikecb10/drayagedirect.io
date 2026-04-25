@@ -2,6 +2,12 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { MapPin, Clock, Truck, Navigation, Radio, Wifi, WifiOff, CircleDot, ArrowRight, Check } from 'lucide-react';
 import { loadGoogleMaps } from '../../../lib/google-maps-loader';
 import { EVENT_LABELS } from '../../../lib/routing-template-seed';
+import EventTimeline from '../tracking/EventTimeline.js';
+import BreadcrumbMap from '../tracking/BreadcrumbMap.js';
+import ActivityLog from '../tracking/ActivityLog.js';
+import {
+  fmtAbsoluteETA, fmtRelativeETA, freshnessColor, freshnessColorClass,
+} from '../../../lib/dispatcher/tracking-display.js';
 
 const SOURCE_LABELS = {
   eld: { label: 'ELD', icon: Radio, color: 'text-green-600 dark:text-green-400', bg: 'bg-green-100 dark:bg-green-950/40' },
@@ -40,6 +46,10 @@ export default function TrackingTab({ load }) {
   const [driverLocation, setDriverLocation] = useState(null);
   const [locations, setLocations] = useState({});
   const [selectedEventId, setSelectedEventId] = useState(null);
+  // New: per-move live tracking state (Task 33 endpoint fields)
+  const [pings, setPings] = useState([]);
+  const [eventsHistory, setEventsHistory] = useState([]);
+  const [movesHistory, setMovesHistory] = useState([]);
 
   const driverName = load.driver
     ? `${load.driver.first_name || ''} ${load.driver.last_name || ''}`.trim() || load.driver.name
@@ -59,6 +69,10 @@ export default function TrackingTab({ load }) {
           setLocations(data.locations || {});
           setLastPing(data.last_ping || null);
           setGpsSource(data.gps_source || null);
+          // New: per-move live tracking fields
+          setPings(data.pings || []);
+          setEventsHistory(data.events_history || []);
+          setMovesHistory(data.moves_history || []);
           if (data.last_ping) {
             setDriverLocation({
               lat: parseFloat(data.last_ping.latitude),
@@ -78,6 +92,18 @@ export default function TrackingTab({ load }) {
     if (!eventsByMove[evt.move_id]) eventsByMove[evt.move_id] = [];
     eventsByMove[evt.move_id].push(evt);
   }
+
+  // Build enriched moves for the Live Tracking section (moves extended with their events array)
+  const movesById = (moves || []).reduce((acc, m) => {
+    acc[m.id] = { ...m, events: [] };
+    return acc;
+  }, {});
+  for (const e of routingEvents || []) {
+    if (movesById[e.move_id]) {
+      movesById[e.move_id].events.push(e);
+    }
+  }
+  const enrichedMoves = Object.values(movesById);
 
   // Init map
   useEffect(() => {
@@ -226,6 +252,67 @@ export default function TrackingTab({ load }) {
 
   return (
     <div className="space-y-4">
+      {/* New: per-move Live Tracking section (Task 37) — shown above legacy UI when any move is actively tracked */}
+      {enrichedMoves.length > 0 && enrichedMoves.some((m) => m.tracking_status && m.tracking_status !== 'idle') && (
+        <div className="space-y-4 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Live Tracking</h2>
+          {enrichedMoves
+            .filter((m) => m.tracking_status && m.tracking_status !== 'idle')
+            .map((m) => {
+              const driver = m.driver || {};
+              const dot = freshnessColorClass(freshnessColor(m.last_ping_at));
+              const nextPending = (m.events || []).find((e) => e.event_status === 'pending');
+              const arrived = (m.events || []).find((e) => e.event_status === 'arrived');
+              const movePings = (pings || []).filter((p) => p.move_id === m.id);
+              return (
+                <div key={m.id} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                  <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center gap-2 text-sm flex-wrap">
+                      <span className={`w-2 h-2 rounded-full ${dot}`} />
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        Driver: {driver.name || '—'}
+                      </span>
+                      <span className="text-gray-500 dark:text-gray-400">·</span>
+                      <span className="text-gray-700 dark:text-gray-300 capitalize">
+                        {m.tracking_status?.replace('_', ' ') || 'idle'}
+                      </span>
+                      {m.tracking_status === 'in_transit' && nextPending?.eta_arrival_at && (
+                        <>
+                          <span className="text-gray-500 dark:text-gray-400">·</span>
+                          <span className="text-blue-700 dark:text-blue-400">
+                            ETA {fmtAbsoluteETA(nextPending.eta_arrival_at)} ({fmtRelativeETA(nextPending.eta_arrival_at)}) → {nextPending.location_name}
+                          </span>
+                        </>
+                      )}
+                      {m.tracking_status === 'on_site' && arrived && (
+                        <>
+                          <span className="text-gray-500 dark:text-gray-400">·</span>
+                          <span className="text-green-700 dark:text-green-400">📍 {arrived.location_name}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3">
+                    <BreadcrumbMap move={m} pings={movePings} />
+                    <EventTimeline move={m} />
+                  </div>
+                </div>
+              );
+            })}
+          {/* Activity log below all moves */}
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Driver Activity Log</h3>
+            <ActivityLog
+              events_history={eventsHistory}
+              moves_history={movesHistory}
+              events={routingEvents}
+              moves={enrichedMoves}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Legacy migration-036-era UI — preserved below */}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
