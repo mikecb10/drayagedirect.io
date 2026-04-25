@@ -76,20 +76,28 @@ export default async function handler(req, res) {
 
   if (insertErr) return res.status(500).json({ error: insertErr.message });
 
-  await logTenantAction(svc, {
-    tenantId: ctx.tenantId,
-    userId: ctx.userId,
-    action: 'load.bulk_note_create',
-    entityType: 'order',
-    entityId: null,
-    newValues: {
-      count: inserted?.length || 0,
-      load_ids: validIds,
-      audience,
-      body_preview: trimmedBody.slice(0, 100),
-    },
-    ipAddress: getClientIp(req),
-  });
+  // Write one audit row per affected load (entity_id scoped to that load)
+  // so each load's audit page surfaces the new note. The bulk_count field
+  // lets a future reader see this note was part of a multi-load action.
+  const insertedIds = (inserted || []).map((r) => r.order_id);
+  const ip = getClientIp(req);
+  await Promise.all(
+    insertedIds.map((load_id) =>
+      logTenantAction(svc, {
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        action: 'load.bulk_note_create',
+        entityType: 'order',
+        entityId: load_id,
+        newValues: {
+          audience,
+          body_preview: trimmedBody.slice(0, 100),
+          bulk_count: insertedIds.length,
+        },
+        ipAddress: ip,
+      })
+    )
+  );
 
   return res.status(201).json({
     count: inserted?.length || 0,

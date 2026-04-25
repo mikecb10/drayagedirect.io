@@ -164,19 +164,24 @@ export default async function handler(req, res) {
 
   if (error) return res.status(500).json({ error: error.message });
 
-  await logTenantAction(svc, {
-    tenantId: ctx.tenantId,
-    userId: ctx.userId,
-    action: 'load.bulk_update',
-    entityType: 'order',
-    entityId: null,
-    newValues: {
-      count: data?.length || 0,
-      load_ids: (data || []).map((d) => d.id),
-      patch: updates,
-    },
-    ipAddress: getClientIp(req),
-  });
+  // Write one audit row per affected load (entity_id scoped to that load)
+  // so each load's audit page surfaces the change. The bulk_count field
+  // lets a future reader see this update was part of a multi-load action.
+  const updatedIds = (data || []).map((d) => d.id);
+  const ip = getClientIp(req);
+  await Promise.all(
+    updatedIds.map((load_id) =>
+      logTenantAction(svc, {
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        action: 'load.bulk_update',
+        entityType: 'order',
+        entityId: load_id,
+        newValues: { patch: updates, bulk_count: updatedIds.length },
+        ipAddress: ip,
+      })
+    )
+  );
 
   return res.status(200).json({
     updated: data?.length || 0,
