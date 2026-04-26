@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 import { FileText } from 'lucide-react';
 import SettingsLayout from '../../../components/settings/SettingsLayout';
@@ -116,9 +116,19 @@ export default function DocumentDesignerPage() {
     ? templates.find((t) => t.customer_id === selectedCustomerId)
     : null;
 
-  const currentTemplate = selectedCustomerId === null
-    ? (tenantDefault || { customer_id: null, document_type: selectedDocType, section_config: {} })
-    : (currentOverride || { customer_id: selectedCustomerId, document_type: selectedDocType, section_config: {} });
+  // Memoize the resolved template so its reference is stable across renders
+  // when underlying data hasn't changed. Without memoization, the no-row-yet
+  // fallback `{ section_config: {} }` would be a fresh object every render,
+  // re-triggering TemplateEditor's `[template.section_config, template.id]`
+  // useEffect and resetting toggle state on every parent re-render.
+  const currentTemplate = useMemo(
+    () => (
+      selectedCustomerId === null
+        ? (tenantDefault || { customer_id: null, document_type: selectedDocType, section_config: {} })
+        : (currentOverride || { customer_id: selectedCustomerId, document_type: selectedDocType, section_config: {} })
+    ),
+    [tenantDefault, currentOverride, selectedCustomerId, selectedDocType],
+  );
 
   const existingOverrideCustomerIds = new Set(
     templates.filter((t) => t.customer_id !== null).map((t) => t.customer_id),
