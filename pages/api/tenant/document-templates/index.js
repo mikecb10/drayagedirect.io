@@ -20,7 +20,9 @@ export default async function handler(req, res) {
     const { document_type, customer_id } = req.query || {};
     let query = svc
       .from('document_templates')
-      .select('id, tenant_id, customer_id, document_type, section_config, created_at, updated_at')
+      .select(
+        'id, tenant_id, customer_id, document_type, section_config, created_at, updated_at, customer:customers!document_templates_customer_id_fkey(id, name)'
+      )
       .eq('tenant_id', ctx.tenantId)
       .order('document_type', { ascending: true });
     if (document_type) {

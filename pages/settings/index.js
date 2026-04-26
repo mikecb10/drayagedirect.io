@@ -19,6 +19,7 @@ const ITEM_DESCRIPTIONS = {
   per_diem: 'Tiered per-diem free day pricing rules.',
   dispatcher_colors: 'Customize how loads appear on the Dispatcher board.',
   document_validation: 'Choose which document types require dispatcher approval.',
+  document_designer: 'Customize printed documents per tenant or per customer.',
   container_owners: 'Steamship lines and container owner directory.',
   chassis_owners: 'Pool operators, leased fleets, and your own chassis fleet.',
   equipment_reference: 'Container types, container sizes, chassis types, chassis sizes.',
