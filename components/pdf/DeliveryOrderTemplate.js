@@ -52,39 +52,45 @@ function renderSection(sectionId, doc, opts, ctx) {
   }
 }
 
-export default function DeliveryOrderTemplate({ docs, variant, sectionConfig }) {
+export default function DeliveryOrderTemplate({
+  docs,
+  variant,
+  sectionConfig,
+  perDocSectionConfigs,
+}) {
   const registrySections = getSectionsForDocumentType(variant);
-  const visibility = computeVisibility(registrySections, sectionConfig);
-  const order = sectionConfig?.order || registrySections.map((s) => s.id);
-
-  // driver_per_move is a registry-level toggle but physically renders inside
-  // MoveBlock; thread it through opts so the Designer can hide driver names
-  // without restructuring the routing block.
-  const moveOpts = {
-    ...(sectionConfig?.perSection?.move_block || {}),
-    show_driver: visibility.driver_per_move,
-  };
 
   return (
     <Document>
-      {(docs || []).map((doc) => (
-        <Page key={doc.order_id} size="LETTER" style={typography.page} wrap>
-          <Header
-            tenantName={doc.tenant_name}
-            title="DELIVERY ORDER"
-            subtitle={variant === 'delivery_order_next_move' ? 'Next Move' : null}
-          />
-          {order.map((sectionId) => {
-            if (!visibility[sectionId]) return null;
-            const opts =
-              sectionId === 'move_block'
-                ? moveOpts
-                : sectionConfig?.perSection?.[sectionId];
-            const node = renderSection(sectionId, doc, opts, { variant });
-            return node ? <React.Fragment key={sectionId}>{node}</React.Fragment> : null;
-          })}
-        </Page>
-      ))}
+      {(docs || []).map((doc, idx) => {
+        // Per-doc resolver result wins; otherwise fall back to the single
+        // sectionConfig prop; otherwise undefined → registry defaults.
+        const cfg = perDocSectionConfigs?.[idx] ?? sectionConfig;
+        const visibility = computeVisibility(registrySections, cfg);
+        const order = cfg?.order || registrySections.map((s) => s.id);
+        const moveOpts = {
+          ...(cfg?.perSection?.move_block || {}),
+          show_driver: visibility.driver_per_move,
+        };
+        return (
+          <Page key={doc.order_id} size="LETTER" style={typography.page} wrap>
+            <Header
+              tenantName={doc.tenant_name}
+              title="DELIVERY ORDER"
+              subtitle={variant === 'delivery_order_next_move' ? 'Next Move' : null}
+            />
+            {order.map((sectionId) => {
+              if (!visibility[sectionId]) return null;
+              const opts =
+                sectionId === 'move_block'
+                  ? moveOpts
+                  : cfg?.perSection?.[sectionId];
+              const node = renderSection(sectionId, doc, opts, { variant });
+              return node ? <React.Fragment key={sectionId}>{node}</React.Fragment> : null;
+            })}
+          </Page>
+        );
+      })}
     </Document>
   );
 }
