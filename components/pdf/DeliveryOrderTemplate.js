@@ -6,33 +6,112 @@ import {
   getSectionsForDocumentType,
   computeVisibility,
 } from '../../lib/constants/document-sections';
-import LoadMetadata from './sections/LoadMetadata';
-import BillTo from './sections/BillTo';
-import CustomerContact from './sections/CustomerContact';
-import EquipmentDetails from './sections/EquipmentDetails';
-import HazmatDetails from './sections/HazmatDetails';
-import Instructions from './sections/Instructions';
-import AppointmentDetails from './sections/AppointmentDetails';
+import DeliveryOrderDetails from './sections/DeliveryOrderDetails';
+import AddressDetails from './sections/AddressDetails';
+import OrderDetails from './sections/OrderDetails';
+import Notes from './sections/Notes';
+import CommodityDetails from './sections/CommodityDetails';
+import Signature from './sections/Signature';
+import Disclaimer from './sections/Disclaimer';
 import MoveBlock from './sections/MoveBlock';
-import SignatureBlock from './sections/SignatureBlock';
 import BarcodeBlock from './sections/BarcodeBlock';
 import DocumentFooter from './sections/DocumentFooter';
 
 /**
- * Maps section ID -> render function. New sections plug in by
- * adding an entry here and to the registry in
- * lib/constants/document-sections.js.
+ * Build the per-section data subsets the new components expect from the
+ * shared `doc` payload. In FU-035-D, this is mostly a re-shape of the
+ * data the old per-section components received; new fields with no data
+ * source today (logo, locations, weight, etc.) are passed as null.
  */
-function renderSection(sectionId, doc, opts, ctx) {
+function buildSectionData(doc) {
+  const lm = doc.load_metadata || {};
+  const eq = doc.equipment_details || {};
+  const ap = doc.appointment_details || {};
+  const hz = doc.hazmat_details || {};
+  const inst = doc.instructions || {};
+  const firstMove = (doc.moves || [])[0] || {};
+
+  return {
+    header: {
+      tenantName: doc.tenant_name,
+      tenantInfo: doc.tenant_info || {},  // logo_url / address / phone / website — populated in D2/F
+    },
+    delivery_order_details: {
+      delivery_order_number: lm.load_number,
+      pickup_number:         eq.pickup_number,
+      driver_name:           firstMove.driver_name,
+      delivery_appointment:  ap.delivery_appt_number,
+      reference_number:      lm.customer_reference,
+    },
+    address_details: {
+      customer: doc.bill_to ? {
+        name:          doc.bill_to.name,
+        address_line1: doc.bill_to.address_line1,
+        city:          doc.bill_to.city,
+        state:         doc.bill_to.state,
+        zip:           doc.bill_to.zip,
+        phone:         doc.customer_contact?.phone,
+        email:         doc.customer_contact?.email,
+      } : null,
+      pickup_location:   null, // D2
+      delivery_location: null, // D2
+      return_location:   null, // D2
+      appointment_times: {
+        pickup:   ap.pickup_appt_number,
+        delivery: ap.delivery_appt_number,
+      },
+      is_operational_street_turn: doc.is_operational_street_turn || false,
+    },
+    order_details: {
+      reference_number:      lm.customer_reference,
+      booking_bl:            eq.booking_number || eq.bl_number,
+      mbol:                  eq.mbol_number,
+      hbol:                  eq.hbol_number,
+      container_number:      eq.container_number || lm.container_number,
+      container_size:        eq.container_size,
+      container_type:        eq.container_type,
+      chassis_number:        eq.chassis_number || lm.chassis_number,
+      chassis_size:          eq.chassis_size,
+      chassis_type:          eq.chassis_type,
+      chassis_owner:         eq.chassis_owner,
+      steamship_line:        eq.steamship_line,
+      seal:                  eq.seal_number,
+      hazmat:                hz.hazmat_class ? `${hz.un_code || ''} ${hz.hazmat_class}`.trim() : null,
+      pickup_number:         eq.pickup_number,
+      pull_container_date:   ap.pull_container_date,
+      return_container_date: ap.return_container_date,
+      last_free_day:         ap.last_free_day,
+      per_diem_free_day:     ap.per_diem_free_day,
+    },
+    notes: {
+      driver_notes:   inst.driver_notes,
+      yard_notes:     null, // D2 / data layer FU
+      customer_notes: null, // D2
+      billing_notes:  null, // D2
+      load_notes:     inst.special_instructions,
+    },
+  };
+}
+
+function renderSection(sectionId, doc, sectionData, opts, ctx) {
   switch (sectionId) {
-    case 'load_metadata':       return <LoadMetadata data={doc.load_metadata} />;
-    case 'bill_to':             return <BillTo data={doc.bill_to} />;
-    case 'customer_contact':    return <CustomerContact data={doc.customer_contact} />;
-    case 'equipment_details':   return <EquipmentDetails data={doc.equipment_details} opts={opts} />;
-    case 'hazmat_details':      return <HazmatDetails data={doc.hazmat_details} />;
-    case 'instructions':        return <Instructions data={doc.instructions} />;
-    case 'appointment_details': return <AppointmentDetails data={doc.appointment_details} />;
-    case 'move_block':
+    case 'header':
+      return (
+        <Header
+          tenantName={sectionData.header.tenantName}
+          tenantInfo={sectionData.header.tenantInfo}
+          title={ctx.title}
+          subtitle={ctx.subtitle}
+          opts={opts}
+        />
+      );
+    case 'delivery_order_details':
+      return <DeliveryOrderDetails data={sectionData.delivery_order_details} opts={opts} />;
+    case 'address_details':
+      return <AddressDetails data={sectionData.address_details} opts={opts} />;
+    case 'order_details':
+      return <OrderDetails data={sectionData.order_details} opts={opts} />;
+    case 'move_events':
       return (
         <MoveBlock
           data={{ moves: doc.moves }}
@@ -41,14 +120,13 @@ function renderSection(sectionId, doc, opts, ctx) {
           totalMoves={doc.total_moves_in_load}
         />
       );
-    case 'driver_per_move':
-      // Driver display is controlled inside MoveBlock via opts; the registry
-      // entry exists so the Document Designer can toggle "show driver name".
-      return null;
-    case 'signature_block':     return <SignatureBlock />;
-    case 'barcode':             return <BarcodeBlock data={doc.load_metadata} />;
-    case 'footer':              return <DocumentFooter data={{ tenant_name: doc.tenant_name }} />;
-    default:                    return null;
+    case 'commodity_details': return <CommodityDetails />;
+    case 'notes':              return <Notes data={sectionData.notes} opts={opts} />;
+    case 'signature':          return <Signature />;
+    case 'disclaimer':         return <Disclaimer />;
+    case 'barcode':            return <BarcodeBlock data={doc.load_metadata} />;
+    case 'footer':             return <DocumentFooter data={{ tenant_name: doc.tenant_name }} />;
+    default:                   return null;
   }
 }
 
@@ -63,33 +141,30 @@ export default function DeliveryOrderTemplate({
   return (
     <Document>
       {(docs || []).map((doc, idx) => {
-        // Per-doc resolver result wins; otherwise fall back to the single
-        // sectionConfig prop; otherwise undefined → registry defaults.
         const cfg = perDocSectionConfigs?.[idx] ?? sectionConfig;
-        // FU-035-D transitional: registry now emits new section IDs that
-        // don't match this switch yet. Task 9 rewrites the switch + reads
-        // `fields` for field-level visibility. Until then, PDFs render empty
-        // (every section ID misses every case → default null).
-        const { visibility } = computeVisibility(registrySections, cfg);
+        const { visibility, fields } = computeVisibility(registrySections, cfg);
         const order = cfg?.order || registrySections.map((s) => s.id);
-        const moveOpts = {
-          ...(cfg?.perSection?.move_block || {}),
-          show_driver: visibility.driver_per_move,
+        const sectionData = buildSectionData(doc);
+
+        const ctx = {
+          variant,
+          title: 'DELIVERY ORDER',
+          subtitle: variant === 'delivery_order_next_move' ? 'Next Move' : null,
         };
+
         return (
           <Page key={doc.order_id} size="LETTER" style={typography.page} wrap>
-            <Header
-              tenantName={doc.tenant_name}
-              title="DELIVERY ORDER"
-              subtitle={variant === 'delivery_order_next_move' ? 'Next Move' : null}
-            />
             {order.map((sectionId) => {
               if (!visibility[sectionId]) return null;
-              const opts =
-                sectionId === 'move_block'
-                  ? moveOpts
-                  : cfg?.perSection?.[sectionId];
-              const node = renderSection(sectionId, doc, opts, { variant });
+              const baseOpts = cfg?.perSection?.[sectionId] || {};
+              const opts = { ...baseOpts, fields: fields[sectionId] || {} };
+              // move_events still wants the legacy show_driver flag for now —
+              // in D, it's controlled by delivery_order_details.fields.driver_name
+              // (the visible toggle). Wire it through:
+              if (sectionId === 'move_events') {
+                opts.show_driver = fields.delivery_order_details?.driver_name !== false;
+              }
+              const node = renderSection(sectionId, doc, sectionData, opts, ctx);
               return node ? <React.Fragment key={sectionId}>{node}</React.Fragment> : null;
             })}
           </Page>
