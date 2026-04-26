@@ -13,6 +13,7 @@ import { LOAD_TYPES as CENTRAL_LOAD_TYPES } from '../../lib/constants/load-types
 import { Package, Truck, ArrowRight as ArrowRightIcon, RefreshCcw, FileText } from 'lucide-react';
 import {
   DndContext,
+  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
@@ -21,6 +22,7 @@ import {
 import {
   SortableContext,
   rectSortingStrategy,
+  sortableKeyboardCoordinates,
   useSortable,
   arrayMove,
 } from '@dnd-kit/sortable';
@@ -253,7 +255,8 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
   })();
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   function persistOrder(newOrderIds) {
