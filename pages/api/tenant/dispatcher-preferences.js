@@ -10,6 +10,7 @@ const EDITABLE_FIELDS = [
   'compact_mode',
   'skip_routing_confirmations',
   'open_routing_on_dispatch',
+  'routing_template_order',
 ];
 
 export default async function handler(req, res) {
@@ -42,6 +43,7 @@ export default async function handler(req, res) {
           column_widths: {},
           saved_filters: {},
           row_density: 'comfortable',
+          routing_template_order: [],
         })
         .select()
         .single();
