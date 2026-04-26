@@ -135,7 +135,7 @@ export default function DocumentPreview({ visibility, fields, sections }) {
 
 ## 7. Sample data shape
 
-`lib/document-designer/sample-data.js`:
+`lib/document-designer/sample-data.js`. **Important — keep this shape mirrored against `buildSectionData(doc)` in `components/pdf/DeliveryOrderTemplate.js`.** When the composer changes its data shape (likely in D2), sample-data.js needs to update in the same commit. Add a header comment at the top of the file: `// Mirror this shape against buildSectionData() in components/pdf/DeliveryOrderTemplate.js — drift here means preview shows different content than print.`
 
 ```js
 const sampleData = {
@@ -272,6 +272,12 @@ Visual:
 - Padding `p-8` inside the preview to feel paper-like.
 - Text: `text-sm text-gray-900` (forced black-on-white even in dark mode — a real document is white).
 
+**Transient-state banner.** Above the preview pane (visible until D2 ships), render a small dismissible info banner:
+
+> *Preview reflects the upcoming document layout. Printed PDFs use the current layout until the rendering update ships.*
+
+Styled subtle (`bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 text-amber-900 dark:text-amber-200 text-xs px-3 py-1.5 rounded`). Not dismissible — disappears in the same commit that rewrites the PDF layout (D2). Eliminates the "I toggled something but my printed PDF looks different" confusion.
+
 Dark mode:
 - Editor side respects `dark:` classes per `dev_dark_mode_convention`.
 - Preview side stays light (`bg-white text-gray-900`) — printed documents don't have dark mode.
@@ -342,10 +348,12 @@ Unchanged from FU-035-A/B. Page-level gate at `[PERMISSIONS.SETTINGS, PERMISSION
 ## 16. Risk and rollback
 
 **Risks:**
-1. **Preview layout drifts from D2's PDF layout** when D2 ships. Mitigation: when implementing D2, treat the preview HTML components as the spec — D2's React-PDF components should render the same visual structure.
-2. **Sample data shape mismatch with PDF data** — preview shows things differently from how the actual print would. Mitigation: sample-data.js mirrors the shape of `buildSectionData(doc)` from `DeliveryOrderTemplate.js`, so when the composer is updated in D2, the same data flow informs both renders.
-3. **Side-by-side breaks at narrow widths.** Mitigation: explicit `flex-col` fallback below `lg:` breakpoint.
-4. **Preview pane sticky scroll glitches** when the editor body has horizontally-clipped content (e.g., a long section name). Mitigation: rely on standard Tailwind `sticky top-4` + `max-h-[calc(100vh-2rem)] overflow-y-auto`; test in browser; adjust if jank shows up.
+1. **Preview layout drifts from D2's PDF layout** when D2 ships. Mitigation: when implementing D2, treat the preview HTML components as the spec — D2's React-PDF components should render the same visual structure. Reference the preview file directly in D2's task descriptions (e.g., "OrderDetails.js layout should match OrderDetailsPreview.js").
+2. **Long-term component duplication drift.** Every section now has a PDF component AND a preview component (e.g., `OrderDetails.js` + `OrderDetailsPreview.js`). Six months from now, a developer changing one and forgetting the other creates silent visual regressions. Mitigations: (a) extract shared constants — field labels, section ordering — into a constants module both components import, so a label rename touches one file; (b) when D2 ships, audit that PDF components and preview components render the same data shape and same visible labels; (c) consider a smoke test in `tests/` that diffs the strings rendered by each pair (deferred — manual eye-check is fine for v1).
+3. **Sample data shape mismatch with PDF data** — preview shows things differently from how the actual print would. Mitigation: sample-data.js mirrors the shape of `buildSectionData(doc)` from `DeliveryOrderTemplate.js`, with a header comment marking the coupling explicitly (see §7). When the composer is updated in D2, the same data flow informs both renders.
+4. **Side-by-side breaks at narrow widths.** Mitigation: explicit `flex-col` fallback below `lg:` breakpoint.
+5. **Preview pane sticky scroll glitches** when the editor body has horizontally-clipped content (e.g., a long section name). Mitigation: rely on standard Tailwind `sticky top-4` + `max-h-[calc(100vh-2rem)] overflow-y-auto`; test in browser; adjust if jank shows up.
+6. **User confusion when printed PDF differs from preview.** Mitigation: transient-state banner above the preview (see §9) explicitly tells the user the preview reflects the upcoming layout and the printed PDF still uses the current one. Banner is removed in the same commit as D2.
 
 **Rollback:** revert the commit. The TemplateEditor refactor falls back to its FU-035-D state (just the toggle list, no preview pane). No data migration involved — preview is purely additive UI.
 
