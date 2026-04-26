@@ -170,7 +170,7 @@ export default function BulkActionBar({
     { key: 'add_to_order', label: 'Add to Order', icon: PackagePlus, onClick: () => handleStub('Add to Order'), disabled: true },
     { key: 'live_share', label: 'Live Share', icon: Share2, onClick: () => handleStub('Live Share'), disabled: true },
     { key: 'copy_container', label: 'Copy Container', icon: Copy, onClick: handleCopyContainers },
-    { key: 'print', label: 'Print', icon: Printer, onClick: () => handleStub('Print') },
+    { key: 'print', label: 'Print', icon: Printer, hasPopover: true },
     { key: 'delete', label: 'Delete', icon: Trash2, onClick: handleBulkSoftDelete, destructive: true },
   ];
 
@@ -269,6 +269,16 @@ export default function BulkActionBar({
               onSubmit={applyAndClose}
               loadIds={Array.from(selectedIds)}
               onFlash={onFlash}
+            />
+          </CellPopover>
+        );
+      case 'print':
+        return (
+          <CellPopover anchorEl={anchor} onClose={() => setOpenAction(null)} width={300}>
+            <PrintForm
+              loadIds={Array.from(selectedIds)}
+              onFlash={onFlash}
+              onClose={() => setOpenAction(null)}
             />
           </CellPopover>
         );
@@ -966,6 +976,106 @@ function LoadInfoForm({ onSubmit, loadIds, onFlash }) {
       <FormBtn disabled={isEmpty() || submitting} onClick={handleSubmit}>
         {submitting ? 'Saving…' : 'Add Load Info'}
       </FormBtn>
+    </div>
+  );
+}
+
+// ===== Print bulk Delivery Order popover =====
+// FU-093: bulk-bar Print → opens a small variant picker. Each variant
+// fires POST /api/tenant/loads/bulk-print and opens the returned PDF
+// blob in a new browser tab. Skipped-count comes back via header.
+function PrintForm({ loadIds, onFlash, onClose }) {
+  const [busy, setBusy] = useState(false);
+
+  async function handlePrint(variant) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch('/api/tenant/loads/bulk-print', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: loadIds, variant }),
+      });
+      if (!res.ok) {
+        let errMsg = `HTTP ${res.status}`;
+        try {
+          const body = await res.json();
+          errMsg = body.error || errMsg;
+        } catch (_) {
+          // non-JSON error body — keep status
+        }
+        onFlash?.(`Print failed: ${errMsg}`, 'error');
+        setBusy(false);
+        return;
+      }
+      const skippedCount = parseInt(res.headers.get('X-Skipped-Count') || '0', 10);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      // Revoke the object URL after a delay so the new tab has time to load it.
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+
+      if (skippedCount > 0) {
+        const printedCount = loadIds.length - skippedCount;
+        onFlash?.(
+          `Printed ${printedCount} of ${loadIds.length} loads (${skippedCount} skipped — no remaining moves)`,
+          'warning'
+        );
+      } else {
+        onFlash?.(
+          `Printed ${loadIds.length} load${loadIds.length === 1 ? '' : 's'}`,
+          'success'
+        );
+      }
+      onClose?.();
+    } catch (e) {
+      onFlash?.(`Print failed: ${e.message}`, 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const buttonClass =
+    'w-full text-left rounded-lg border border-gray-300 dark:border-slate-600 ' +
+    'bg-white dark:bg-slate-900 px-3 py-2 hover:bg-gray-50 dark:hover:bg-slate-800 ' +
+    'disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer';
+
+  return (
+    <div className="flex flex-col gap-2 p-2 min-w-[260px]">
+      <div className="text-[11px] font-medium text-gray-600 dark:text-slate-300">
+        Print which?
+      </div>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => handlePrint('delivery_order_full')}
+        className={buttonClass}
+      >
+        <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
+          Full Delivery Order
+        </div>
+        <div className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">
+          Entire routing across all moves
+        </div>
+      </button>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => handlePrint('delivery_order_next_move')}
+        className={buttonClass}
+      >
+        <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
+          Next Move Only
+        </div>
+        <div className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">
+          Just the upcoming non-completed move
+        </div>
+      </button>
+      {busy ? (
+        <div className="text-[11px] text-gray-500 dark:text-slate-400 italic mt-1">
+          Generating PDF…
+        </div>
+      ) : null}
     </div>
   );
 }
