@@ -5,6 +5,7 @@ import {
   SECTIONS_BY_DOCUMENT_TYPE,
   getSectionsForDocumentType,
   computeVisibility,
+  extractColors,
 } from '../lib/constants/document-sections.js';
 
 test('DELIVERY_ORDER_SECTIONS entries have required keys', () => {
@@ -118,4 +119,27 @@ test('computeVisibility ignores override for non-toggleable sections', () => {
     visibility: { footer: false },
   });
   assert.equal(result.visibility.footer, true);
+});
+
+test('extractColors returns defaults when sectionConfig is empty/missing', () => {
+  assert.deepEqual(extractColors(undefined), { accent: '#3B82F6', text: '#111827' });
+  assert.deepEqual(extractColors(null), { accent: '#3B82F6', text: '#111827' });
+  assert.deepEqual(extractColors({}), { accent: '#3B82F6', text: '#111827' });
+  assert.deepEqual(extractColors({ visibility: {} }), { accent: '#3B82F6', text: '#111827' });
+});
+
+test('extractColors preserves provided values', () => {
+  const cfg = { colors: { accent: '#FF0000', text: '#222222' } };
+  assert.deepEqual(extractColors(cfg), { accent: '#FF0000', text: '#222222' });
+});
+
+test('extractColors fills only-accent or only-text with defaults', () => {
+  assert.deepEqual(
+    extractColors({ colors: { accent: '#00FF00' } }),
+    { accent: '#00FF00', text: '#111827' }
+  );
+  assert.deepEqual(
+    extractColors({ colors: { text: '#888888' } }),
+    { accent: '#3B82F6', text: '#888888' }
+  );
 });
