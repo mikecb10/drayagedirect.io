@@ -1,5 +1,5 @@
 import { Document, Page, View, Text } from '@react-pdf/renderer';
-import Header from './shared/Header';
+import Header from './sections/Header';
 import LineItemsTable from './shared/LineItemsTable';
 import { typography, colors } from './shared/typography';
 

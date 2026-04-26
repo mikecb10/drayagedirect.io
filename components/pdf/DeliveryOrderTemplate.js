@@ -1,6 +1,6 @@
 import React from 'react';
 import { Document, Page } from '@react-pdf/renderer';
-import Header from './shared/Header';
+import Header from './sections/Header';
 import { typography } from './shared/typography';
 import {
   getSectionsForDocumentType,
