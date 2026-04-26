@@ -6,7 +6,7 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Alert from '../ui/Alert';
 import DatePicker from '../ui/DatePicker';
-import OrgPicker from '../org/OrgPicker';
+import OrgPicker from '../ui/OrgPicker';
 import BranchPicker from '../ui/BranchPicker';
 import { useAuth } from '../../contexts/AuthContext';
 import { LOAD_TYPES as CENTRAL_LOAD_TYPES } from '../../lib/constants/load-types.js';
