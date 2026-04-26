@@ -77,7 +77,7 @@ Storage in `document_templates.section_config`:
 
 **Default-true semantics** (matches FU-035-A behavior, extended to fields):
 - If `visibility[section_id]` is undefined → use `defaultVisible` from registry.
-- If `perSection[section_id].fields[field_id]` is undefined → default to `true`.
+- If `perSection[section_id].fields[field_id]` is undefined → resolves to that field's registry `defaultVisible`. Most field defaults are `true`, but a few are `false` (e.g., `header.website`, `notes.billing_notes`, `address_details.display_pickup_for_operational_street_turns`) — those stay hidden until explicitly enabled.
 
 Default-true on fields means new fields added to the registry later are visible by default for existing rows — the right behavior for additive changes.
 

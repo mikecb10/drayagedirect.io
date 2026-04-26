@@ -66,7 +66,11 @@ export default function DeliveryOrderTemplate({
         // Per-doc resolver result wins; otherwise fall back to the single
         // sectionConfig prop; otherwise undefined → registry defaults.
         const cfg = perDocSectionConfigs?.[idx] ?? sectionConfig;
-        const visibility = computeVisibility(registrySections, cfg);
+        // FU-035-D transitional: registry now emits new section IDs that
+        // don't match this switch yet. Task 9 rewrites the switch + reads
+        // `fields` for field-level visibility. Until then, PDFs render empty
+        // (every section ID misses every case → default null).
+        const { visibility } = computeVisibility(registrySections, cfg);
         const order = cfg?.order || registrySections.map((s) => s.id);
         const moveOpts = {
           ...(cfg?.perSection?.move_block || {}),
