@@ -66,3 +66,85 @@ test('validateSectionConfig still rejects unknown top-level keys', () => {
   assert.equal(r.ok, false);
   assert.match(r.error, /unknown section_config key: bogus/);
 });
+
+test('validateSectionConfig accepts valid perSection.fields keys + boolean values', () => {
+  const r = validateSectionConfig(
+    {
+      perSection: {
+        order_details: { fields: { container_number: true, seal: false } },
+        header: { fields: { logo: false } },
+      },
+    },
+    VALID_TYPE,
+  );
+  assert.equal(r.ok, true);
+});
+
+test('validateSectionConfig rejects unknown field id in perSection.fields', () => {
+  const r = validateSectionConfig(
+    {
+      perSection: {
+        order_details: { fields: { container_number: true, typo_field: false } },
+      },
+    },
+    VALID_TYPE,
+  );
+  assert.equal(r.ok, false);
+  assert.match(r.error, /unknown field id/);
+  assert.match(r.error, /order_details/);
+  assert.match(r.error, /typo_field/);
+});
+
+test('validateSectionConfig rejects non-boolean field value in perSection.fields', () => {
+  const r = validateSectionConfig(
+    {
+      perSection: {
+        order_details: { fields: { container_number: 'yes' } },
+      },
+    },
+    VALID_TYPE,
+  );
+  assert.equal(r.ok, false);
+  assert.match(r.error, /must be boolean/);
+  assert.match(r.error, /container_number/);
+});
+
+test('validateSectionConfig rejects fields object on a section that has no fields registry', () => {
+  // move_events is a master-toggle-only section (no `fields` array in registry)
+  const r = validateSectionConfig(
+    {
+      perSection: {
+        move_events: { fields: { whatever: true } },
+      },
+    },
+    VALID_TYPE,
+  );
+  assert.equal(r.ok, false);
+  assert.match(r.error, /move_events.*does not accept field/i);
+});
+
+test('validateSectionConfig allows non-fields keys in perSection (back-compat)', () => {
+  // Legacy keys like move_events.show_driver should pass through untouched.
+  const r = validateSectionConfig(
+    {
+      perSection: {
+        move_events: { show_driver: true },
+      },
+    },
+    VALID_TYPE,
+  );
+  assert.equal(r.ok, true);
+});
+
+test('validateSectionConfig rejects non-object perSection.fields value', () => {
+  const r = validateSectionConfig(
+    {
+      perSection: {
+        order_details: { fields: 'not an object' },
+      },
+    },
+    VALID_TYPE,
+  );
+  assert.equal(r.ok, false);
+  assert.match(r.error, /fields must be an object/);
+});
