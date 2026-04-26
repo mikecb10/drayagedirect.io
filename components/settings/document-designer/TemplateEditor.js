@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Save, RotateCcw, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
-import { getSectionsForDocumentType } from '../../../lib/constants/document-sections';
+import { getSectionsForDocumentType, extractColors } from '../../../lib/constants/document-sections';
 import DocumentPreview from './preview/DocumentPreview';
 
 /**
@@ -45,27 +45,55 @@ export default function TemplateEditor({
   onDeleted,
   showDelete = false,
   onError,
+  onDirtyChange,
+  branding,
+  colors,
+  onColorsChange,
 }) {
   const sections = getSectionsForDocumentType(template.document_type);
 
   const [{ visibility, fields }, setState] = useState(() =>
     buildInitialState(sections, template.section_config)
   );
-  const [savedState, setSavedState] = useState(() =>
-    buildInitialState(sections, template.section_config)
-  );
+  const [savedState, setSavedState] = useState(() => {
+    const init = buildInitialState(sections, template.section_config);
+    return {
+      visibility: init.visibility,
+      fields: init.fields,
+      colors: extractColors(template.section_config),
+    };
+  });
   const [collapsed, setCollapsed] = useState({}); // { [sectionId]: true } when collapsed
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     const initial = buildInitialState(sections, template.section_config);
-    setState(initial);
-    setSavedState(initial);
+    const savedColors = extractColors(template.section_config);
+    setState({ visibility: initial.visibility, fields: initial.fields });
+    setSavedState({
+      visibility: initial.visibility,
+      fields: initial.fields,
+      colors: savedColors,
+    });
+    if (typeof onColorsChange === 'function') {
+      onColorsChange(savedColors);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [template.section_config, template.id]);
 
   const isDirty =
-    JSON.stringify({ visibility, fields }) !== JSON.stringify(savedState);
+    JSON.stringify({ visibility, fields, colors }) !==
+    JSON.stringify({
+      visibility: savedState.visibility,
+      fields: savedState.fields,
+      colors: savedState.colors,
+    });
+
+  useEffect(() => {
+    if (typeof onDirtyChange === 'function') {
+      onDirtyChange(isDirty);
+    }
+  }, [isDirty, onDirtyChange]);
 
   function toggleMaster(sectionId) {
     setState((prev) => ({
@@ -92,7 +120,10 @@ export default function TemplateEditor({
   }
 
   function reset() {
-    setState(savedState);
+    setState({ visibility: savedState.visibility, fields: savedState.fields });
+    if (typeof onColorsChange === 'function') {
+      onColorsChange(savedState.colors);
+    }
   }
 
   async function save() {
@@ -118,6 +149,7 @@ export default function TemplateEditor({
       const sectionConfigToSend = {
         visibility: visibilityToSend,
         perSection: perSectionToSend,
+        colors,
       };
       const isNew = !template.id;
       const url = isNew
@@ -141,7 +173,7 @@ export default function TemplateEditor({
         throw new Error(err.error || `HTTP ${res.status}`);
       }
       const data = await res.json();
-      setSavedState({ visibility, fields });
+      setSavedState({ visibility, fields, colors });
       onSaved?.(data.template);
     } catch (e) {
       onError?.(e.message);
@@ -235,6 +267,8 @@ export default function TemplateEditor({
           visibility={visibility}
           fields={fields}
           sections={sections}
+          colors={colors}
+          branding={branding}
         />
       </div>
     </div>
