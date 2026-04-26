@@ -1,22 +1,43 @@
 import { useEffect, useState } from 'react';
-import { Save, RotateCcw, Trash2 } from 'lucide-react';
-import {
-  getSectionsForDocumentType,
-} from '../../../lib/constants/document-sections';
+import { Save, RotateCcw, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
+import { getSectionsForDocumentType } from '../../../lib/constants/document-sections';
 
 /**
- * Editor for a single document_templates row. Handles section
- * visibility toggles, save (POST or PUT), delete (DELETE), and
- * reset (revert local state to last-loaded value).
+ * Editor for a single document_templates row. Renders each section as a
+ * collapsible card with a master toggle + 2-col grid of child field toggles.
  *
- * Props:
- *   template   — { id?, customer_id, document_type, section_config }
- *                If id is missing, save uses POST to create the row.
- *   onSaved    — called with the server-returned template after save
- *   onDeleted  — called after a successful delete (only when template.id exists)
- *   showDelete — whether to render the Delete button (false for tenant default)
- *   onError    — surfaces an error string for the parent to display
+ * State shape:
+ *   visibility: { [sectionId]: boolean }   — master toggle per section
+ *   fields:     { [sectionId]: { [fieldId]: boolean } }  — field toggles
+ *
+ * Save serializes back to:
+ *   { visibility: {...}, perSection: { [id]: { fields: {...} } } }
+ *
+ * Default-true for any unspecified field (handled both at compute and render).
  */
+function buildInitialState(sections, sectionConfig) {
+  const visibility = {};
+  const fields = {};
+  for (const s of sections) {
+    if (!s.toggleable) {
+      visibility[s.id] = true;
+    } else {
+      const v = sectionConfig?.visibility?.[s.id];
+      visibility[s.id] = v === undefined ? s.defaultVisible : v;
+    }
+    if (s.fields) {
+      const overrides = sectionConfig?.perSection?.[s.id]?.fields || {};
+      const resolved = {};
+      for (const f of s.fields) {
+        const v = overrides[f.id];
+        resolved[f.id] = v === undefined ? f.defaultVisible : v;
+      }
+      fields[s.id] = resolved;
+    }
+  }
+  return { visibility, fields };
+}
+
 export default function TemplateEditor({
   template,
   onSaved,
@@ -26,45 +47,51 @@ export default function TemplateEditor({
 }) {
   const sections = getSectionsForDocumentType(template.document_type);
 
-  function buildInitialVisibility(cfg) {
-    const incoming = cfg?.visibility || {};
-    const out = {};
-    for (const s of sections) {
-      out[s.id] = s.toggleable
-        ? incoming[s.id] === undefined
-          ? s.defaultVisible
-          : incoming[s.id]
-        : true;
-    }
-    return out;
-  }
-
-  const [visibility, setVisibility] = useState(() =>
-    buildInitialVisibility(template.section_config)
+  const [{ visibility, fields }, setState] = useState(() =>
+    buildInitialState(sections, template.section_config)
   );
-  const [savedVisibility, setSavedVisibility] = useState(() =>
-    buildInitialVisibility(template.section_config)
+  const [savedState, setSavedState] = useState(() =>
+    buildInitialState(sections, template.section_config)
   );
+  const [collapsed, setCollapsed] = useState({}); // { [sectionId]: true } when collapsed
   const [busy, setBusy] = useState(false);
 
-  // Re-sync if the parent swaps the template prop (e.g., after another
-  // panel's save changes the server state).
   useEffect(() => {
-    const v = buildInitialVisibility(template.section_config);
-    setVisibility(v);
-    setSavedVisibility(v);
+    const initial = buildInitialState(sections, template.section_config);
+    setState(initial);
+    setSavedState(initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [template.section_config, template.id]);
 
   const isDirty =
-    JSON.stringify(visibility) !== JSON.stringify(savedVisibility);
+    JSON.stringify({ visibility, fields }) !== JSON.stringify(savedState);
 
-  function toggle(sectionId) {
-    setVisibility((v) => ({ ...v, [sectionId]: !v[sectionId] }));
+  function toggleMaster(sectionId) {
+    setState((prev) => ({
+      ...prev,
+      visibility: { ...prev.visibility, [sectionId]: !prev.visibility[sectionId] },
+    }));
+  }
+
+  function toggleField(sectionId, fieldId) {
+    setState((prev) => ({
+      ...prev,
+      fields: {
+        ...prev.fields,
+        [sectionId]: {
+          ...prev.fields[sectionId],
+          [fieldId]: !prev.fields[sectionId]?.[fieldId],
+        },
+      },
+    }));
+  }
+
+  function toggleCollapsed(sectionId) {
+    setCollapsed((c) => ({ ...c, [sectionId]: !c[sectionId] }));
   }
 
   function reset() {
-    setVisibility(savedVisibility);
+    setState(savedState);
   }
 
   async function save() {
@@ -72,12 +99,24 @@ export default function TemplateEditor({
     setBusy(true);
     onError?.(null);
     try {
+      const visibilityToSend = Object.fromEntries(
+        sections
+          .filter((s) => s.toggleable)
+          .map((s) => [s.id, visibility[s.id]])
+      );
+      const perSectionToSend = {};
+      for (const s of sections) {
+        if (s.fields) {
+          perSectionToSend[s.id] = {
+            fields: Object.fromEntries(
+              s.fields.map((f) => [f.id, fields[s.id]?.[f.id] ?? f.defaultVisible])
+            ),
+          };
+        }
+      }
       const sectionConfigToSend = {
-        visibility: Object.fromEntries(
-          sections
-            .filter((s) => s.toggleable)
-            .map((s) => [s.id, visibility[s.id]])
-        ),
+        visibility: visibilityToSend,
+        perSection: perSectionToSend,
       };
       const isNew = !template.id;
       const url = isNew
@@ -101,7 +140,7 @@ export default function TemplateEditor({
         throw new Error(err.error || `HTTP ${res.status}`);
       }
       const data = await res.json();
-      setSavedVisibility(visibility);
+      setSavedState({ visibility, fields });
       onSaved?.(data.template);
     } catch (e) {
       onError?.(e.message);
@@ -116,9 +155,7 @@ export default function TemplateEditor({
       !confirm(
         'Delete this customer override? Loads for this customer will fall back to the tenant default.'
       )
-    ) {
-      return;
-    }
+    ) return;
     setBusy(true);
     onError?.(null);
     try {
@@ -140,50 +177,20 @@ export default function TemplateEditor({
 
   return (
     <div className="space-y-3">
-      <div className="space-y-1">
-        {sections.map((s) => {
-          const checked = visibility[s.id];
-          if (!s.toggleable) {
-            return (
-              <div
-                key={s.id}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 dark:bg-slate-900/40 border border-gray-200 dark:border-slate-700/50 opacity-70"
-              >
-                <span className="w-4 h-4 inline-block rounded border-2 border-gray-400 dark:border-slate-500 bg-gray-200 dark:bg-slate-700" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
-                    {s.label}
-                  </div>
-                </div>
-                <span className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 dark:text-slate-400 bg-gray-200 dark:bg-slate-700 px-1.5 py-0.5 rounded">
-                  Always on
-                </span>
-              </div>
-            );
-          }
-          return (
-            <label
-              key={s.id}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-600 cursor-pointer"
-            >
-              <input
-                type="checkbox"
-                checked={checked}
-                onChange={() => toggle(s.id)}
-                disabled={busy}
-                className="w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500"
-              />
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
-                  {s.label}
-                </div>
-                <div className="text-[11px] text-gray-500 dark:text-slate-400">
-                  Default: {s.defaultVisible ? 'visible' : 'hidden'}
-                </div>
-              </div>
-            </label>
-          );
-        })}
+      <div className="space-y-2">
+        {sections.map((s) => (
+          <SectionCard
+            key={s.id}
+            section={s}
+            masterChecked={visibility[s.id]}
+            fieldsState={fields[s.id] || {}}
+            collapsed={!!collapsed[s.id]}
+            busy={busy}
+            onToggleMaster={() => toggleMaster(s.id)}
+            onToggleField={(fid) => toggleField(s.id, fid)}
+            onToggleCollapsed={() => toggleCollapsed(s.id)}
+          />
+        ))}
       </div>
 
       <div className="flex items-center gap-2 pt-2 border-t border-gray-200 dark:border-slate-700">
@@ -217,6 +224,85 @@ export default function TemplateEditor({
           </button>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+function SectionCard({
+  section,
+  masterChecked,
+  fieldsState,
+  collapsed,
+  busy,
+  onToggleMaster,
+  onToggleField,
+  onToggleCollapsed,
+}) {
+  const hasFields = Array.isArray(section.fields) && section.fields.length > 0;
+  const masterDisabled = busy || !section.toggleable;
+
+  return (
+    <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+      <div className="flex items-center gap-3 px-3 py-2.5 bg-gray-50/60 dark:bg-slate-800/40">
+        {section.toggleable ? (
+          <input
+            type="checkbox"
+            checked={!!masterChecked}
+            onChange={onToggleMaster}
+            disabled={masterDisabled}
+            className="w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500"
+          />
+        ) : (
+          <span className="w-4 h-4 inline-block rounded border-2 border-gray-400 dark:border-slate-500 bg-gray-200 dark:bg-slate-700" />
+        )}
+        <span className="text-sm font-medium text-gray-900 dark:text-slate-100 flex-1">
+          {section.label}
+        </span>
+        {!section.toggleable ? (
+          <span className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 dark:text-slate-400 bg-gray-200 dark:bg-slate-700 px-1.5 py-0.5 rounded">
+            Always on
+          </span>
+        ) : null}
+        {hasFields ? (
+          <button
+            type="button"
+            onClick={onToggleCollapsed}
+            className="text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
+            aria-label={collapsed ? 'Expand' : 'Collapse'}
+          >
+            {collapsed ? (
+              <ChevronRight className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )}
+          </button>
+        ) : null}
+      </div>
+      {hasFields && !collapsed ? (
+        <div
+          className={`grid grid-cols-2 gap-x-4 gap-y-1.5 px-4 py-3 border-t border-gray-200 dark:border-slate-800 ${
+            !masterChecked ? 'opacity-50' : ''
+          }`}
+        >
+          {section.fields.map((f) => (
+            <label
+              key={f.id}
+              className={`flex items-center gap-2 text-sm ${
+                !masterChecked || busy ? 'cursor-not-allowed' : 'cursor-pointer'
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={!!fieldsState[f.id]}
+                onChange={() => onToggleField(f.id)}
+                disabled={!masterChecked || busy}
+                className="w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-gray-900 dark:text-slate-100">{f.label}</span>
+            </label>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
