@@ -11,6 +11,20 @@ import BranchPicker from '../ui/BranchPicker';
 import { useAuth } from '../../contexts/AuthContext';
 import { LOAD_TYPES as CENTRAL_LOAD_TYPES } from '../../lib/constants/load-types.js';
 import { Package, Truck, ArrowRight as ArrowRightIcon, RefreshCcw, FileText } from 'lucide-react';
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  rectSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 const LOAD_TYPE_ICONS = {
   import: Package,
@@ -136,6 +150,7 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [containerSizes, setContainerSizes] = useState(DEFAULT_CONTAINER_SIZES);
+  const [templateOrder, setTemplateOrder] = useState([]); // string[] of template ids
 
   const typeCfg = TYPE_CONFIG[form.load_type] || TYPE_CONFIG.import;
 
@@ -158,6 +173,20 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
         .catch(() => {});
     }
   }, [isOpen, branchIds]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    fetch('/api/tenant/dispatcher-preferences')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        const order = data?.preferences?.routing_template_order || [];
+        setTemplateOrder(Array.isArray(order) ? order : []);
+      })
+      .catch(() => { if (!cancelled) setTemplateOrder([]); });
+    return () => { cancelled = true; };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -209,6 +238,49 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
       [field]: org?.id || null,
       [labelField]: org?.name || '',
     }));
+  }
+
+  // Merge user-saved order with the fetched template list. Templates the user
+  // have ordered come first (in saved order); any template not in the order
+  // array (newly added by admin, or never reordered) appends at the end.
+  const orderedTemplates = (() => {
+    if (templateOrder.length === 0) return templates;
+    const byId = new Map(templates.map((t) => [t.id, t]));
+    const ordered = templateOrder.map((id) => byId.get(id)).filter(Boolean);
+    const orderedIds = new Set(ordered.map((t) => t.id));
+    const remaining = templates.filter((t) => !orderedIds.has(t.id));
+    return [...ordered, ...remaining];
+  })();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  function persistOrder(newOrderIds) {
+    fetch('/api/tenant/dispatcher-preferences', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ routing_template_order: newOrderIds }),
+    }).catch((err) => {
+      console.error('[NewLoadModal] persist template order failed:', err?.message);
+    });
+  }
+
+  function handleDragEnd(ev) {
+    const { active, over } = ev;
+    if (!over || active.id === over.id) return;
+    const oldIndex = orderedTemplates.findIndex((t) => t.id === active.id);
+    const newIndex = orderedTemplates.findIndex((t) => t.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const next = arrayMove(orderedTemplates, oldIndex, newIndex);
+    const nextIds = next.map((t) => t.id);
+    setTemplateOrder(nextIds);
+    persistOrder(nextIds);
+  }
+
+  function handleResetOrder() {
+    setTemplateOrder([]);
+    persistOrder([]);
   }
 
   async function handleSubmit(e) {
@@ -292,43 +364,51 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
           })}
         </div>
 
-        {/* Routing template chip grid */}
+        {/* Routing template chip grid (DnD-reorderable) */}
         {form.load_type !== 'bill_only' && (
           <div>
-            <div className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-slate-400 mb-1.5 font-medium">
-              Routing Template
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-slate-400 font-medium">
+                Routing Template <span className="text-gray-400 dark:text-slate-500 normal-case font-normal">— drag to reorder</span>
+              </div>
+              {templateOrder.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleResetOrder}
+                  className="text-[10px] text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 underline-offset-2 hover:underline"
+                >
+                  Reset order
+                </button>
+              )}
             </div>
             {loadingTemplates ? (
               <div className="text-xs text-gray-500 dark:text-slate-400 py-3">Loading templates…</div>
-            ) : templates.length === 0 ? (
+            ) : orderedTemplates.length === 0 ? (
               <div className="text-xs text-gray-500 dark:text-slate-400 py-3">
                 No templates available for this load type.
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                {templates.map((tpl) => {
-                  const active = form.routing_template_id === tpl.id;
-                  return (
-                    <button
-                      key={tpl.id}
-                      type="button"
-                      onClick={() => selectTemplate(tpl)}
-                      className={`text-left p-2 rounded border transition-colors ${
-                        active
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-200'
-                          : 'border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600 bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300'
-                      }`}
-                    >
-                      <div className="text-xs font-medium truncate">{tpl.name}</div>
-                      {tpl.description && (
-                        <div className="text-[10px] text-gray-500 dark:text-slate-400 truncate mt-0.5">
-                          {tpl.description}
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={orderedTemplates.map((t) => t.id)}
+                  strategy={rectSortingStrategy}
+                >
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {orderedTemplates.map((tpl) => (
+                      <SortableTemplateChip
+                        key={tpl.id}
+                        tpl={tpl}
+                        active={form.routing_template_id === tpl.id}
+                        onSelect={() => selectTemplate(tpl)}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
             )}
           </div>
         )}
@@ -483,5 +563,39 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
         </div>
       </form>
     </Modal>
+  );
+}
+
+function SortableTemplateChip({ tpl, active, onSelect }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: tpl.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <button
+      ref={setNodeRef}
+      style={style}
+      type="button"
+      onClick={onSelect}
+      {...attributes}
+      {...listeners}
+      className={`text-left p-2 rounded border transition-colors cursor-grab active:cursor-grabbing ${
+        active
+          ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-200'
+          : 'border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600 bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300'
+      }`}
+    >
+      <div className="text-xs font-medium truncate">{tpl.name}</div>
+      {tpl.description && (
+        <div className="text-[10px] text-gray-500 dark:text-slate-400 truncate mt-0.5">
+          {tpl.description}
+        </div>
+      )}
+    </button>
   );
 }
