@@ -28,9 +28,10 @@ const FIELD_ORDER = [
   ['per_diem_free_day',     'Per Diem Free Day'],
 ];
 
-export default function OrderDetailsPreview({ data, opts }) {
+export default function OrderDetailsPreview({ data, opts, colors }) {
   if (!data) return null;
   const fields = opts?.fields || {};
+  const textColor = colors?.text || '#111827';
   const rows = FIELD_ORDER
     .map(([key, label]) => {
       if (fields[key] === false) return null;
@@ -44,7 +45,10 @@ export default function OrderDetailsPreview({ data, opts }) {
 
   return (
     <div className="mb-4 pb-3 border-b border-gray-200">
-      <div className="text-[10px] uppercase tracking-wider font-bold text-gray-700 mb-2">
+      <div
+        className="text-[10px] uppercase tracking-wider font-bold mb-2"
+        style={{ color: textColor }}
+      >
         Order Details
       </div>
       <div className="grid grid-cols-3 gap-x-4 gap-y-1.5">

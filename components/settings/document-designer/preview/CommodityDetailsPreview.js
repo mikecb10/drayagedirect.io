@@ -13,9 +13,10 @@ const COL_ORDER = [
   ['pieces',      'Pieces'],
 ];
 
-export default function CommodityDetailsPreview({ data, opts }) {
+export default function CommodityDetailsPreview({ data, opts, colors }) {
   if (!data) return null;
   const fields = opts?.fields || {};
+  const accent = colors?.accent || '#3B82F6';
   const cols = COL_ORDER.filter(([key]) => fields[key] !== false);
   if (cols.length === 0) return null;
 
@@ -27,7 +28,8 @@ export default function CommodityDetailsPreview({ data, opts }) {
             {cols.map(([key, label]) => (
               <th
                 key={key}
-                className="px-2 py-1.5 bg-blue-600 text-white text-[10px] uppercase tracking-wider font-semibold text-left border border-blue-700"
+                className="px-2 py-1.5 text-white text-[10px] uppercase tracking-wider font-semibold text-left"
+                style={{ backgroundColor: accent, border: `1px solid ${accent}` }}
               >
                 {label}
               </th>

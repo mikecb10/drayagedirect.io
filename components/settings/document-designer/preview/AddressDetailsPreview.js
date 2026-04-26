@@ -1,9 +1,12 @@
-function AddressBlock({ label, org }) {
+function AddressBlock({ label, org, accent }) {
   if (!org || !org.name) return null;
   const cityLine = [org.city, org.state, org.zip].filter(Boolean).join(', ');
   return (
     <div>
-      <div className="px-2 py-1 bg-blue-600 text-white text-[10px] uppercase tracking-wider font-semibold rounded-t">
+      <div
+        className="px-2 py-1 text-white text-[10px] uppercase tracking-wider font-semibold rounded-t"
+        style={{ backgroundColor: accent }}
+      >
         {label}
       </div>
       <div className="px-2 py-1.5 border border-gray-200 border-t-0 rounded-b">
@@ -27,9 +30,10 @@ function AddressBlock({ label, org }) {
  *                  return_location, appointment_times,
  *                  display_pickup_for_operational_street_turns }
  */
-export default function AddressDetailsPreview({ data, opts }) {
+export default function AddressDetailsPreview({ data, opts, colors }) {
   if (!data) return null;
   const fields = opts?.fields || {};
+  const accent = colors?.accent || '#3B82F6';
   const showCustomer  = fields.customer          !== false;
   const showPickup    = fields.pickup_location   !== false;
   const showDelivery  = fields.delivery_location !== false;
@@ -39,16 +43,16 @@ export default function AddressDetailsPreview({ data, opts }) {
 
   const blocks = [];
   if (showCustomer && data.customer) {
-    blocks.push(<AddressBlock key="customer" label="Customer" org={data.customer} />);
+    blocks.push(<AddressBlock key="customer" label="Customer" org={data.customer} accent={accent} />);
   }
   if (showPickup && data.pickup_location) {
-    blocks.push(<AddressBlock key="pickup" label="Pick Up Location" org={data.pickup_location} />);
+    blocks.push(<AddressBlock key="pickup" label="Pick Up Location" org={data.pickup_location} accent={accent} />);
   }
   if (showDelivery && data.delivery_location) {
-    blocks.push(<AddressBlock key="delivery" label="Delivery Location" org={data.delivery_location} />);
+    blocks.push(<AddressBlock key="delivery" label="Delivery Location" org={data.delivery_location} accent={accent} />);
   }
   if (showReturn && data.return_location) {
-    blocks.push(<AddressBlock key="return" label="Return Location" org={data.return_location} />);
+    blocks.push(<AddressBlock key="return" label="Return Location" org={data.return_location} accent={accent} />);
   }
 
   const phone = data.customer?.phone;

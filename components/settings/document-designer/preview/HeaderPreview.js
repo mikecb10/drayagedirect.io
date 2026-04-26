@@ -3,14 +3,23 @@
  * but renders to plain HTML for the live preview pane in the Document Designer.
  *
  * Two-column layout: left = tenant identity (logo / company name / address /
- * phone / website); right = document title + optional subtitle in an accent band.
+ * phone / website); right = document title in the accent-colored band.
+ *
+ * `data.tenantName` and `data.tenantInfo.logo_url` may be overridden by the
+ * page's real `branding` payload (from /api/tenant/me). When present in
+ * `data` they take priority over the sample-data defaults.
  *
  * `opts.fields`: { logo, address, phone, website, company_name }.
  * Default-true except `website` (matches registry).
+ *
+ * `colors.accent`: hex color for the right-side document-title band.
+ * `colors.text`:   hex color for body text.
  */
-export default function HeaderPreview({ data, opts }) {
+export default function HeaderPreview({ data, opts, colors }) {
   if (!data) return null;
   const fields = opts?.fields || {};
+  const accent = colors?.accent || '#3B82F6';
+  const textColor = colors?.text || '#111827';
   const showLogo        = fields.logo        !== false;
   const showAddress     = fields.address     !== false;
   const showPhone       = fields.phone       !== false;
@@ -37,7 +46,7 @@ export default function HeaderPreview({ data, opts }) {
         ) : null}
         <div>
           {showCompanyName ? (
-            <div className="text-base font-semibold text-gray-900">
+            <div className="text-base font-semibold" style={{ color: textColor }}>
               {data.tenantName || 'Company'}
             </div>
           ) : null}
@@ -53,7 +62,10 @@ export default function HeaderPreview({ data, opts }) {
         </div>
       </div>
       <div className="text-right">
-        <div className="inline-block px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-semibold">
+        <div
+          className="inline-block px-3 py-1.5 text-white rounded text-xs font-semibold"
+          style={{ backgroundColor: accent }}
+        >
           Delivery Order # : ABC123
         </div>
       </div>
