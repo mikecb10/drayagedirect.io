@@ -23,6 +23,7 @@ import Button from '../../../../components/ui/Button';
 import Input from '../../../../components/ui/Input';
 import Select from '../../../../components/ui/Select';
 import Alert from '../../../../components/ui/Alert';
+import { LOAD_TYPES } from '../../../../lib/constants/load-types';
 
 /**
  * Settings → Communications → Umbrellas → Editor
@@ -91,15 +92,11 @@ const BLANK_UMBRELLA = {
   groups: [],
 };
 
-// Load types are now multi-select via checkboxes. No "Any" entry —
-// an empty array IS "any".
-const LOAD_TYPE_OPTIONS = [
-  { value: 'import', label: 'Import' },
-  { value: 'export', label: 'Export' },
-  { value: 'outbound', label: 'Outbound' },
-  { value: 'inbound', label: 'Inbound' },
-  { value: 'one_way', label: 'One-Way' },
-];
+// Load types are multi-select via checkboxes. No "Any" entry —
+// an empty array IS "any". Sourced from the central LOAD_TYPES catalog
+// (lib/constants/load-types.js) so this dropdown stays in lockstep with
+// the order POST endpoint and tariff/driver-pay matching.
+const LOAD_TYPE_OPTIONS = LOAD_TYPES.map((t) => ({ value: t.value, label: t.label }));
 
 // Full 14-flag catalog shown as a checkbox grid. The UI binds each box
 // to a boolean column on email_umbrellas — checked = require true,
