@@ -27,16 +27,15 @@ const PREVIEW_BY_SECTION_ID = {
 /**
  * Live HTML preview of the document. Iterates the section registry, renders
  * each visible section through its corresponding preview component, passing
- * sample data + resolved field-visibility map.
+ * sample data + resolved field-visibility map + per-template colors.
  *
  * `visibility`: { [sectionId]: boolean }
  * `fields`:     { [sectionId]: { [fieldId]: boolean } }
- * `sections`:   the section registry array (DELIVERY_ORDER_SECTIONS or future per-doc-type)
- *
- * The preview pane has a paper-like styling (white bg, shadow, ring). Stays
- * light even in dark mode — printed documents don't have dark mode.
+ * `sections`:   the section registry array
+ * `colors`:     { accent, text } — per-template colors with defaults applied
+ * `branding`:   { tenantName, logo_url } — overrides sample-data values for the header section
  */
-export default function DocumentPreview({ visibility, fields, sections }) {
+export default function DocumentPreview({ visibility, fields, sections, colors, branding }) {
   return (
     <div className="space-y-3">
       <div className="text-[11px] px-3 py-1.5 rounded bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 text-amber-900 dark:text-amber-200">
@@ -47,9 +46,20 @@ export default function DocumentPreview({ visibility, fields, sections }) {
           if (!visibility[s.id]) return null;
           const Component = PREVIEW_BY_SECTION_ID[s.id];
           if (!Component) return null;
-          const data = sampleData[s.id];
+          let data = sampleData[s.id];
+          // Apply branding override to the header section's data.
+          if (s.id === 'header' && branding) {
+            data = {
+              ...data,
+              tenantName: branding.tenantName || data.tenantName,
+              tenantInfo: {
+                ...data.tenantInfo,
+                logo_url: branding.logo_url || data.tenantInfo?.logo_url,
+              },
+            };
+          }
           const opts = { fields: fields[s.id] || {} };
-          return <Component key={s.id} data={data} opts={opts} />;
+          return <Component key={s.id} data={data} opts={opts} colors={colors} />;
         })}
       </div>
     </div>
