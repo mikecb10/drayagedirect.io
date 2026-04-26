@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Save, RotateCcw, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import { getSectionsForDocumentType } from '../../../lib/constants/document-sections';
+import DocumentPreview from './preview/DocumentPreview';
 
 /**
  * Editor for a single document_templates row. Renders each section as a
@@ -176,53 +177,65 @@ export default function TemplateEditor({
   }
 
   return (
-    <div className="space-y-3">
-      <div className="space-y-2">
-        {sections.map((s) => (
-          <SectionCard
-            key={s.id}
-            section={s}
-            masterChecked={visibility[s.id]}
-            fieldsState={fields[s.id] || {}}
-            collapsed={!!collapsed[s.id]}
-            busy={busy}
-            onToggleMaster={() => toggleMaster(s.id)}
-            onToggleField={(fid) => toggleField(s.id, fid)}
-            onToggleCollapsed={() => toggleCollapsed(s.id)}
-          />
-        ))}
-      </div>
+    <div className="flex flex-col lg:flex-row gap-6">
+      {/* Editor side */}
+      <div className="lg:w-2/5 space-y-3">
+        <div className="space-y-2">
+          {sections.map((s) => (
+            <SectionCard
+              key={s.id}
+              section={s}
+              masterChecked={visibility[s.id]}
+              fieldsState={fields[s.id] || {}}
+              collapsed={!!collapsed[s.id]}
+              busy={busy}
+              onToggleMaster={() => toggleMaster(s.id)}
+              onToggleField={(fid) => toggleField(s.id, fid)}
+              onToggleCollapsed={() => toggleCollapsed(s.id)}
+            />
+          ))}
+        </div>
 
-      <div className="flex items-center gap-2 pt-2 border-t border-gray-200 dark:border-slate-700">
-        <button
-          type="button"
-          onClick={save}
-          disabled={!isDirty || busy}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium"
-        >
-          <Save className="w-4 h-4" />
-          {busy ? 'Saving…' : 'Save'}
-        </button>
-        <button
-          type="button"
-          onClick={reset}
-          disabled={!isDirty || busy}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-slate-300 text-sm font-medium"
-        >
-          <RotateCcw className="w-4 h-4" />
-          Reset
-        </button>
-        {showDelete && template.id ? (
+        <div className="flex items-center gap-2 pt-2 border-t border-gray-200 dark:border-slate-700">
           <button
             type="button"
-            onClick={deleteTemplate}
-            disabled={busy}
-            className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-300 dark:border-red-800 bg-white dark:bg-slate-900 hover:bg-red-50 dark:hover:bg-red-950/40 disabled:opacity-50 text-red-600 dark:text-red-400 text-sm font-medium"
+            onClick={save}
+            disabled={!isDirty || busy}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium"
           >
-            <Trash2 className="w-4 h-4" />
-            Delete
+            <Save className="w-4 h-4" />
+            {busy ? 'Saving…' : 'Save'}
           </button>
-        ) : null}
+          <button
+            type="button"
+            onClick={reset}
+            disabled={!isDirty || busy}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-slate-300 text-sm font-medium"
+          >
+            <RotateCcw className="w-4 h-4" />
+            Reset
+          </button>
+          {showDelete && template.id ? (
+            <button
+              type="button"
+              onClick={deleteTemplate}
+              disabled={busy}
+              className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-300 dark:border-red-800 bg-white dark:bg-slate-900 hover:bg-red-50 dark:hover:bg-red-950/40 disabled:opacity-50 text-red-600 dark:text-red-400 text-sm font-medium"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Preview side */}
+      <div className="lg:w-3/5 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+        <DocumentPreview
+          visibility={visibility}
+          fields={fields}
+          sections={sections}
+        />
       </div>
     </div>
   );
