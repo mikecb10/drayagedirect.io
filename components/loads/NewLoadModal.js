@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import Modal from '../ui/Modal';
 import NotifyPartyPicker from './NotifyPartyPicker';
@@ -157,6 +157,7 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
 
   const [notifyParties, setNotifyParties] = useState([]);
   const [manuallyEditedNotifyParties, setManuallyEditedNotifyParties] = useState(false);
+  const applyGenRef = useRef(0);
   const [pendingCustomerOrg, setPendingCustomerOrg] = useState(null);
 
   const typeCfg = TYPE_CONFIG[form.load_type] || TYPE_CONFIG.import;
@@ -295,9 +296,11 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
   }
 
   async function applyCustomerChange(org) {
+    const gen = ++applyGenRef.current;
     selectOrg('customer_id', 'customer_label', org);
 
     if (!org?.id) {
+      if (gen !== applyGenRef.current) return;
       setNotifyParties([]);
       setManuallyEditedNotifyParties(false);
       return;
@@ -308,6 +311,7 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
       const orgRes = await fetch(`/api/tenant/organizations/${org.id}`).then((r) => r.ok ? r.json() : null);
       const defaults = orgRes?.organization?.default_notify_parties || [];
       if (!Array.isArray(defaults) || defaults.length === 0) {
+        if (gen !== applyGenRef.current) return;
         setNotifyParties([]);
         setManuallyEditedNotifyParties(false);
         return;
@@ -366,10 +370,12 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
         })
         .filter(Boolean);
 
+      if (gen !== applyGenRef.current) return;
       setNotifyParties(hydrated);
       setManuallyEditedNotifyParties(false);
     } catch (e) {
       console.warn('Failed to load notify-party defaults:', e);
+      if (gen !== applyGenRef.current) return;
       setNotifyParties([]);
       setManuallyEditedNotifyParties(false);
     }
