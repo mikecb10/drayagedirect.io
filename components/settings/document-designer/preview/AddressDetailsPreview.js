@@ -34,6 +34,7 @@ export default function AddressDetailsPreview({ data, opts, colors }) {
   if (!data) return null;
   const fields = opts?.fields || {};
   const accent = colors?.accent || '#3B82F6';
+  const customerLabel = opts?.customerLabel || 'Customer';
   const showCustomer  = fields.customer          !== false;
   const showPickup    = fields.pickup_location   !== false;
   const showDelivery  = fields.delivery_location !== false;
@@ -43,7 +44,7 @@ export default function AddressDetailsPreview({ data, opts, colors }) {
 
   const blocks = [];
   if (showCustomer && data.customer) {
-    blocks.push(<AddressBlock key="customer" label="Customer" org={data.customer} accent={accent} />);
+    blocks.push(<AddressBlock key="customer" label={customerLabel} org={data.customer} accent={accent} />);
   }
   if (showPickup && data.pickup_location) {
     blocks.push(<AddressBlock key="pickup" label="Pick Up Location" org={data.pickup_location} accent={accent} />);

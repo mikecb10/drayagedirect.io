@@ -53,6 +53,7 @@ export default function AddressDetails({ data, opts, colors }) {
   if (!data) return null;
   const fields = opts?.fields || {};
   const accent = colors?.accent || '#3B82F6';
+  const customerLabel = opts?.customerLabel || 'Customer';
   const showCustomer  = fields.customer          !== false;
   const showPickup    = fields.pickup_location   !== false;
   const showDelivery  = fields.delivery_location !== false;
@@ -62,7 +63,7 @@ export default function AddressDetails({ data, opts, colors }) {
 
   const rows = [];
   if (showCustomer && data.customer) {
-    rows.push(<AddressBlock key="customer" label="Customer" org={data.customer} accent={accent} />);
+    rows.push(<AddressBlock key="customer" label={customerLabel} org={data.customer} accent={accent} />);
   }
   if (showPickup && data.pickup_location) {
     rows.push(<AddressBlock key="pickup" label="Pick Up Location" org={data.pickup_location} accent={accent} />);
