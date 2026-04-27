@@ -24,8 +24,6 @@ const SAMPLE_BY_DOCUMENT_TYPE = {
  * Maps section ID → its HTML preview component. Sections without preview
  * components (move_events / barcode / footer) are intentionally absent —
  * the preview pane is a one-page snapshot, not a multi-page render.
- *
- * Tasks 6, 7, 8 will register `invoice_details` and `charge_details` here.
  */
 const PREVIEW_BY_SECTION_ID = {
   header:                 HeaderPreview,
@@ -81,6 +79,13 @@ export default function DocumentPreview({ documentType, visibility, fields, sect
           // Field-ID translation to keep AddressDetailsPreview's internal API stable:
           // INVOICE_SECTIONS uses bill_to; AddressDetailsPreview reads opts.fields.customer.
           opts.fields = { ...opts.fields, customer: opts.fields?.bill_to !== false };
+        }
+        if (s.id === 'charge_details' && documentType === 'rate_con') {
+          // Rate Con's charge_set.total_cents is the only authoritative total — there
+          // is no subtotal_cents column. Suppress the Subtotal row in the totals footer.
+          // Mirrored in components/pdf/RateConTemplate.js renderSection() for the
+          // print path — keep the two in sync.
+          opts.showSubtotal = false;
         }
         return <Component key={s.id} data={data} opts={opts} colors={colors} />;
       })}
