@@ -179,9 +179,10 @@ const { addLoadNotifyParty } = await import('../lib/load-notify-parties-hydrator
   const svc = {
     from: () => ({ select: () => ({ eq: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }) }) }),
   };
+  const noopLogger = () => Promise.resolve();
   let threw = false;
   try {
-    await addLoadNotifyParty(svc, { tenantId: 't-1', userId: 'u-1' }, 'load-1', { party_type: 'org', party_id: 'x' }, '127.0.0.1');
+    await addLoadNotifyParty(svc, { tenantId: 't-1', userId: 'u-1' }, 'load-1', { party_type: 'org', party_id: 'x' }, '127.0.0.1', noopLogger);
   } catch (e) {
     threw = true;
   }
@@ -201,13 +202,60 @@ const { addLoadNotifyParty } = await import('../lib/load-notify-parties-hydrator
       return c;
     },
   };
+  const noopLogger = () => Promise.resolve();
   let threw = false;
   try {
-    await addLoadNotifyParty(svc, { tenantId: 't-1', userId: 'u-1' }, 'load-1', { party_type: 'group', party_id: 'grp-other-tenant' }, '127.0.0.1');
+    await addLoadNotifyParty(svc, { tenantId: 't-1', userId: 'u-1' }, 'load-1', { party_type: 'group', party_id: 'grp-other-tenant' }, '127.0.0.1', noopLogger);
   } catch (e) {
     threw = true;
   }
   check('cross-tenant: throws', threw);
+}
+
+// Case 7: Returns 409 on duplicate (Postgres unique violation)
+{
+  console.log('\nCase 7: 409 on duplicate party');
+  let attempts = 0;
+  const svc = {
+    from: (table) => {
+      const c = {
+        _table: table,
+        _filters: {},
+        select: () => c,
+        eq: (col, val) => { c._filters[col] = val; return c; },
+        maybeSingle: async () => {
+          if (table === 'organization_groups') return { data: { id: c._filters.id }, error: null };
+          return { data: null, error: null };
+        },
+        insert: () => ({
+          select: () => ({
+            single: async () => {
+              attempts++;
+              return { data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint' } };
+            },
+          }),
+        }),
+      };
+      return c;
+    },
+  };
+  const noopLogger = () => Promise.resolve();
+  let thrownError = null;
+  try {
+    await addLoadNotifyParty(
+      svc,
+      { tenantId: 't-1', userId: 'u-1' },
+      'load-1',
+      { party_type: 'group', party_id: 'grp-1' },
+      '127.0.0.1',
+      noopLogger
+    );
+  } catch (e) {
+    thrownError = e;
+  }
+  check('duplicate: throws', thrownError != null);
+  check('duplicate: statusCode === 409', thrownError?.statusCode === 409);
+  check('duplicate: insert was attempted', attempts === 1);
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);
