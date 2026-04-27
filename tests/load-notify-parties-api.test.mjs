@@ -258,5 +258,77 @@ const { addLoadNotifyParty } = await import('../lib/load-notify-parties-hydrator
   check('duplicate: insert was attempted', attempts === 1);
 }
 
+console.log('\nDELETE /api/tenant/loads/[id]/notify-parties/[partyId]');
+
+const { removeLoadNotifyParty } = await import('../lib/load-notify-parties-hydrator.js');
+
+// Case 8: Removes only the targeted row
+{
+  console.log('\nCase 8: Removes only the targeted row');
+  let deletedFilters = null;
+  const svc = {
+    from: (table) => {
+      const c = {
+        _table: table,
+        _filters: {},
+        select: () => c,
+        eq: (col, val) => { c._filters[col] = val; return c; },
+        maybeSingle: async () => {
+          if (table === 'load_notify_parties') {
+            return {
+              data: { id: 'row-1', party_type: 'group', party_id: 'g-1', source: 'customer', source_organization_id: 'org-A' },
+              error: null,
+            };
+          }
+          return { data: null, error: null };
+        },
+        delete: () => {
+          // After .delete() the chain calls .eq().eq().eq()
+          const d = {
+            _filters: {},
+            eq: (col, val) => { d._filters[col] = val; return d; },
+            then: (resolve) => {
+              deletedFilters = { ...d._filters };
+              resolve({ error: null });
+            },
+          };
+          return d;
+        },
+      };
+      return c;
+    },
+  };
+  const noopLogger = () => Promise.resolve();
+  const result = await removeLoadNotifyParty(svc, { tenantId: 't-1', userId: 'u-1' }, 'load-1', 'row-1', '127.0.0.1', noopLogger);
+  check('delete: succeeds', result.deleted === true);
+  check('delete: filter included tenant', deletedFilters?.tenant_id === 't-1');
+  check('delete: filter included row id', deletedFilters?.id === 'row-1');
+}
+
+// Case 9: 404 when row not found in this load
+{
+  console.log('\nCase 9: 404 when row not found');
+  const svc = {
+    from: () => {
+      const c = {
+        _filters: {},
+        select: () => c,
+        eq: () => c,
+        maybeSingle: async () => ({ data: null, error: null }),
+      };
+      return c;
+    },
+  };
+  const noopLogger = () => Promise.resolve();
+  let thrownError = null;
+  try {
+    await removeLoadNotifyParty(svc, { tenantId: 't-1', userId: 'u-1' }, 'load-1', 'row-bogus', '127.0.0.1', noopLogger);
+  } catch (e) {
+    thrownError = e;
+  }
+  check('not found: throws', thrownError != null);
+  check('not found: statusCode === 404', thrownError?.statusCode === 404);
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
