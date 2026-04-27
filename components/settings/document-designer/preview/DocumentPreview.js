@@ -2,9 +2,11 @@ import sampleDataDeliveryOrder from '../../../../lib/document-designer/sample-da
 import sampleDataInvoice       from '../../../../lib/document-designer/sample-data-invoice';
 import HeaderPreview               from './HeaderPreview';
 import DeliveryOrderDetailsPreview from './DeliveryOrderDetailsPreview';
+import InvoiceDetailsPreview        from './InvoiceDetailsPreview';
 import AddressDetailsPreview       from './AddressDetailsPreview';
 import OrderDetailsPreview         from './OrderDetailsPreview';
 import CommodityDetailsPreview     from './CommodityDetailsPreview';
+import ChargeDetailsPreview         from './ChargeDetailsPreview';
 import NotesPreview                from './NotesPreview';
 import SignaturePreview            from './SignaturePreview';
 import DisclaimerPreview           from './DisclaimerPreview';
@@ -25,9 +27,11 @@ const SAMPLE_BY_DOCUMENT_TYPE = {
 const PREVIEW_BY_SECTION_ID = {
   header:                 HeaderPreview,
   delivery_order_details: DeliveryOrderDetailsPreview,
+  invoice_details:        InvoiceDetailsPreview,
   address_details:        AddressDetailsPreview,
   order_details:          OrderDetailsPreview,
   commodity_details:      CommodityDetailsPreview,
+  charge_details:         ChargeDetailsPreview,
   notes:                  NotesPreview,
   signature:              SignaturePreview,
   disclaimer:             DisclaimerPreview,
