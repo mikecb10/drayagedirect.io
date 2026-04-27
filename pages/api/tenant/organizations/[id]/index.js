@@ -5,6 +5,9 @@ import {
 } from '../../../../../lib/tenant-api';
 import { logTenantAction, getClientIp } from '../../../../../lib/tenant-audit';
 import { PERMISSIONS } from '../../../../../lib/permissions';
+import { validateDefaultNotifyParties } from '../../../../../lib/notify-parties-validator';
+
+export { validateDefaultNotifyParties };
 
 const EDITABLE_FIELDS = [
   'name',
@@ -66,6 +69,8 @@ const EDITABLE_FIELDS = [
   'validation_required_doc_types',
   // Invoice combination rule from migration 064
   'invoice_combination_rule',
+  // Default notify parties for load emails (load-notify-parties feature)
+  'default_notify_parties',
 ];
 
 export default async function handler(req, res) {
@@ -91,8 +96,17 @@ export default async function handler(req, res) {
     return res.status(200).json({ organization: data });
   }
 
-  if (req.method === 'PUT') {
+  if (req.method === 'PUT' || req.method === 'PATCH') {
     if (!requirePermission(ctx, [PERMISSIONS.ORDER_ENTRY, PERMISSIONS.ALL], res)) return;
+
+    // Validate default_notify_parties shape before processing EDITABLE_FIELDS
+    if (Object.prototype.hasOwnProperty.call(req.body, 'default_notify_parties')) {
+      try {
+        req.body.default_notify_parties = validateDefaultNotifyParties(req.body.default_notify_parties);
+      } catch (e) {
+        return res.status(e.statusCode || 400).json({ error: e.message });
+      }
+    }
 
     const updates = {};
     for (const field of EDITABLE_FIELDS) {
