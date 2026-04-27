@@ -69,7 +69,7 @@ test('boundary: invoice due 31 days ago is in 31-60 bucket', () => {
 });
 
 test('boundary: invoice due 60 days ago is in 31-60 bucket', () => {
-  const r = computeAging([{ due_date: '2026-02-26', balance_due_cents: 100 }], asOf);
+  const r = computeAging([{ due_date: '2026-02-25', balance_due_cents: 100 }], asOf);  // (DST-shifted)
   assert.equal(r.days_31_60, 100);
 });
 
@@ -134,8 +134,7 @@ test('parity: computeAging buckets agree with getAgingBucket() classifications',
     '90+':     'days_90_plus',
   };
   for (const inv of invs) {
-    const result = getAgingBucket(inv.due_date);
-    const bucket = result.bucket || result;  // Some signatures return { bucket, days } object, some return string
+    const { bucket } = getAgingBucket(inv.due_date);
     const key = KEY_MAP[bucket];
     assert.ok(key, `Unknown bucket from getAgingBucket: ${bucket}`);
     expected[key] += inv.balance_due_cents;
