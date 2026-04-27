@@ -158,7 +158,6 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
   const [notifyParties, setNotifyParties] = useState([]);
   const [manuallyEditedNotifyParties, setManuallyEditedNotifyParties] = useState(false);
   const [pendingCustomerOrg, setPendingCustomerOrg] = useState(null);
-  const [previousCustomerOrg, setPreviousCustomerOrg] = useState(null);
 
   const typeCfg = TYPE_CONFIG[form.load_type] || TYPE_CONFIG.import;
 
@@ -172,7 +171,6 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
       setNotifyParties([]);
       setManuallyEditedNotifyParties(false);
       setPendingCustomerOrg(null);
-      setPreviousCustomerOrg(null);
       fetch('/api/tenant/container-sizes?enabled=true')
         .then((r) => (r.ok ? r.json() : null))
         .then((data) => {
@@ -298,7 +296,6 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
 
   async function applyCustomerChange(org) {
     selectOrg('customer_id', 'customer_label', org);
-    setPreviousCustomerOrg(org);
 
     if (!org?.id) {
       setNotifyParties([]);
