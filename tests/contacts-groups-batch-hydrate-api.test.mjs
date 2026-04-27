@@ -17,6 +17,8 @@ function makeMockSvc(config = {}) {
       select: (..._a) => c,
       eq: (col, val) => { c._filters[col] = val; return c; },
       in: (col, vals) => { c._filters[`in:${col}`] = vals; return c; },
+      order: (_col, _opts) => c,
+      limit: (_n) => c,
       then: (resolve) => {
         calls.queries.push({ table, filters: { ...c._filters }, terminal: 'await' });
         if (config[table] !== undefined) resolve({ data: config[table], error: null });
@@ -136,6 +138,34 @@ const { hydrateGroups } = groupsModule;
   });
   const result = await hydrateGroups(svc, { tenantId: 't-1' }, ['g-alive', 'g-deleted']);
   check('returns only alive', result.groups.length === 1);
+}
+
+console.log('\nGET /api/tenant/groups (list all)');
+
+const { listAllGroups } = groupsModule;
+
+// Case 9: Lists all groups in tenant
+{
+  console.log('\nCase 9: Lists all groups in tenant');
+  const svc = makeMockSvc({
+    organization_groups: [
+      { id: 'g-1', name: 'Operations', organization_id: 'org-A', organization: { name: 'Acme' }, members: [{ count: 3 }] },
+      { id: 'g-2', name: 'Billing', organization_id: 'org-B', organization: { name: 'Other Co' }, members: [{ count: 1 }] },
+    ],
+  });
+  const result = await listAllGroups(svc, { tenantId: 't-1' });
+  check('returns 2 groups', result.groups.length === 2);
+  check('preserves organization_name', result.groups[0].organization_name === 'Acme');
+  check('preserves member_count', result.groups.find((g) => g.id === 'g-1').member_count === 3);
+  check('tenant_id filter applied', svc._calls.queries.some((q) => q.filters.tenant_id === 't-1'));
+}
+
+// Case 10: Empty tenant returns empty list
+{
+  console.log('\nCase 10: Empty tenant returns empty list');
+  const svc = makeMockSvc({ organization_groups: [] });
+  const result = await listAllGroups(svc, { tenantId: 't-empty' });
+  check('returns empty', result.groups.length === 0);
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

@@ -1482,9 +1482,9 @@ function RecipientRow({
     return () => clearTimeout(handle);
   }, [activeTab, contactQuery]);
 
-  // Group search — 250ms debounce
+  // Group search — 250ms debounce; default-show all when query is empty
   useEffect(() => {
-    if (activeTab !== 'group' || !groupQuery.trim()) {
+    if (activeTab !== 'group') {
       setGroupResults([]);
       return;
     }
@@ -1492,7 +1492,10 @@ function RecipientRow({
     const handle = setTimeout(async () => {
       setGroupLoading(true);
       try {
-        const res = await fetch(`/api/tenant/groups/search?q=${encodeURIComponent(q)}`);
+        const url = q
+          ? `/api/tenant/groups/search?q=${encodeURIComponent(q)}`
+          : `/api/tenant/groups`;
+        const res = await fetch(url);
         if (res.ok) {
           const json = await res.json();
           setGroupResults(json.groups || []);
@@ -1502,7 +1505,7 @@ function RecipientRow({
       } finally {
         setGroupLoading(false);
       }
-    }, 250);
+    }, q ? 250 : 0);  // no debounce on initial open (q empty)
     return () => clearTimeout(handle);
   }, [activeTab, groupQuery]);
 
@@ -1732,40 +1735,50 @@ function RecipientRow({
                         className="w-full px-2 py-1.5 text-xs rounded border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:border-amber-500"
                       />
                       <div className="mt-2">
-                        {!groupQuery.trim() ? (
-                          <div className="px-2 py-2 text-[11px] text-gray-400 dark:text-slate-500 italic">Start typing to search…</div>
-                        ) : groupLoading ? (
-                          <div className="px-2 py-2 text-[11px] text-gray-500 dark:text-slate-400">Searching…</div>
+                        {groupLoading ? (
+                          <div className="px-2 py-2 text-[11px] text-gray-500 dark:text-slate-400">Loading…</div>
                         ) : groupResults.length === 0 ? (
-                          <div className="px-2 py-2 text-[11px] text-gray-400 dark:text-slate-500 italic">No matches</div>
+                          <div className="px-2 py-2 text-[11px] text-gray-400 dark:text-slate-500 italic">
+                            {groupQuery.trim() ? 'No matches' : 'No groups in this tenant'}
+                          </div>
                         ) : (
-                          groupResults.map((g) => (
-                            <button
-                              key={g.id}
-                              type="button"
-                              onClick={() => {
-                                  onAddContactGroup?.(g.id, { name: g.name, member_count: g.member_count });
-                                  setTokenPickerOpen(false);
-                                }}
-                              className="flex items-start gap-2 w-full px-2 py-1.5 text-xs text-left text-gray-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-950/40 rounded"
-                            >
-                              <Users className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500 mt-0.5 shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <div className="text-xs font-medium truncate">
-                                  {g.name}
-                                  {g.member_count != null && (
-                                    <span className="ml-1 text-[10px] text-gray-500 dark:text-slate-500 font-normal">
-                                      ({g.member_count})
-                                    </span>
-                                  )}
-                                </div>
-                                {g.organization_name && (
-                                  <div className="text-[10px] text-gray-500 dark:text-slate-500 truncate">
-                                    {g.organization_name}
-                                  </div>
-                                )}
+                          // Group results by organization_name for display
+                          Object.entries(
+                            groupResults.reduce((acc, g) => {
+                              const key = g.organization_name || 'Other';
+                              if (!acc[key]) acc[key] = [];
+                              acc[key].push(g);
+                              return acc;
+                            }, {})
+                          ).map(([orgName, gs]) => (
+                            <div key={orgName} className="mb-2 last:mb-0">
+                              <div className="px-2 py-1 text-[10px] uppercase tracking-wider font-semibold text-gray-500 dark:text-slate-400">
+                                {orgName}
                               </div>
-                            </button>
+                              {gs.map((g) => (
+                                <button
+                                  key={g.id}
+                                  type="button"
+                                  onClick={() => {
+                                    onAddContactGroup?.(g.id, { name: g.name, member_count: g.member_count });
+                                    setTokenPickerOpen(false);
+                                  }}
+                                  className="flex items-start gap-2 w-full px-2 py-1.5 text-xs text-left text-gray-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-950/40 rounded"
+                                >
+                                  <Users className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500 mt-0.5 shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-xs font-medium truncate">
+                                      {g.name}
+                                      {g.member_count != null && (
+                                        <span className="ml-1 text-[10px] text-gray-500 dark:text-slate-500 font-normal">
+                                          ({g.member_count})
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
                           ))
                         )}
                       </div>

@@ -1,6 +1,32 @@
 const MAX_BATCH = 100;
 
 /**
+ * Pure helper — list all groups in the tenant grouped by organization.
+ * Returns up to 100 groups with org name and member count.
+ *
+ * Used by the umbrella editor's Group tab to default-show all groups
+ * without requiring the user to type a search query first.
+ */
+export async function listAllGroups(svc, ctx) {
+  const { data } = await svc
+    .from('organization_groups')
+    .select('id, name, organization_id, organization:customers(name), members:organization_group_members(count)')
+    .eq('tenant_id', ctx.tenantId)
+    .order('name', { ascending: true })
+    .limit(100);
+
+  const groups = (data || []).map((r) => ({
+    id: r.id,
+    name: r.name,
+    organization_id: r.organization_id,
+    organization_name: r.organization?.name || null,
+    member_count: r.members?.[0]?.count ?? 0,
+  }));
+
+  return { groups };
+}
+
+/**
  * Pure helper — batch-hydrate groups by id list. Returns rows for each
  * id that exists in the tenant with `member_count` derived. Missing ids
  * are silently omitted (UI handles dead-ref display).
@@ -63,7 +89,13 @@ export default async function handler(req, res) {
   const ids = idsParam.split(',').map((s) => s.trim()).filter(Boolean);
 
   try {
-    const result = await hydrateGroups(svc, ctx, ids);
+    if (ids.length > 0) {
+      // Batch-hydrate path (existing behavior)
+      const result = await hydrateGroups(svc, ctx, ids);
+      return res.status(200).json(result);
+    }
+    // List-all path (new)
+    const result = await listAllGroups(svc, ctx);
     return res.status(200).json(result);
   } catch (e) {
     return res.status(e.statusCode || 500).json({ error: e.message });
