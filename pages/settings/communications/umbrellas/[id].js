@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import {
@@ -120,6 +120,39 @@ const LOAD_FLAGS = [
 ];
 
 const FLAG_KEYS = LOAD_FLAGS.map((f) => f.key);
+
+// Catalog of role tokens available in the umbrella editor's recipient
+// picker. Token value is what gets stored in the JSONB recipients
+// array; label/description are display-only.
+const ROLE_TOKEN_CATALOG = [
+  {
+    section: 'Per-load',
+    tokens: [
+      { value: 'load_notify_parties', label: 'Load notify parties', description: 'Recipients set per-load on the load itself. Empty if none configured for this load.' },
+      { value: 'load_dispatcher',     label: 'Load dispatcher',     description: 'The tenant user assigned to dispatch this load.' },
+      { value: 'driver',              label: 'Driver',              description: 'The driver assigned to the firing event.' },
+    ],
+  },
+  {
+    section: 'Customer',
+    tokens: [
+      { value: 'customer_primary', label: 'Customer primary contact', description: 'The bill-to customer\'s primary contact email.' },
+    ],
+  },
+  {
+    section: 'Tenant',
+    tokens: [
+      { value: 'tenant_dispatcher', label: 'Tenant dispatcher', description: 'Default dispatcher email configured at the tenant level.' },
+      { value: 'tenant_ops',        label: 'Tenant ops',        description: 'Default ops email configured at the tenant level.' },
+      { value: 'acting_user',       label: 'Acting user',       description: 'The user who triggered this email (e.g., clicked Send).' },
+    ],
+  },
+];
+
+const ROLE_TOKEN_LABELS = ROLE_TOKEN_CATALOG.flatMap((s) => s.tokens).reduce((acc, t) => {
+  acc[t.value] = t.label;
+  return acc;
+}, {});
 
 const FILTER_FIELDS_FOR_SCORE = [
   'load_types',
@@ -966,6 +999,15 @@ function GroupCard({
     onUpdate({ [key]: [...current, entry] });
   }
 
+  function addTokenRecipient(kind, token) {
+    if (!token) return;
+    const entry = { type: 'role', value: token };
+    const key = `${kind}_recipients`;
+    const current = Array.isArray(group[key]) ? group[key] : [];
+    if (current.some((r) => r.type === 'role' && r.value === token)) return;
+    onUpdate({ [key]: [...current, entry] });
+  }
+
   function removeRecipient(kind, index) {
     const key = `${kind}_recipients`;
     const current = Array.isArray(group[key]) ? group[key] : [];
@@ -1049,6 +1091,7 @@ function GroupCard({
               addRecipient('to', toInput);
               setToInput('');
             }}
+            onAddToken={(token) => addTokenRecipient('to', token)}
             onRemove={(idx) => removeRecipient('to', idx)}
           />
           <RecipientRow
@@ -1061,6 +1104,7 @@ function GroupCard({
               addRecipient('cc', ccInput);
               setCcInput('');
             }}
+            onAddToken={(token) => addTokenRecipient('cc', token)}
             onRemove={(idx) => removeRecipient('cc', idx)}
           />
           <RecipientRow
@@ -1073,6 +1117,7 @@ function GroupCard({
               addRecipient('bcc', bccInput);
               setBccInput('');
             }}
+            onAddToken={(token) => addTokenRecipient('bcc', token)}
             onRemove={(idx) => removeRecipient('bcc', idx)}
           />
         </div>
@@ -1290,8 +1335,23 @@ function RecipientRow({
   input,
   onInputChange,
   onAdd,
+  onAddToken,        // NEW
   onRemove,
 }) {
+  const [tokenPickerOpen, setTokenPickerOpen] = useState(false);
+  const tokenPickerRef = useRef(null);
+
+  useEffect(() => {
+    if (!tokenPickerOpen) return;
+    function handleOutside(e) {
+      if (tokenPickerRef.current && !tokenPickerRef.current.contains(e.target)) {
+        setTokenPickerOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [tokenPickerOpen]);
+
   const labelClass =
     accentColor === 'blue'
       ? 'text-blue-700 dark:text-blue-300'
@@ -1312,25 +1372,31 @@ function RecipientRow({
           <div
             className="flex flex-wrap gap-1.5 items-center min-h-[38px] rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1.5 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 dark:focus-within:ring-blue-900/40 transition-colors"
           >
-            {recipients.map((r, idx) => (
-              <span
-                key={idx}
-                className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-md text-xs bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 text-blue-700 dark:text-blue-300"
-              >
-                {r.value}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemove(idx);
-                  }}
-                  className="hover:text-rose-600 dark:hover:text-rose-400 p-0.5 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                  aria-label={`Remove ${r.value}`}
+            {recipients.map((r, idx) => {
+              const isToken = r.type === 'role';
+              const display = isToken ? (ROLE_TOKEN_LABELS[r.value] || r.value) : r.value;
+              return (
+                <span
+                  key={idx}
+                  className={`inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-md text-xs border ${
+                    isToken
+                      ? 'bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-900/60 text-purple-700 dark:text-purple-300'
+                      : 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-900/60 text-blue-700 dark:text-blue-300'
+                  }`}
                 >
-                  <X className="w-3 h-3" />
-                </button>
-              </span>
-            ))}
+                  {isToken && <span className="text-[10px] font-mono text-purple-500 dark:text-purple-400">{'{{}}'}</span>}
+                  {display}
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onRemove(idx); }}
+                    className="hover:text-rose-600 dark:hover:text-rose-400 p-0.5 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                    aria-label={`Remove ${display}`}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              );
+            })}
             <input
               type="email"
               value={input}
@@ -1349,6 +1415,38 @@ function RecipientRow({
               }
               className="flex-1 min-w-[160px] bg-transparent border-none outline-none text-sm text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 py-1"
             />
+            <div className="relative" ref={tokenPickerRef}>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setTokenPickerOpen((o) => !o); }}
+                title="Insert dynamic recipient"
+                className="px-1.5 py-1 rounded text-gray-400 hover:text-purple-600 dark:hover:text-purple-400"
+              >
+                <span className="text-xs font-mono">{'{{}}'}</span>
+              </button>
+              {tokenPickerOpen && (
+                <div className="absolute z-30 mt-1 right-0 w-72 max-h-96 overflow-auto rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg">
+                  {ROLE_TOKEN_CATALOG.map((s) => (
+                    <div key={s.section} className="border-b border-gray-100 dark:border-slate-800 last:border-0">
+                      <div className="px-3 py-1 text-[10px] uppercase tracking-wider font-semibold bg-gray-50 dark:bg-slate-800/50 text-gray-500 dark:text-slate-400">
+                        {s.section}
+                      </div>
+                      {s.tokens.map((t) => (
+                        <button
+                          key={t.value}
+                          type="button"
+                          onClick={() => { onAddToken?.(t.value); setTokenPickerOpen(false); }}
+                          className="block w-full px-3 py-2 text-left hover:bg-purple-50 dark:hover:bg-purple-950/40"
+                        >
+                          <div className="text-xs font-medium text-gray-900 dark:text-slate-100">{t.label}</div>
+                          <div className="text-[10px] text-gray-500 dark:text-slate-500 mt-0.5">{t.description}</div>
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </label>
       </div>
