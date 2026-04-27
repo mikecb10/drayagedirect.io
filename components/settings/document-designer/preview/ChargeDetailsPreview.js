@@ -11,6 +11,7 @@ export default function ChargeDetailsPreview({ data, opts, colors }) {
   if (!data) return null;
   const fields = opts?.fields || {};
   const accent = colors?.accent || '#3B82F6';
+  const showSubtotal = opts?.showSubtotal !== false;
 
   const showName    = fields.charge_name !== false;
   const showUnits   = fields.units       !== false;
@@ -57,10 +58,12 @@ export default function ChargeDetailsPreview({ data, opts, colors }) {
         </tbody>
         {lines.length > 0 ? (
           <tfoot>
-            <tr>
-              <td colSpan={3} className="text-right px-2 py-1 text-gray-600">Subtotal</td>
-              <td className="text-right px-2 py-1">{formatCents(totals.subtotal_cents)}</td>
-            </tr>
+            {showSubtotal ? (
+              <tr>
+                <td colSpan={3} className="text-right px-2 py-1 text-gray-600">Subtotal</td>
+                <td className="text-right px-2 py-1">{formatCents(totals.subtotal_cents)}</td>
+              </tr>
+            ) : null}
             <tr className="border-t border-gray-300">
               <td colSpan={3} className="text-right px-2 py-1 font-bold">Total Due</td>
               <td className="text-right px-2 py-1 font-bold">{formatCents(totals.total_cents)}</td>

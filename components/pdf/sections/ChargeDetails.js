@@ -88,6 +88,7 @@ export default function ChargeDetails({ data, opts, colors }) {
   if (!data) return null;
   const fields = opts?.fields || {};
   const accent = colors?.accent || '#3B82F6';
+  const showSubtotal = opts?.showSubtotal !== false;
 
   const showName    = fields.charge_name !== false;
   const showUnits   = fields.units       !== false;
@@ -126,10 +127,12 @@ export default function ChargeDetails({ data, opts, colors }) {
 
         {lines.length > 0 ? (
           <>
-            <View style={styles.totalsRow}>
-              <Text style={styles.totalsLabel}>Subtotal</Text>
-              <Text style={styles.totalsValue}>{formatCents(totals.subtotal_cents)}</Text>
-            </View>
+            {showSubtotal ? (
+              <View style={styles.totalsRow}>
+                <Text style={styles.totalsLabel}>Subtotal</Text>
+                <Text style={styles.totalsValue}>{formatCents(totals.subtotal_cents)}</Text>
+              </View>
+            ) : null}
             <View style={styles.totalsBoldRow}>
               <Text style={styles.totalsLabelBold}>Total Due</Text>
               <Text style={styles.totalsValueBold}>{formatCents(totals.total_cents)}</Text>
