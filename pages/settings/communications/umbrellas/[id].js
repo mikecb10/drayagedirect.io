@@ -1699,7 +1699,6 @@ function RecipientRow({
                                 key={c.id}
                                 type="button"
                                 onClick={() => {
-                                  const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || c.email || '(unnamed)';
                                   onAddContact?.(c.id, { name });
                                   setTokenPickerOpen(false);
                                 }}
