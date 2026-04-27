@@ -1,100 +1,101 @@
-/**
- * InvoiceTemplate.js
- *
- * Exports:
- *   buildSectionData(doc)  — pure mapping function; unit-testable with bare Node
- *   default InvoiceTemplate — React-PDF composer (stub; completed in Task 12)
- *
- * The React / @react-pdf/renderer imports are deferred to module scope only
- * when this file is consumed by the Next.js / bundler environment.  The pure
- * `buildSectionData` export has NO React dependency and is safe to import in
- * bare Node test runners.
- */
+import React from 'react';
+import { Document, Page } from '@react-pdf/renderer';
+import { typography } from './shared/typography';
+import {
+  getSectionsForDocumentType,
+  computeVisibility,
+  extractColors,
+} from '../../lib/constants/document-sections';
+import { buildSectionData } from '../../lib/pdf/build-invoice-section-data';
 
-/**
- * Build per-section data subsets for the Invoice composer. Pure function;
- * exported for unit testing. Mirrors DeliveryOrderTemplate.js's pattern.
- *
- * For Address Details specifically, this sets `data.customer = doc.bill_to`
- * because AddressDetails.js (shared between DO and Invoice) reads
- * `data.customer` internally. The Invoice-specific label "Bill To" is
- * applied at the renderSection switch site (Task 12), not here.
- */
-export function buildSectionData(doc) {
-  const meta = doc.invoice_meta || {};
-  const order = doc.first_order || null;
-  const locations = doc.load_level_locations || {};
+import Header             from './sections/Header';
+import InvoiceDetails     from './sections/InvoiceDetails';
+import AddressDetails     from './sections/AddressDetails';
+import OrderDetails       from './sections/OrderDetails';
+import CommodityDetails   from './sections/CommodityDetails';
+import ChargeDetails      from './sections/ChargeDetails';
+import Notes              from './sections/Notes';
+import Disclaimer         from './sections/Disclaimer';
+import MoveBlock          from './sections/MoveBlock';
+import DocumentFooter     from './sections/DocumentFooter';
 
-  return {
-    header: {
-      tenantName: doc.tenant_name,
-      tenantInfo: doc.tenant_info || {},
-    },
-    invoice_details: {
-      invoice_number:     meta.invoice_number ?? null,
-      load_number:        order?.order_number ?? null,
-      customer_reference: order?.customer_reference ?? null,
-      invoice_date:       meta.invoice_date ?? null,
-      terms_days:         meta.terms_days ?? null,
-      due_date:           meta.due_date ?? null,
-      consolidated_count: meta.consolidated_count ?? 1,
-    },
-    address_details: {
-      customer: doc.bill_to ? {
-        name:          doc.bill_to.name,
-        address_line1: doc.bill_to.address_line1,
-        city:          doc.bill_to.city,
-        state:         doc.bill_to.state,
-        zip:           doc.bill_to.zip,
-        phone:         doc.customer_contact?.phone,
-        email:         doc.customer_contact?.email,
-      } : null,
-      pickup_location:   locations.pickup_location   ?? null,
-      delivery_location: locations.delivery_location ?? null,
-      return_location:   locations.return_location   ?? null,
-      appointment_times: null,
-      is_operational_street_turn: false,
-    },
-    order_details: {
-      reference_number:      order?.customer_reference  ?? null,
-      booking_bl:            order?.booking_number      ?? order?.bl_number ?? null,
-      mbol:                  order?.mbol                ?? null,
-      hbol:                  order?.hbol                ?? null,
-      container_number:      order?.container_number    ?? null,
-      container_size:        order?.container_size      ?? null,
-      container_type:        order?.container_type      ?? null,
-      chassis_number:        order?.chassis_number      ?? null,
-      chassis_size:          order?.chassis_size        ?? null,
-      chassis_type:          order?.chassis_type        ?? null,
-      chassis_owner:         order?.chassis_owner       ?? null,
-      steamship_line:        order?.steamship_line      ?? null,
-      seal:                  order?.seal_number         ?? null,
-      hazmat:                order?.is_hazmat ? 'HAZMAT' : null,
-      pickup_number:         order?.pickup_number       ?? null,
-      pull_container_date:   order?.pull_container_date ?? null,
-      return_container_date: order?.return_container_date ?? null,
-      last_free_day:         order?.last_free_day       ?? null,
-      per_diem_free_day:     order?.per_diem_free_day   ?? null,
-    },
-    commodity_details: null,  // No real source yet; sample-data fills preview
-    charge_details: {
-      charge_lines: doc.charge_lines || [],
-      totals:       doc.totals       || { subtotal_cents: 0, total_cents: 0 },
-    },
-    notes: {
-      driver_notes:  order?.notes          ?? null,    // orders.notes  → driver_notes
-      billing_notes: meta.notes            ?? null,    // invoices.notes → billing_notes
-      load_notes:    order?.internal_notes ?? null,    // orders.internal_notes → load_notes
-    },
-    disclaimer: doc.section_config?.disclaimer?.enabled
-      ? { text: doc.section_config.disclaimer.text || '' }
-      : null,
-  };
+// Re-export buildSectionData for any consumer that imports from this path.
+// New consumers should import directly from lib/pdf/build-invoice-section-data.
+export { buildSectionData } from '../../lib/pdf/build-invoice-section-data';
+
+function renderSection(sectionId, doc, sectionData, opts, ctx, colors) {
+  switch (sectionId) {
+    case 'header':
+      return (
+        <Header
+          tenantName={sectionData.header.tenantName}
+          tenantInfo={sectionData.header.tenantInfo}
+          title={ctx.title}
+          subtitle={ctx.subtitle}
+          opts={opts}
+          colors={colors}
+        />
+      );
+    case 'invoice_details':
+      return <InvoiceDetails data={sectionData.invoice_details} opts={opts} colors={colors} />;
+    case 'address_details': {
+      // Field-ID translation: Invoice's registry uses `bill_to`; AddressDetails
+      // reads `opts.fields.customer` internally. Per-doc-type "Bill To" label
+      // is supplied via opts.customerLabel here. See spec §3.2. Mirrored in
+      // components/settings/document-designer/preview/DocumentPreview.js for
+      // the live HTML preview path — keep the two in sync.
+      const addrOpts = {
+        ...opts,
+        customerLabel: 'Bill To',
+        fields: { ...opts.fields, customer: opts.fields?.bill_to !== false },
+      };
+      return <AddressDetails data={sectionData.address_details} opts={addrOpts} colors={colors} />;
+    }
+    case 'order_details':
+      return <OrderDetails data={sectionData.order_details} opts={opts} colors={colors} />;
+    case 'move_events':
+      return (
+        <MoveBlock
+          data={{ moves: doc.moves }}
+          opts={opts}
+          isNextMoveOnly={false}
+          totalMoves={doc.moves?.length ?? 0}
+        />
+      );
+    case 'commodity_details':
+      return <CommodityDetails data={sectionData.commodity_details} opts={opts} colors={colors} />;
+    case 'charge_details':
+      return <ChargeDetails data={sectionData.charge_details} opts={opts} colors={colors} />;
+    case 'notes':
+      return <Notes data={sectionData.notes} opts={opts} />;
+    case 'disclaimer':
+      return <Disclaimer data={sectionData.disclaimer} colors={colors} />;
+    case 'footer':
+      return <DocumentFooter data={{ tenant_name: doc.tenant_name }} />;
+    default:
+      return null;
+  }
 }
 
-// Composer body completed in Task 12.
-// React / @react-pdf/renderer are imported at the module level in the
-// bundler environment; the default export is a stub until Task 12.
-export default function InvoiceTemplate(/* { doc, sectionConfig } */) {
-  return null;
+export default function InvoiceTemplate({ doc, sectionConfig }) {
+  const sections = getSectionsForDocumentType('invoice');
+  const { visibility, fields } = computeVisibility(sections, sectionConfig);
+  const colors = extractColors(sectionConfig);
+  const order = sectionConfig?.order || sections.map((s) => s.id);
+  const sectionData = buildSectionData(doc);
+  const ctx = { variant: 'invoice', title: 'INVOICE', subtitle: null };
+
+  return (
+    <Document>
+      <Page size="LETTER" style={typography.page} wrap>
+        {order.map((sectionId) => {
+          if (!visibility[sectionId]) return null;
+          const baseOpts = sectionConfig?.perSection?.[sectionId] || {};
+          const opts = { ...baseOpts, fields: fields[sectionId] || {} };
+          const node = renderSection(sectionId, doc, sectionData, opts, ctx, colors);
+          return node ? <React.Fragment key={sectionId}>{node}</React.Fragment> : null;
+        })}
+      </Page>
+    </Document>
+  );
 }
