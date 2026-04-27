@@ -55,6 +55,7 @@ const PREVIEW_BY_SECTION_ID = {
  * sample data + resolved field-visibility map + per-template colors.
  *
  * `documentType`: 'delivery_order_full' | 'delivery_order_next_move' | 'invoice'
+ *                 | 'rate_con' | 'combined_invoice' | 'pod'
  *                 — picks the per-doc-type sample data slice
  * `visibility`:   { [sectionId]: boolean }
  * `fields`:       { [sectionId]: { [fieldId]: boolean } }
