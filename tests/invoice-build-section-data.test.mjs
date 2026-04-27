@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
-import { buildSectionData } from '../components/pdf/InvoiceTemplate.js';
+import { buildSectionData } from '../lib/pdf/build-invoice-section-data.js';
 
 const baseDoc = {
   invoice_id: 'inv-uuid',
