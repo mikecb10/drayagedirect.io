@@ -4,6 +4,7 @@ import sampleDataRateCon       from '../../../../lib/document-designer/sample-da
 import HeaderPreview               from './HeaderPreview';
 import DeliveryOrderDetailsPreview from './DeliveryOrderDetailsPreview';
 import InvoiceDetailsPreview        from './InvoiceDetailsPreview';
+import RateConDetailsPreview        from './RateConDetailsPreview';
 import AddressDetailsPreview       from './AddressDetailsPreview';
 import OrderDetailsPreview         from './OrderDetailsPreview';
 import CommodityDetailsPreview     from './CommodityDetailsPreview';
@@ -30,6 +31,7 @@ const PREVIEW_BY_SECTION_ID = {
   header:                 HeaderPreview,
   delivery_order_details: DeliveryOrderDetailsPreview,
   invoice_details:        InvoiceDetailsPreview,
+  rate_con_details:       RateConDetailsPreview,
   address_details:        AddressDetailsPreview,
   order_details:          OrderDetailsPreview,
   commodity_details:      CommodityDetailsPreview,
