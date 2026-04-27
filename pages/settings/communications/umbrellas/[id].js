@@ -985,10 +985,56 @@ function GroupCard({
   const [ccInput, setCcInput] = useState('');
   const [bccInput, setBccInput] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [hydratedNames, setHydratedNames] = useState({ contact: {}, group: {} });
 
   useEffect(() => {
     setLocalName(group.name);
   }, [group.name]);
+
+  // One-shot batch-hydrate: fetch display names for all contact/contact_group
+  // entries in this group's to/cc/bcc recipient arrays.
+  useEffect(() => {
+    const allRecipients = [
+      ...(group.to_recipients || []),
+      ...(group.cc_recipients || []),
+      ...(group.bcc_recipients || []),
+    ];
+    const contactIds = Array.from(new Set(
+      allRecipients.filter((r) => r.type === 'contact').map((r) => r.value).filter(Boolean)
+    ));
+    const groupIds = Array.from(new Set(
+      allRecipients.filter((r) => r.type === 'contact_group').map((r) => r.value).filter(Boolean)
+    ));
+
+    if (contactIds.length === 0 && groupIds.length === 0) return;
+
+    let cancelled = false;
+    Promise.all([
+      contactIds.length
+        ? fetch(`/api/tenant/contacts?ids=${contactIds.join(',')}`).then((r) => r.ok ? r.json() : { contacts: [] }).catch(() => ({ contacts: [] }))
+        : Promise.resolve({ contacts: [] }),
+      groupIds.length
+        ? fetch(`/api/tenant/groups?ids=${groupIds.join(',')}`).then((r) => r.ok ? r.json() : { groups: [] }).catch(() => ({ groups: [] }))
+        : Promise.resolve({ groups: [] }),
+    ]).then(([contactsRes, groupsRes]) => {
+      if (cancelled) return;
+      const contacts = contactsRes.contacts || [];
+      const hydratedGroups = groupsRes.groups || [];
+
+      const contactMap = {};
+      for (const cid of contactIds) contactMap[cid] = null;  // mark dead refs as null
+      for (const c of contacts) {
+        contactMap[c.id] = `${c.first_name || ''} ${c.last_name || ''}`.trim() || c.email || '(unnamed)';
+      }
+      const groupMap = {};
+      for (const gid of groupIds) groupMap[gid] = null;
+      for (const g of hydratedGroups) {
+        groupMap[g.id] = { name: g.name, member_count: g.member_count };
+      }
+      setHydratedNames({ contact: contactMap, group: groupMap });
+    });
+    return () => { cancelled = true; };
+  }, [group.to_recipients, group.cc_recipients, group.bcc_recipients]);
 
   function addRecipient(kind, value) {
     if (!value || !value.trim()) return;
@@ -1009,22 +1055,34 @@ function GroupCard({
     onUpdate({ [key]: [...current, entry] });
   }
 
-  function addContactRecipient(kind, contactId) {
+  function addContactRecipient(kind, contactId, displayHints) {
     if (!contactId) return;
     const entry = { type: 'contact', value: contactId };
     const key = `${kind}_recipients`;
     const current = Array.isArray(group[key]) ? group[key] : [];
     if (current.some((r) => r.type === 'contact' && r.value === contactId)) return;
     onUpdate({ [key]: [...current, entry] });
+    if (displayHints?.name) {
+      setHydratedNames((prev) => ({
+        ...prev,
+        contact: { ...prev.contact, [contactId]: displayHints.name },
+      }));
+    }
   }
 
-  function addContactGroupRecipient(kind, groupId) {
+  function addContactGroupRecipient(kind, groupId, displayHints) {
     if (!groupId) return;
     const entry = { type: 'contact_group', value: groupId };
     const key = `${kind}_recipients`;
     const current = Array.isArray(group[key]) ? group[key] : [];
     if (current.some((r) => r.type === 'contact_group' && r.value === groupId)) return;
     onUpdate({ [key]: [...current, entry] });
+    if (displayHints?.name) {
+      setHydratedNames((prev) => ({
+        ...prev,
+        group: { ...prev.group, [groupId]: { name: displayHints.name, member_count: displayHints.member_count ?? 0 } },
+      }));
+    }
   }
 
   function removeRecipient(kind, index) {
@@ -1111,9 +1169,10 @@ function GroupCard({
               setToInput('');
             }}
             onAddToken={(token) => addTokenRecipient('to', token)}
-            onAddContact={(contactId) => addContactRecipient('to', contactId)}
-            onAddContactGroup={(groupId) => addContactGroupRecipient('to', groupId)}
+            onAddContact={(contactId, displayHints) => addContactRecipient('to', contactId, displayHints)}
+            onAddContactGroup={(groupId, displayHints) => addContactGroupRecipient('to', groupId, displayHints)}
             onRemove={(idx) => removeRecipient('to', idx)}
+            hydratedNames={hydratedNames}
           />
           <RecipientRow
             label="Cc"
@@ -1126,9 +1185,10 @@ function GroupCard({
               setCcInput('');
             }}
             onAddToken={(token) => addTokenRecipient('cc', token)}
-            onAddContact={(contactId) => addContactRecipient('cc', contactId)}
-            onAddContactGroup={(groupId) => addContactGroupRecipient('cc', groupId)}
+            onAddContact={(contactId, displayHints) => addContactRecipient('cc', contactId, displayHints)}
+            onAddContactGroup={(groupId, displayHints) => addContactGroupRecipient('cc', groupId, displayHints)}
             onRemove={(idx) => removeRecipient('cc', idx)}
+            hydratedNames={hydratedNames}
           />
           <RecipientRow
             label="Bcc"
@@ -1141,9 +1201,10 @@ function GroupCard({
               setBccInput('');
             }}
             onAddToken={(token) => addTokenRecipient('bcc', token)}
-            onAddContact={(contactId) => addContactRecipient('bcc', contactId)}
-            onAddContactGroup={(groupId) => addContactGroupRecipient('bcc', groupId)}
+            onAddContact={(contactId, displayHints) => addContactRecipient('bcc', contactId, displayHints)}
+            onAddContactGroup={(groupId, displayHints) => addContactGroupRecipient('bcc', groupId, displayHints)}
             onRemove={(idx) => removeRecipient('bcc', idx)}
+            hydratedNames={hydratedNames}
           />
         </div>
         <div className="mt-2 text-[10px] text-gray-400 dark:text-slate-500">
@@ -1364,6 +1425,7 @@ function RecipientRow({
   onAddContact,        // NEW
   onAddContactGroup,   // NEW
   onRemove,
+  hydratedNames = { contact: {}, group: {} },   // NEW
 }) {
   const [tokenPickerOpen, setTokenPickerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('role');
@@ -1466,18 +1528,57 @@ function RecipientRow({
           >
             {recipients.map((r, idx) => {
               const isToken = r.type === 'role';
-              const display = isToken ? (ROLE_TOKEN_LABELS[r.value] || r.value) : r.value;
+              const isContact = r.type === 'contact';
+              const isGroup = r.type === 'contact_group';
+
+              const contactHydrated = isContact ? hydratedNames.contact[r.value] : undefined;
+              const groupHydrated = isGroup ? hydratedNames.group[r.value] : undefined;
+
+              let display;
+              let icon = null;
+              let colorClasses;
+
+              if (isToken) {
+                display = ROLE_TOKEN_LABELS[r.value] || r.value;
+                icon = <span className="text-[10px] font-mono text-purple-500 dark:text-purple-400">{`{{}}`}</span>;
+                colorClasses = 'bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-900/60 text-purple-700 dark:text-purple-300';
+              } else if (isContact) {
+                icon = <User className="w-3 h-3" />;
+                if (contactHydrated === undefined) {
+                  display = 'Loading…';
+                  colorClasses = 'bg-gray-100 dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-gray-500 dark:text-slate-400';
+                } else if (contactHydrated === null) {
+                  display = 'Deleted contact';
+                  colorClasses = 'bg-gray-100 dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-gray-500 dark:text-slate-400 line-through';
+                } else {
+                  display = contactHydrated;
+                  colorClasses = 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/60 text-emerald-700 dark:text-emerald-300';
+                }
+              } else if (isGroup) {
+                icon = <Users className="w-3 h-3" />;
+                if (groupHydrated === undefined) {
+                  display = 'Loading…';
+                  colorClasses = 'bg-gray-100 dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-gray-500 dark:text-slate-400';
+                } else if (groupHydrated === null) {
+                  display = 'Deleted group';
+                  colorClasses = 'bg-gray-100 dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-gray-500 dark:text-slate-400 line-through';
+                } else {
+                  display = `${groupHydrated.name} (${groupHydrated.member_count})`;
+                  colorClasses = 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/60 text-amber-700 dark:text-amber-300';
+                }
+              } else {
+                // email or unknown type
+                display = r.value;
+                colorClasses = 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-900/60 text-blue-700 dark:text-blue-300';
+              }
+
               return (
                 <span
                   key={idx}
-                  className={`inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-md text-xs border ${
-                    isToken
-                      ? 'bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-900/60 text-purple-700 dark:text-purple-300'
-                      : 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-900/60 text-blue-700 dark:text-blue-300'
-                  }`}
+                  className={`inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-md text-xs border ${colorClasses}`}
                 >
-                  {isToken && <span className="text-[10px] font-mono text-purple-500 dark:text-purple-400">{'{{}}'}</span>}
-                  {display}
+                  {icon}
+                  <span className="truncate max-w-[200px]">{display}</span>
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onRemove(idx); }}
@@ -1597,7 +1698,11 @@ function RecipientRow({
                               <button
                                 key={c.id}
                                 type="button"
-                                onClick={() => { onAddContact?.(c.id); setTokenPickerOpen(false); }}
+                                onClick={() => {
+                                  const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || c.email || '(unnamed)';
+                                  onAddContact?.(c.id, { name });
+                                  setTokenPickerOpen(false);
+                                }}
                                 className="flex items-start gap-2 w-full px-2 py-1.5 text-xs text-left text-gray-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded"
                               >
                                 <User className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500 mt-0.5 shrink-0" />
@@ -1638,7 +1743,10 @@ function RecipientRow({
                             <button
                               key={g.id}
                               type="button"
-                              onClick={() => { onAddContactGroup?.(g.id); setTokenPickerOpen(false); }}
+                              onClick={() => {
+                                  onAddContactGroup?.(g.id, { name: g.name, member_count: g.member_count });
+                                  setTokenPickerOpen(false);
+                                }}
                               className="flex items-start gap-2 w-full px-2 py-1.5 text-xs text-left text-gray-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-950/40 rounded"
                             >
                               <Users className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500 mt-0.5 shrink-0" />
