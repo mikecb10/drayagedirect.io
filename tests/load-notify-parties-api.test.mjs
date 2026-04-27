@@ -106,5 +106,21 @@ console.log('GET /api/tenant/loads/[id]/notify-parties');
   check('dead-ref: name is null', result.parties[0].name === null);
 }
 
+// Case 3: Dead-ref contact returned with name=null
+{
+  console.log('\nCase 3: Dead-ref contact returned with name=null');
+  const svc = makeMockSvc({
+    load_notify_parties: [
+      { id: 'row-1', party_type: 'contact', party_id: 'deleted-con', source: 'customer', source_organization_id: 'org-A' },
+    ],
+    organization_contacts: [],   // 'deleted-con' not present
+    customers: [{ id: 'org-A', name: 'Acme' }],
+  });
+  const result = await listLoadNotifyParties(svc, { tenantId: 't-1' }, 'load-1');
+  check('dead-ref contact: 1 row still returned', result.parties.length === 1);
+  check('dead-ref contact: name is null', result.parties[0].name === null);
+  check('dead-ref contact: email is null', result.parties[0].email === null);
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

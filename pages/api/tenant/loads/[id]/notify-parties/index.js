@@ -23,6 +23,7 @@ export default async function handler(req, res) {
     .select('id')
     .eq('id', loadId)
     .eq('tenant_id', ctx.tenantId)
+    .is('deleted_at', null)
     .maybeSingle();
   if (!load) return res.status(404).json({ error: 'Load not found' });
 
