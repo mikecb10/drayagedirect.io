@@ -1,90 +1,102 @@
-import { Document, Page, View, Text } from '@react-pdf/renderer';
-import Header from './sections/Header';
-import LineItemsTable from './shared/LineItemsTable';
-import { typography, colors } from './shared/typography';
+import React from 'react';
+import { Document, Page } from '@react-pdf/renderer';
+import { typography } from './shared/typography';
+import {
+  getSectionsForDocumentType,
+  computeVisibility,
+  extractColors,
+} from '../../lib/constants/document-sections';
+import { buildSectionData } from '../../lib/pdf/build-rate-con-section-data';
 
-function formatCents(cents) {
-  const num = (cents || 0) / 100;
-  return `$${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+import Header             from './sections/Header';
+import RateConDetails     from './sections/RateConDetails';
+import AddressDetails     from './sections/AddressDetails';
+import OrderDetails       from './sections/OrderDetails';
+import CommodityDetails   from './sections/CommodityDetails';
+import ChargeDetails      from './sections/ChargeDetails';
+import Notes              from './sections/Notes';
+import Signature          from './sections/Signature';
+import Disclaimer         from './sections/Disclaimer';
+import MoveBlock          from './sections/MoveBlock';
+import DocumentFooter     from './sections/DocumentFooter';
+
+// Re-export buildSectionData for any consumer that imports from this path.
+// New consumers should import directly from lib/pdf/build-rate-con-section-data.
+export { buildSectionData } from '../../lib/pdf/build-rate-con-section-data';
+
+function renderSection(sectionId, doc, sectionData, opts, ctx, colors) {
+  switch (sectionId) {
+    case 'header':
+      return (
+        <Header
+          tenantName={sectionData.header.tenantName}
+          tenantInfo={sectionData.header.tenantInfo}
+          title={ctx.title}
+          subtitle={ctx.subtitle}
+          opts={opts}
+          colors={colors}
+        />
+      );
+    case 'rate_con_details':
+      return <RateConDetails data={sectionData.rate_con_details} opts={opts} colors={colors} />;
+    case 'address_details':
+      // Rate Con's address_details registry has no `customer` or `bill_to` field
+      // (only the 4 location fields), so no field-ID translation is needed.
+      // buildSectionData sets data.customer = null so AddressDetails's customer
+      // block short-circuits regardless of opts.fields.
+      return <AddressDetails data={sectionData.address_details} opts={opts} colors={colors} />;
+    case 'order_details':
+      return <OrderDetails data={sectionData.order_details} opts={opts} colors={colors} />;
+    case 'move_events':
+      return (
+        <MoveBlock
+          data={{ moves: doc.moves }}
+          opts={opts}
+          isNextMoveOnly={false}
+          totalMoves={doc.moves?.length ?? 0}
+        />
+      );
+    case 'commodity_details':
+      return <CommodityDetails data={sectionData.commodity_details} opts={opts} colors={colors} />;
+    case 'charge_details': {
+      // Rate Con's charge_set.total_cents is the only authoritative total.
+      // No subtotal_cents column → suppress the Subtotal row in the totals footer.
+      // Mirrored in components/settings/document-designer/preview/DocumentPreview.js
+      // for the live HTML preview path — keep the two in sync.
+      const chargeOpts = { ...opts, showSubtotal: false };
+      return <ChargeDetails data={sectionData.charge_details} opts={chargeOpts} colors={colors} />;
+    }
+    case 'notes':
+      return <Notes data={sectionData.notes} opts={opts} />;
+    case 'signature':
+      return <Signature data={sectionData.signature} colors={colors} />;
+    case 'disclaimer':
+      return <Disclaimer data={sectionData.disclaimer} colors={colors} />;
+    case 'footer':
+      return <DocumentFooter data={{ tenant_name: doc.tenant_name }} />;
+    default:
+      return null;
+  }
 }
 
-function formatDate(input) {
-  if (!input) return 'TBD';
-  const d = new Date(input);
-  if (isNaN(d.getTime())) return 'TBD';
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-}
+export default function RateConTemplate({ doc, sectionConfig }) {
+  const sections = getSectionsForDocumentType('rate_con');
+  const { visibility, fields } = computeVisibility(sections, sectionConfig);
+  const colors = extractColors(sectionConfig);
+  const order = sectionConfig?.order || sections.map((s) => s.id);
+  const sectionData = buildSectionData(doc);
+  const ctx = { variant: 'rate_con', title: 'RATE CONFIRMATION', subtitle: null };
 
-function formatLocation(loc) {
-  if (!loc) return '(TBD)';
-  const cityLine = [loc.city, loc.state, loc.zip].filter(Boolean).join(', ');
-  return [loc.name, loc.address_line1, cityLine].filter(Boolean).join('\n');
-}
-
-export default function RateConTemplate({
-  tenantName,
-  confirmationNumber,
-  issueDate,
-  referenceNumber,
-  containerNumber,
-  chassisNumber,
-  pickup,
-  delivery,
-  lineItems,
-  total,
-}) {
   return (
     <Document>
-      <Page size="LETTER" style={typography.page}>
-        <Header tenantName={tenantName} title="RATE CONFIRMATION" />
-
-        {/* Metadata */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
-          <View>
-            <Text style={typography.label}>Confirmation #</Text>
-            <Text style={typography.value}>{confirmationNumber || '—'}</Text>
-            <Text style={typography.label}>Issue Date</Text>
-            <Text style={typography.value}>{formatDate(issueDate)}</Text>
-            {referenceNumber ? (
-              <>
-                <Text style={typography.label}>PO / Reference #</Text>
-                <Text style={typography.value}>{referenceNumber}</Text>
-              </>
-            ) : null}
-          </View>
-          <View style={{ minWidth: 180 }}>
-            <Text style={typography.label}>Container #</Text>
-            <Text style={typography.value}>{containerNumber || '—'}</Text>
-            <Text style={typography.label}>Chassis #</Text>
-            <Text style={typography.value}>{chassisNumber || '—'}</Text>
-          </View>
-        </View>
-
-        {/* Pickup / Delivery */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
-          <View style={{ flex: 1, marginRight: 12 }}>
-            <Text style={typography.label}>Pickup</Text>
-            <Text style={typography.value}>{formatLocation(pickup?.location)}</Text>
-            <Text style={[typography.value, typography.muted]}>Date: {formatDate(pickup?.date)}</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={typography.label}>Delivery</Text>
-            <Text style={typography.value}>{formatLocation(delivery?.location)}</Text>
-            <Text style={[typography.value, typography.muted]}>Date: {formatDate(delivery?.date)}</Text>
-          </View>
-        </View>
-
-        <LineItemsTable items={lineItems} />
-
-        {/* Total */}
-        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 }}>
-          <View style={{ minWidth: 180 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, borderTopWidth: 1, borderTopColor: colors.border }}>
-              <Text style={{ fontWeight: 'bold' }}>Total</Text>
-              <Text style={{ fontWeight: 'bold' }}>{formatCents(total)}</Text>
-            </View>
-          </View>
-        </View>
+      <Page size="LETTER" style={typography.page} wrap>
+        {order.map((sectionId) => {
+          if (!visibility[sectionId]) return null;
+          const baseOpts = sectionConfig?.perSection?.[sectionId] || {};
+          const opts = { ...baseOpts, fields: fields[sectionId] || {} };
+          const node = renderSection(sectionId, doc, sectionData, opts, ctx, colors);
+          return node ? <React.Fragment key={sectionId}>{node}</React.Fragment> : null;
+        })}
       </Page>
     </Document>
   );
