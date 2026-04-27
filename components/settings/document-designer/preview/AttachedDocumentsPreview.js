@@ -1,6 +1,6 @@
 /**
  * HTML preview of Attached Documents. Mirrors components/pdf/sections/AttachedDocuments.js.
- * Accent-banded header + 2-column table.
+ * Accent-banded header + 2-column table. `opts` unused — master-toggle only.
  */
 export default function AttachedDocumentsPreview({ data, opts, colors }) {
   if (!Array.isArray(data)) return null;

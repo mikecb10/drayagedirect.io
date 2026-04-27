@@ -54,6 +54,8 @@ const styles = {
  * `data` shape: Array<{ id, file_name, document_type, uploaded_at }>
  *   uploaded_at is pre-formatted by fetchPodData (string).
  *
+ * `opts` — no leaf fields; this section is master-toggle only.
+ *
  * v1 lists files only; embedding image thumbnails is a future enhancement
  * (FU-035-H4-followup-C).
  */
