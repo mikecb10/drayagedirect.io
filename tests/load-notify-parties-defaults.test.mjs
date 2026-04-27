@@ -59,5 +59,116 @@ console.log('validateDefaultNotifyParties — input shape validation');
   check('non-array: throws', threw);
 }
 
+console.log('\ncopyDefaultNotifyParties — default-copy logic');
+
+const { copyDefaultNotifyParties } = await import('../lib/load-notify-parties-hydrator.js');
+
+// Case 7: Copies all defaults to load_notify_parties rows
+{
+  console.log('\nCase 7: Copies all defaults');
+  let inserted = null;
+  const svc = {
+    from: (table) => {
+      const c = {
+        _table: table,
+        _filters: {},
+        select: () => c,
+        eq: (col, val) => { c._filters[col] = val; return c; },
+        in: (col, vals) => { c._filters[`in:${col}`] = vals; return c; },
+        maybeSingle: async () => {
+          if (table === 'customers') {
+            return {
+              data: {
+                default_notify_parties: [
+                  { type: 'group', id: '11111111-1111-1111-1111-111111111111', source_organization_id: '22222222-2222-2222-2222-222222222222' },
+                  { type: 'contact', id: '33333333-3333-3333-3333-333333333333' },
+                ],
+              },
+              error: null,
+            };
+          }
+          return { data: null, error: null };
+        },
+        then: (resolve) => {
+          if (table === 'organization_groups') resolve({ data: [{ id: '11111111-1111-1111-1111-111111111111' }], error: null });
+          else if (table === 'organization_contacts') resolve({ data: [{ id: '33333333-3333-3333-3333-333333333333' }], error: null });
+          else resolve({ data: [], error: null });
+        },
+        insert: (recs) => { inserted = recs; return { error: null }; },
+      };
+      return c;
+    },
+  };
+  const count = await copyDefaultNotifyParties(svc, { tenantId: 't-1', userId: 'u-1' }, 'load-1', 'cust-1');
+  check('copy: 2 rows inserted', count === 2);
+  check('copy: rows have source=default', Array.isArray(inserted) && inserted.every((r) => r.source === 'default'));
+  check('copy: rows have load_id', inserted.every((r) => r.load_id === 'load-1'));
+  check('copy: rows have tenant_id', inserted.every((r) => r.tenant_id === 't-1'));
+}
+
+// Case 8: Empty defaults inserts nothing
+{
+  console.log('\nCase 8: Empty defaults inserts nothing');
+  let insertedCount = 0;
+  const svc = {
+    from: (table) => {
+      const c = {
+        _table: table,
+        _filters: {},
+        select: () => c,
+        eq: () => c,
+        in: () => c,
+        maybeSingle: async () => ({ data: { default_notify_parties: [] }, error: null }),
+        insert: () => { insertedCount++; return { error: null }; },
+      };
+      return c;
+    },
+  };
+  const count = await copyDefaultNotifyParties(svc, { tenantId: 't-1', userId: 'u-1' }, 'load-1', 'cust-1');
+  check('empty: 0 rows', count === 0);
+  check('empty: insert not called', insertedCount === 0);
+}
+
+// Case 9: Filters dead refs (group exists, contact deleted)
+{
+  console.log('\nCase 9: Filters dead refs');
+  let inserted = null;
+  const svc = {
+    from: (table) => {
+      const c = {
+        _table: table,
+        _filters: {},
+        select: () => c,
+        eq: () => c,
+        in: () => c,
+        maybeSingle: async () => {
+          if (table === 'customers') {
+            return {
+              data: {
+                default_notify_parties: [
+                  { type: 'group', id: 'grp-alive' },
+                  { type: 'contact', id: 'con-deleted' },
+                ],
+              },
+              error: null,
+            };
+          }
+          return { data: null, error: null };
+        },
+        then: (resolve) => {
+          if (table === 'organization_groups') resolve({ data: [{ id: 'grp-alive' }], error: null });
+          else if (table === 'organization_contacts') resolve({ data: [], error: null });  // con-deleted not present
+          else resolve({ data: [], error: null });
+        },
+        insert: (recs) => { inserted = recs; return { error: null }; },
+      };
+      return c;
+    },
+  };
+  const count = await copyDefaultNotifyParties(svc, { tenantId: 't-1', userId: 'u-1' }, 'load-1', 'cust-1');
+  check('dead-ref: 1 row inserted (group only)', count === 1);
+  check('dead-ref: row is the group', inserted?.length === 1 && inserted[0].party_type === 'group');
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

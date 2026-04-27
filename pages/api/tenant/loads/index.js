@@ -12,6 +12,7 @@ import { applyBranchFilter } from '../../../../lib/branch-filter';
 import { fetchLoadMarginInputs, computeLoadMargin } from '../../../../lib/load-margin';
 import { LOAD_TYPE_LETTER } from '../../../../lib/constants/load-types.js';
 import { validateLoadPayload } from '../../../../lib/validation/load-payload.js';
+import { copyDefaultNotifyParties } from '../../../../lib/load-notify-parties-hydrator';
 
 const VALID_STATUSES = ['pending', 'available', 'dispatched', 'in_transit', 'dropped', 'delivered', 'completed', 'cancelled'];
 // VALID_STATUSES consolidation is a separate FU — stays here for now.
@@ -489,6 +490,28 @@ export default async function handler(req, res) {
     } catch (e) {
       // Don't fail load creation if tariff engine errors
       console.error('Tariff auto-apply error:', e.message);
+    }
+
+    // Copy the customer's default notify parties into load_notify_parties
+    // rows. Failure is non-fatal — load creation succeeds either way.
+    if (data.customer_id) {
+      try {
+        const copiedCount = await copyDefaultNotifyParties(svc, ctx, data.id, data.customer_id);
+        if (copiedCount > 0) {
+          await logTenantAction(svc, {
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            action: 'load.notify_parties_seeded',
+            entityType: 'order',
+            entityId: data.id,
+            newValues: { count: copiedCount },
+            ipAddress: getClientIp(req),
+            actorType: 'system',
+          });
+        }
+      } catch (e) {
+        console.warn('default notify-party copy failed:', e.message);
+      }
     }
 
     await logTenantAction(svc, {
