@@ -89,5 +89,30 @@ console.log('GET /api/tenant/contacts/search');
   check('queries with tenant_id filter', svc._calls.queries[0].filters.tenant_id === 't-A');
 }
 
+// Case 5: Comma in query is sanitized (PostgREST delimiter injection)
+{
+  console.log('\nCase 5: Comma in query sanitized');
+  let capturedOr = null;
+  // Custom mock that captures the .or() argument
+  const svc = {
+    from: (table) => {
+      const c = {
+        _table: table,
+        _filters: {},
+        select: () => c,
+        eq: () => c,
+        or: (expr) => { capturedOr = expr; return c; },
+        order: () => c,
+        limit: () => c,
+        then: (resolve) => resolve({ data: [], error: null }),
+      };
+      return c;
+    },
+  };
+  await searchContacts(svc, { tenantId: 't-1' }, 'Smith, Jane');
+  check('comma stripped from .or() expr', capturedOr != null && !capturedOr.includes(', Jane'));
+  check('parens stripped from .or() expr', !capturedOr.includes('(') && !capturedOr.includes(')'));
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

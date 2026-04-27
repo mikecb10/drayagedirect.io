@@ -14,7 +14,8 @@ export async function searchContacts(svc, ctx, q) {
     e.statusCode = 400;
     throw e;
   }
-  const escaped = trimmed.replace(/[%_]/g, '\\$&');
+  // Escape SQL wildcards (% and _) AND PostgREST .or() delimiters (, ( ))
+  const escaped = trimmed.replace(/[%_]/g, '\\$&').replace(/[,()]/g, ' ');
   const pattern = `%${escaped}%`;
 
   // Use Postgres OR across first_name, last_name, email
