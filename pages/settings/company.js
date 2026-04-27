@@ -87,6 +87,13 @@ function CompanySettings() {
           logo_small_url: settings.logo_small_url || null,
           logo_large_url: settings.logo_large_url || null,
           live_presence_enabled: settings.live_presence_enabled !== false,
+          address_line1: settings.address_line1 || null,
+          address_line2: settings.address_line2 || null,
+          city: settings.city || null,
+          state: settings.state || null,
+          zip: settings.zip || null,
+          phone: settings.phone || null,
+          website: settings.website || null,
         }),
       });
 
@@ -213,6 +220,66 @@ function CompanySettings() {
                   fileKey="logo_large"
                 />
               </div>
+            </SectionCard>
+
+            {/* Business Address & Contact — appears on printed documents */}
+            <SectionCard
+              title="Business Address & Contact"
+              description="These details appear on printed documents (Delivery Orders, Invoices, etc.) — your tenant's official address, phone, and website."
+              columns={0}
+            >
+              <FieldGroup columns={2}>
+                <Field label="Address Line 1">
+                  <Input
+                    value={settings.address_line1 || ''}
+                    onChange={(e) => handleChange('address_line1', e.target.value)}
+                    placeholder="123 Main Street"
+                  />
+                </Field>
+                <Field label="Address Line 2" helper="Optional — suite, unit, etc.">
+                  <Input
+                    value={settings.address_line2 || ''}
+                    onChange={(e) => handleChange('address_line2', e.target.value)}
+                    placeholder="Suite 100"
+                  />
+                </Field>
+                <Field label="City">
+                  <Input
+                    value={settings.city || ''}
+                    onChange={(e) => handleChange('city', e.target.value)}
+                    placeholder="Newark"
+                  />
+                </Field>
+                <Field label="State">
+                  <Input
+                    value={settings.state || ''}
+                    onChange={(e) => handleChange('state', e.target.value.toUpperCase().slice(0, 2))}
+                    placeholder="NJ"
+                    maxLength={2}
+                  />
+                </Field>
+                <Field label="ZIP / Postal Code">
+                  <Input
+                    value={settings.zip || ''}
+                    onChange={(e) => handleChange('zip', e.target.value)}
+                    placeholder="07102"
+                  />
+                </Field>
+                <Field label="Phone">
+                  <Input
+                    value={settings.phone || ''}
+                    onChange={(e) => handleChange('phone', e.target.value)}
+                    placeholder="555-555-1212"
+                  />
+                </Field>
+                <Field label="Website" helper="Optional — shown in document headers when toggled on.">
+                  <Input
+                    value={settings.website || ''}
+                    onChange={(e) => handleChange('website', e.target.value)}
+                    placeholder="www.yourcompany.com"
+                  />
+                </Field>
+              </FieldGroup>
             </SectionCard>
 
             {/* Invoice / Order defaults */}

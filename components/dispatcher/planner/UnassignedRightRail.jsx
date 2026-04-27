@@ -15,9 +15,9 @@ export default function UnassignedRightRail({ buckets }) {
   };
 
   const items = useMemo(() => {
-    // Tag each item with its source bucket so UnassignedMoveCard can colour
-    // the left accent. When `active === 'all'`, the bucket is per-item; when
-    // a single bucket is selected, every item shares the active bucket.
+    // Tag each item with its source bucket so consumers can group or filter
+    // by bucket downstream. The card itself no longer renders a per-bucket
+    // accent (load_type stripe replaces it); kept for parity / future use.
     const tag = (arr, b) => arr.map((m) => ({ move: m, bucket: b }));
     const source =
       active === 'all'

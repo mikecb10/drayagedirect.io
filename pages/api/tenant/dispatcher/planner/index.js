@@ -71,6 +71,7 @@ export default async function handler(req, res) {
       assigned_at, tracking_status, last_ping_at, session_started_at, ping_count,
       order:orders!order_container_moves_order_id_fkey(
         id, order_number, container_number, container_size, container_type,
+        load_type, customer_reference,
         last_free_day, container_at_port, empty_ready_for_return_at, branch_id,
         status, deleted_at, actual_delivery_at
       ),

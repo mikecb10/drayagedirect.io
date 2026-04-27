@@ -666,7 +666,15 @@ export default function DispatcherIndex() {
           </>
         )}
 
-        {activeTab === 'planner' && <DriverPlannerView />}
+        {activeTab === 'planner' && (
+          // Clamp the planner to viewport-minus-chrome so the inner panes
+          // (driver grid + unassigned right rail) can scroll independently.
+          // Without this, the page-level wrapper's min-h grows with content
+          // and the panes' overflow-auto never triggers.
+          <div className="h-[calc(100vh-220px)]">
+            <DriverPlannerView />
+          </div>
+        )}
       </div>
 
       <NewLoadModal

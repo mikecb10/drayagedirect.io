@@ -5,6 +5,8 @@ import {
   fmtRelativeETA, fmtAbsoluteETA, fmtOnSiteDuration,
   freshnessColor, freshnessColorClass,
 } from '../../../lib/dispatcher/tracking-display.js';
+import MoveCardCompact from './MoveCardCompact';
+import { fmtApt } from '../../../lib/dispatcher/date-fmt';
 
 const STATUS_BG = {
   unassigned: 'bg-gray-100 dark:bg-gray-800',
@@ -15,34 +17,7 @@ const STATUS_BG = {
   cancelled: 'bg-gray-100 dark:bg-gray-800 line-through',
 };
 
-const EVENT_LABEL = {
-  pickup: 'Pick Up Container',
-  deliver: 'Deliver Container',
-  return: 'Return Container',
-};
-
-const EVENT_COLOR = {
-  pickup: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  deliver: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  return: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-};
-
-function fmtApt(iso) {
-  if (!iso) return null;
-  try {
-    const d = new Date(iso);
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    const hh = String(d.getHours()).padStart(2, '0');
-    const mi = String(d.getMinutes()).padStart(2, '0');
-    return `${mm}/${dd} ${hh}:${mi}`;
-  } catch {
-    return null;
-  }
-}
-
 function TrackingLine({ move, events }) {
-  // tick every 1s when on_site to refresh the counter
   const [, force] = useState(0);
   useEffect(() => {
     if (move.tracking_status !== 'on_site') return;
@@ -90,6 +65,22 @@ function TrackingLine({ move, events }) {
   return null;
 }
 
+/**
+ * Assigned move cell on the planner grid. Renders:
+ *   - header row: load # link + Dispatch (✓) + Unassign (✗) action buttons
+ *   - body: <MoveCardCompact /> (color stripe + load # + move type + appt + LFD)
+ *   - assigned-at line + TrackingLine (when active)
+ *
+ * Click anywhere on the body opens MovePreviewPanel via onClickPreview.
+ * Click on header buttons (dispatch/unassign/load-link) stops propagation.
+ *
+ * Props:
+ *   move           (required)
+ *   onClickPreview (cb) — invoked with `move` when cell body is clicked
+ *   onOpenLoad     (cb) — invoked with order.id when load # link is clicked
+ *   onDispatch     (cb) — invoked with `move` when Dispatch button is clicked
+ *   onUnassign     (cb) — invoked with `move` when Unassign button is clicked
+ */
 export default function MoveCell({ move, onClickPreview, onOpenLoad, onDispatch, onUnassign }) {
   const draggable = useDraggable({
     id: `assigned:${move.id}`,
@@ -114,6 +105,7 @@ export default function MoveCell({ move, onClickPreview, onOpenLoad, onDispatch,
       onClick={() => onClickPreview?.(move)}
       data-move-id={move.id}
     >
+      {/* Header: load # link + dispatch/unassign buttons */}
       <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-200 dark:border-gray-700">
         <button
           type="button"
@@ -172,10 +164,12 @@ export default function MoveCell({ move, onClickPreview, onOpenLoad, onDispatch,
         </div>
       </div>
 
-      <div className="px-2 py-1 text-[11px] text-gray-600 dark:text-gray-400">
-        {[order.container_number, order.container_size, order.container_type].filter(Boolean).join(' · ') || '—'}
+      {/* Body: shared compact card */}
+      <div className="p-1">
+        <MoveCardCompact move={move} />
       </div>
 
+      {/* Assigned-at line + TrackingLine (preserved) */}
       {move.assigned_at && (
         <div className="px-2 pb-1 text-[10px] text-gray-500 dark:text-gray-500">
           Assigned: {fmtApt(move.assigned_at)}
@@ -184,29 +178,6 @@ export default function MoveCell({ move, onClickPreview, onOpenLoad, onDispatch,
 
       {move.tracking_status && move.tracking_status !== 'idle' && move.tracking_status !== 'completed' && (
         <TrackingLine move={move} events={move.events || []} />
-      )}
-
-      <div className="flex-1 px-2 pb-2 space-y-1">
-        {(move.events || []).map((e) => (
-          <div key={e.id} className="text-[11px]">
-            <span className={`inline-block px-1.5 py-0.5 rounded ${EVENT_COLOR[e.event_type] || 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200'}`}>
-              {EVENT_LABEL[e.event_type] || e.event_type}
-            </span>
-            <div className="text-gray-700 dark:text-gray-300">{e.location_name || 'No Location Provided'}</div>
-            {e.scheduled_at && (
-              <div className="text-gray-500 dark:text-gray-500">Apt: {fmtApt(e.scheduled_at)}</div>
-            )}
-          </div>
-        ))}
-        {(!move.events || move.events.length === 0) && (
-          <div className="text-[11px] text-gray-400 dark:text-gray-500 italic">No events scheduled yet</div>
-        )}
-      </div>
-
-      {order.last_free_day && (
-        <div className="px-2 py-1 text-[10px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950 border-t border-amber-200 dark:border-amber-900">
-          LFD: {order.last_free_day}
-        </div>
       )}
     </div>
   );

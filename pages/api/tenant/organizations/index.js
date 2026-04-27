@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   const svc = getServiceClient();
 
   if (req.method === 'GET') {
-    if (!requirePermission(ctx, [PERMISSIONS.ORDER_ENTRY, PERMISSIONS.ACCOUNTS_RECEIVABLE, PERMISSIONS.ALL], res)) return;
+    if (!requirePermission(ctx, [PERMISSIONS.ORDER_ENTRY, PERMISSIONS.ACCOUNTS_RECEIVABLE, PERMISSIONS.SETTINGS, PERMISSIONS.ALL], res)) return;
 
     const { type, status, search, branch_id } = req.query;
 

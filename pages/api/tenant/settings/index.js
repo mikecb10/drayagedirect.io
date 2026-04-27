@@ -20,6 +20,14 @@ const EDITABLE_FIELDS = [
   'logo_large_url',
   'live_presence_enabled',
   'validation_required_doc_types',
+  // Branding columns (FU-035-D2 / migration 110) — appear on printed documents.
+  'address_line1',
+  'address_line2',
+  'city',
+  'state',
+  'zip',
+  'phone',
+  'website',
 ];
 
 export default async function handler(req, res) {

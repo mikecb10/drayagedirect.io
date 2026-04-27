@@ -12,6 +12,7 @@ import BranchPicker from '../../ui/BranchPicker';
 import { Package, Box, Truck, Ruler } from 'lucide-react';
 import Alert from '../../ui/Alert';
 import { useTenantTimeFormat } from '../../../hooks/useTenantSettings';
+import NotifyPartyPicker from '../NotifyPartyPicker';
 
 // Per-type location slot labels (matches NewLoadModal TYPE_CONFIG)
 const TYPE_SLOTS = {
@@ -127,10 +128,73 @@ export default function LoadInfoTab({ load, holds: initialHolds, routingLocks, o
   // this flags the ones that didn't follow.
   const [warning, setWarning] = useState(null);
   const [flashFields, setFlashFields] = useState({}); // { fieldName: 'success' | 'error' }
+  const [notifyParties, setNotifyParties] = useState([]);
+  const [npLoading, setNpLoading] = useState(true);
 
   useEffect(() => {
     setForm({ ...load });
   }, [load]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadParties() {
+      setNpLoading(true);
+      const res = await fetch(`/api/tenant/loads/${load.id}/notify-parties`);
+      if (!res.ok) { if (!cancelled) setNpLoading(false); return; }
+      const json = await res.json();
+      if (cancelled) return;
+      setNotifyParties(json.parties || []);
+      setNpLoading(false);
+    }
+    if (load?.id) loadParties();
+    return () => { cancelled = true; };
+  }, [load?.id]);
+
+  async function handleNotifyChange(next) {
+    // Diff against current — POST adds, DELETE removes
+    const prevByKey = new Map(notifyParties.map((p) => [`${p.party_type}::${p.party_id}`, p]));
+    const nextByKey = new Map(next.map((p) => [`${p.party_type}::${p.party_id}`, p]));
+
+    const toAdd = next.filter((p) => !prevByKey.has(`${p.party_type}::${p.party_id}`));
+    const toRemove = notifyParties.filter((p) => !nextByKey.has(`${p.party_type}::${p.party_id}`));
+
+    // Apply optimistically; reload from server
+    setNotifyParties(next);
+
+    const results = await Promise.allSettled([
+      ...toAdd.map((p) =>
+        fetch(`/api/tenant/loads/${load.id}/notify-parties`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            party_type: p.party_type,
+            party_id: p.party_id,
+            source: p.source,
+            source_organization_id: p.source_organization_id,
+          }),
+        }).then((r) => { if (!r.ok) throw new Error('add failed'); })
+      ),
+      ...toRemove.filter((p) => p.id).map((p) =>
+        fetch(`/api/tenant/loads/${load.id}/notify-parties/${p.id}`, { method: 'DELETE' })
+          .then((r) => { if (!r.ok) throw new Error('remove failed'); })
+      ),
+    ]);
+
+    const anyFailed = results.some((r) => r.status === 'rejected');
+    if (anyFailed) {
+      results.filter((r) => r.status === 'rejected').forEach((r) => console.warn('Notify party change failed:', r.reason));
+      flash('notify_parties', 'error');
+    } else {
+      flash('notify_parties', 'success');
+    }
+
+    // Reload to pick up authoritative IDs and any name hydration
+    const res = await fetch(`/api/tenant/loads/${load.id}/notify-parties`);
+    if (res.ok) {
+      const json = await res.json();
+      setNotifyParties(json.parties || []);
+    }
+  }
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -935,6 +999,28 @@ export default function LoadInfoTab({ load, holds: initialHolds, routingLocks, o
           })}
         </div>
       </FormSection>
+
+      {/* Notify Parties */}
+      <div className={`rounded-lg ${flashClass('notify_parties')}`}>
+        <FormSection
+          title="Notify Parties"
+          description="Recipients automatically added to umbrella emails that reference Load notify parties."
+        >
+          {npLoading ? (
+            <div className="text-xs text-gray-500 dark:text-slate-400">Loading…</div>
+          ) : (
+            <NotifyPartyPicker
+              mode="load"
+              customerId={load.customer_id}
+              pickupLocationOrgId={load.pickup_location_id}
+              deliveryLocationOrgId={load.delivery_location_id}
+              returnLocationOrgId={load.return_location_id}
+              value={notifyParties}
+              onChange={handleNotifyChange}
+            />
+          )}
+        </FormSection>
+      </div>
 
     </div>
   );

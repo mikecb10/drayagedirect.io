@@ -1,41 +1,44 @@
-import { useEffect, useState } from 'react';
-import {
-  Package,
-  Ship,
-  Truck,
-  FileText,
-  ArrowRight,
-  ArrowLeft,
-  Check,
-  PackageOpen,
-  PackageCheck,
-  Container,
-} from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+
 import Modal from '../ui/Modal';
+import NotifyPartyPicker from './NotifyPartyPicker';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
-import DatePicker from '../ui/DatePicker';
-import FormSection from '../ui/FormSection';
 import Alert from '../ui/Alert';
+import DatePicker from '../ui/DatePicker';
 import OrgPicker from '../ui/OrgPicker';
 import BranchPicker from '../ui/BranchPicker';
 import { useAuth } from '../../contexts/AuthContext';
 import { LOAD_TYPES as CENTRAL_LOAD_TYPES } from '../../lib/constants/load-types.js';
+import { Package, Truck, ArrowRight as ArrowRightIcon, RefreshCcw, FileText } from 'lucide-react';
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
-// Icon map for load types — kept here so constants module stays UI-free.
 const LOAD_TYPE_ICONS = {
-  import: Ship,
-  inbound: PackageOpen,
-  export: Package,
-  outbound: PackageCheck,
+  import: Package,
+  export: ArrowRightIcon,
+  inbound: Truck,
+  outbound: Truck,
   road: Truck,
   bill_only: FileText,
-  chassis_reposition: Container,
+  chassis_reposition: RefreshCcw,
 };
 
-// Render-time shape: { id, label, description, icon }. Uses value→id rename
-// because the existing JSX downstream references lt.id.
 const LOAD_TYPES = CENTRAL_LOAD_TYPES.map((t) => ({
   id: t.value,
   label: t.label,
@@ -43,43 +46,44 @@ const LOAD_TYPES = CENTRAL_LOAD_TYPES.map((t) => ({
   icon: LOAD_TYPE_ICONS[t.value] || Package,
 }));
 
-// Per-type location slot configuration
+// TYPE_CONFIG controls which slot fields show + which load_type variants
+// allow null container/trailer/etc. Mirrors lib/validation/load-payload.js.
 const TYPE_CONFIG = {
   import: {
     slot1: { label: 'Pickup Location', orgType: 'terminal' },
-    slot2: { label: 'Delivery Location', orgType: 'warehouse' },
+    slot2: { label: 'Delivery Location', orgType: 'consignee' },
+    slot3: { label: 'Return Location', orgType: 'terminal' },
+    showContainer: true,
+    showFinalDelivery: false,
+    showTrailer: false,
+  },
+  export: {
+    slot1: { label: 'Pickup Location', orgType: 'shipper' },
+    slot2: { label: 'Delivery Location', orgType: 'terminal' },
     slot3: { label: 'Return Location', orgType: 'terminal' },
     showContainer: true,
     showFinalDelivery: false,
     showTrailer: false,
   },
   inbound: {
-    slot1: { label: 'Pickup Location (Rail)', orgType: 'terminal' },
-    slot2: { label: 'Delivery Location', orgType: 'warehouse' },
-    slot3: { label: 'Return Location (Rail)', orgType: 'terminal' },
-    showContainer: true,
-    showFinalDelivery: false,
-    showTrailer: false,
-  },
-  export: {
-    slot1: { label: 'Empty Container Pickup', orgType: 'terminal' },
-    slot2: { label: 'Loading Warehouse', orgType: 'warehouse' },
-    slot3: { label: 'Delivery Terminal', orgType: 'terminal' },
+    slot1: { label: 'Pickup Location', orgType: 'terminal' },
+    slot2: { label: 'Delivery Location', orgType: 'consignee' },
+    slot3: { label: 'Return Location', orgType: 'terminal' },
     showContainer: true,
     showFinalDelivery: false,
     showTrailer: false,
   },
   outbound: {
-    slot1: { label: 'Empty Container Pickup', orgType: 'terminal' },
-    slot2: { label: 'Loading Warehouse', orgType: 'warehouse' },
-    slot3: { label: 'Delivery Terminal (Rail)', orgType: 'terminal' },
+    slot1: { label: 'Pickup Location', orgType: 'shipper' },
+    slot2: { label: 'Delivery Location (Rail)', orgType: 'terminal' },
+    slot3: null,
     showContainer: true,
     showFinalDelivery: true,
     showTrailer: false,
   },
   road: {
-    slot1: { label: 'Loading Warehouse', orgType: 'warehouse' },
-    slot2: { label: 'Final Delivery', orgType: 'warehouse' },
+    slot1: { label: 'Pickup Location', orgType: 'shipper' },
+    slot2: { label: 'Delivery Location', orgType: 'consignee' },
     slot3: null,
     showContainer: false,
     showFinalDelivery: false,
@@ -94,9 +98,8 @@ const TYPE_CONFIG = {
     showTrailer: false,
   },
   chassis_reposition: {
-    // Chassis reposition = move an empty chassis between yards/terminals.
-    // Slots reuse the form's pickup/delivery fields for UI state, but submit
-    // logic remaps them to hook_chassis_location_id / terminate_chassis_location_id
+    // chassis_reposition writes pickup_location_id → hook_chassis_location_id
+    // and delivery_location_id → terminate_chassis_location_id at submit time
     // (see handleSubmit below) per lib/validation/load-payload.js.
     slot1: { label: 'Hook Chassis Location', orgType: 'yard' },
     slot2: { label: 'Terminate Chassis Location', orgType: 'yard' },
@@ -132,10 +135,7 @@ const EMPTY_FORM = {
   trailer_number: '',
   container_number: '',
   container_size: '',
-  // Appointment windows — modal exposes a single "Appointment" input per
-  // location that sets both _from and _to to the same value (firm appt).
-  // The user can widen the window later via Load Detail → Load Info.
-  // These map to the columns the dispatcher table actually displays.
+  container_size_id: null,
   pickup_apt_from: '',
   pickup_apt_to: '',
   delivery_apt_from: '',
@@ -146,28 +146,34 @@ const EMPTY_FORM = {
 };
 
 export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
-  const { branchIds, branches, role } = useAuth();
-  const [step, setStep] = useState(1);
+  const { branchIds, branches } = useAuth();
   const [form, setForm] = useState(EMPTY_FORM);
   const [templates, setTemplates] = useState([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [containerSizes, setContainerSizes] = useState(DEFAULT_CONTAINER_SIZES);
+  const [templateOrder, setTemplateOrder] = useState([]); // string[] of template ids
+
+  const [notifyParties, setNotifyParties] = useState([]);
+  const [manuallyEditedNotifyParties, setManuallyEditedNotifyParties] = useState(false);
+  const applyGenRef = useRef(0);
+  const [pendingCustomerOrg, setPendingCustomerOrg] = useState(null);
 
   const typeCfg = TYPE_CONFIG[form.load_type] || TYPE_CONFIG.import;
 
   useEffect(() => {
     if (isOpen) {
-      setStep(1);
       setForm({
         ...EMPTY_FORM,
         branch_id: branchIds?.length === 1 ? branchIds[0] : null,
       });
       setError(null);
-      // Fetch container sizes from the tenant's enabled reference data
+      setNotifyParties([]);
+      setManuallyEditedNotifyParties(false);
+      setPendingCustomerOrg(null);
       fetch('/api/tenant/container-sizes?enabled=true')
-        .then((r) => r.ok ? r.json() : null)
+        .then((r) => (r.ok ? r.json() : null))
         .then((data) => {
           if (data?.items?.length > 0) {
             setContainerSizes(
@@ -177,6 +183,20 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
         })
         .catch(() => {});
     }
+  }, [isOpen, branchIds]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    fetch('/api/tenant/dispatcher-preferences')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        const order = data?.preferences?.routing_template_order || [];
+        setTemplateOrder(Array.isArray(order) ? order : []);
+      })
+      .catch(() => { if (!cancelled) setTemplateOrder([]); });
+    return () => { cancelled = true; };
   }, [isOpen]);
 
   useEffect(() => {
@@ -207,9 +227,6 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  // Single-input appointment helper — sets both _from and _to to the same
-  // value so the appointment is firm by default. Mirrors the bulk-bar APT
-  // form's auto-mirror behavior.
   function updateApt(prefix, value) {
     setForm((f) => ({
       ...f,
@@ -234,6 +251,146 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
     }));
   }
 
+  // Merge user-saved order with the fetched template list. Templates the user
+  // have ordered come first (in saved order); any template not in the order
+  // array (newly added by admin, or never reordered) appends at the end.
+  const orderedTemplates = (() => {
+    if (templateOrder.length === 0) return templates;
+    const byId = new Map(templates.map((t) => [t.id, t]));
+    const ordered = templateOrder.map((id) => byId.get(id)).filter(Boolean);
+    const orderedIds = new Set(ordered.map((t) => t.id));
+    const remaining = templates.filter((t) => !orderedIds.has(t.id));
+    return [...ordered, ...remaining];
+  })();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  function persistOrder(newOrderIds) {
+    fetch('/api/tenant/dispatcher-preferences', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ routing_template_order: newOrderIds }),
+    }).catch((err) => {
+      console.error('[NewLoadModal] persist template order failed:', err?.message);
+    });
+  }
+
+  function handleDragEnd(ev) {
+    const { active, over } = ev;
+    if (!over || active.id === over.id) return;
+    const oldIndex = orderedTemplates.findIndex((t) => t.id === active.id);
+    const newIndex = orderedTemplates.findIndex((t) => t.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const next = arrayMove(orderedTemplates, oldIndex, newIndex);
+    const nextIds = next.map((t) => t.id);
+    setTemplateOrder(nextIds);
+    persistOrder(nextIds);
+  }
+
+  function handleResetOrder() {
+    setTemplateOrder([]);
+    persistOrder([]);
+  }
+
+  async function applyCustomerChange(org) {
+    const gen = ++applyGenRef.current;
+    selectOrg('customer_id', 'customer_label', org);
+
+    if (!org?.id) {
+      if (gen !== applyGenRef.current) return;
+      setNotifyParties([]);
+      setManuallyEditedNotifyParties(false);
+      return;
+    }
+
+    // Fetch the customer's defaults + hydrate names
+    try {
+      const orgRes = await fetch(`/api/tenant/organizations/${org.id}`).then((r) => r.ok ? r.json() : null);
+      const defaults = orgRes?.organization?.default_notify_parties || [];
+      if (!Array.isArray(defaults) || defaults.length === 0) {
+        if (gen !== applyGenRef.current) return;
+        setNotifyParties([]);
+        setManuallyEditedNotifyParties(false);
+        return;
+      }
+
+      // Group by source_organization_id (or default to picked customer's org id) to batch fetch
+      const orgIds = Array.from(new Set(defaults.map((d) => d.source_organization_id || org.id).filter(Boolean)));
+      const orgDataById = {};
+      await Promise.all(orgIds.map(async (oid) => {
+        const [orgInfo, groups, contacts] = await Promise.all([
+          fetch(`/api/tenant/organizations/${oid}`).then((r) => r.ok ? r.json() : null).catch(() => null),
+          fetch(`/api/tenant/organizations/${oid}/groups`).then((r) => r.ok ? r.json() : { groups: [] }).catch(() => ({ groups: [] })),
+          fetch(`/api/tenant/organizations/${oid}/contacts`).then((r) => r.ok ? r.json() : { contacts: [] }).catch(() => ({ contacts: [] })),
+        ]);
+        orgDataById[oid] = {
+          name: orgInfo?.organization?.name || 'Unknown',
+          groupById: Object.fromEntries((groups.groups || []).map((g) => [g.id, g])),
+          contactById: Object.fromEntries((contacts.contacts || []).map((c) => [c.id, c])),
+        };
+      }));
+
+      // Hydrate each default; filter dead refs
+      const hydrated = defaults
+        .map((d) => {
+          const oid = d.source_organization_id || org.id;
+          const data = orgDataById[oid];
+          if (!data) return null;
+          if (d.type === 'group') {
+            const g = data.groupById[d.id];
+            if (!g) return null;
+            return {
+              party_type: 'group',
+              party_id: d.id,
+              source: 'default',
+              source_organization_id: oid,
+              source_organization_name: data.name,
+              name: g.name,
+              member_count: g.member_count ?? null,
+            };
+          }
+          const c = data.contactById[d.id];
+          if (!c) return null;
+          // contact name from first_name/last_name (org contacts schema)
+          const name = (c.first_name || c.last_name)
+            ? `${c.first_name || ''} ${c.last_name || ''}`.trim()
+            : (c.email || '(unnamed)');
+          return {
+            party_type: 'contact',
+            party_id: d.id,
+            source: 'default',
+            source_organization_id: oid,
+            source_organization_name: data.name,
+            name,
+            email: c.email,
+          };
+        })
+        .filter(Boolean);
+
+      if (gen !== applyGenRef.current) return;
+      setNotifyParties(hydrated);
+      setManuallyEditedNotifyParties(false);
+    } catch (e) {
+      console.warn('Failed to load notify-party defaults:', e);
+      if (gen !== applyGenRef.current) return;
+      setNotifyParties([]);
+      setManuallyEditedNotifyParties(false);
+    }
+  }
+
+  function handleCustomerChange(org) {
+    // No previous customer + no manual edits → just apply
+    if (!form.customer_id || !manuallyEditedNotifyParties) {
+      applyCustomerChange(org);
+      return;
+    }
+    // Has manual edits → confirm before wiping
+    setPendingCustomerOrg(org);
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setSubmitting(true);
@@ -245,11 +402,6 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
       }
       if (!form.customer_id) throw new Error('Customer is required');
 
-      // chassis_reposition reuses the slot1/slot2 form fields for UI state but
-      // maps them to hook_chassis_location_id / terminate_chassis_location_id
-      // at submit time. The API validator (lib/validation/load-payload.js)
-      // requires both chassis fields for this load type and allows null
-      // pickup/delivery/return.
       const isChassisReposition = form.load_type === 'chassis_reposition';
       const payload = {
         load_type: form.load_type,
@@ -284,6 +436,25 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
         throw new Error(body.error || 'Failed to create load');
       }
       const data = await res.json();
+
+      // Insert manually added notify parties for the newly created load.
+      // (default-source ones were already inserted server-side via copyDefaultNotifyParties.)
+      const manualParties = notifyParties.filter((p) => p.source !== 'default');
+      if (manualParties.length > 0 && data.load?.id) {
+        await Promise.all(manualParties.map((p) =>
+          fetch(`/api/tenant/loads/${data.load.id}/notify-parties`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              party_type: p.party_type,
+              party_id: p.party_id,
+              source: p.source,
+              source_organization_id: p.source_organization_id,
+            }),
+          }).catch((e) => console.warn('Failed to add notify party:', e))
+        ));
+      }
+
       onSuccess?.(data.load);
     } catch (e) {
       setError(e.message);
@@ -293,320 +464,320 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Create New Load" size="lg">
-      <div className="flex items-center justify-center gap-3 mb-6 -mt-2">
-        <StepDot active={step === 1} done={step > 1} label="Type & Routing" />
-        <div className="h-0.5 w-8 bg-gray-200 dark:bg-slate-700" />
-        <StepDot active={step === 2} done={false} label="Details" />
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-5">
+    <Modal isOpen={isOpen} onClose={onClose} title="Create New Load" size="xl">
+      <form onSubmit={handleSubmit} className="space-y-4">
         {error && <Alert type="error" message={error} />}
 
-        {step === 1 && (
-          <>
-            <FormSection title="Load Type" columns={2}>
-              {LOAD_TYPES.map((lt) => {
-                const Icon = lt.icon;
-                const active = form.load_type === lt.id;
-                return (
-                  <button
-                    key={lt.id}
-                    type="button"
-                    onClick={() => update('load_type', lt.id)}
-                    className={`flex items-start gap-3 rounded-lg border-2 p-3 text-left transition-colors ${
-                      active
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40'
-                        : 'border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600 bg-white dark:bg-slate-900'
-                    }`}
-                  >
-                    <div className={`rounded-lg p-2 ${active ? 'bg-blue-100 dark:bg-blue-950/60' : 'bg-gray-100 dark:bg-slate-800'}`}>
-                      <Icon
-                        className={`w-5 h-5 ${active ? 'text-blue-600' : 'text-gray-500 dark:text-slate-400'}`}
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-sm font-semibold text-gray-900 dark:text-slate-100">{lt.label}</div>
-                      <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">{lt.description}</div>
-                    </div>
-                    {active && <Check className="w-4 h-4 text-blue-600" />}
-                  </button>
-                );
-              })}
-            </FormSection>
-
-            {form.load_type !== 'bill_only' && (
-              <FormSection
-                title="Routing Template"
-                description="Pick a pre-built pattern that matches this load's workflow"
-                columns={1}
-              >
-                {loadingTemplates ? (
-                  <div className="text-sm text-gray-500 dark:text-slate-400 text-center py-4">
-                    Loading templates...
-                  </div>
-                ) : templates.length === 0 ? (
-                  <div className="text-sm text-gray-500 dark:text-slate-400 text-center py-4">
-                    No templates available for this load type.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {templates.map((tpl) => {
-                      const active = form.routing_template_id === tpl.id;
-                      return (
-                        <button
-                          key={tpl.id}
-                          type="button"
-                          onClick={() => selectTemplate(tpl)}
-                          className={`rounded-lg border-2 p-3 text-left transition-colors ${
-                            active
-                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40'
-                              : 'border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600 bg-white dark:bg-slate-900'
-                          }`}
-                        >
-                          <div className="text-sm font-medium text-gray-900 dark:text-slate-100">{tpl.name}</div>
-                          {tpl.description && (
-                            <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">{tpl.description}</div>
-                          )}
-                          {tpl.event_sequence?.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              {tpl.event_sequence.map((ev, i) => (
-                                <span
-                                  key={i}
-                                  className="text-[10px] uppercase tracking-wide bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 px-1.5 py-0.5 rounded"
-                                >
-                                  {ev.label || ev.type}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </FormSection>
-            )}
-          </>
-        )}
-
-        {step === 2 && (
-          <>
-            <FormSection title="Customer & Locations">
-              <OrgPicker
-                label="Customer"
-                type="customer"
-                value={form.customer_id}
-                valueLabel={form.customer_label}
-                onChange={(org) => selectOrg('customer_id', 'customer_label', org)}
-                required
-                className="sm:col-span-2"
-              />
-              {branches?.length > 0 && (
-                <BranchPicker
-                  label="Branch"
-                  value={form.branch_id}
-                  onChange={(val) => setForm((f) => ({ ...f, branch_id: val }))}
-                  placeholder="— Select Branch —"
-                />
-              )}
-              {typeCfg.slot1 && (
-                <OrgPicker
-                  label={typeCfg.slot1.label}
-                  type={typeCfg.slot1.orgType}
-                  value={form.pickup_location_id}
-                  valueLabel={form.pickup_location_label}
-                  onChange={(org) => selectOrg('pickup_location_id', 'pickup_location_label', org)}
-                />
-              )}
-              {typeCfg.slot2 && (
-                <OrgPicker
-                  label={typeCfg.slot2.label}
-                  type={typeCfg.slot2.orgType}
-                  value={form.delivery_location_id}
-                  valueLabel={form.delivery_location_label}
-                  onChange={(org) =>
-                    selectOrg('delivery_location_id', 'delivery_location_label', org)
-                  }
-                />
-              )}
-              {typeCfg.slot3 && (
-                <OrgPicker
-                  label={typeCfg.slot3.label}
-                  type={typeCfg.slot3.orgType}
-                  value={form.return_location_id}
-                  valueLabel={form.return_location_label}
-                  onChange={(org) => selectOrg('return_location_id', 'return_location_label', org)}
-                  className={typeCfg.showFinalDelivery ? '' : 'sm:col-span-2'}
-                />
-              )}
-              {typeCfg.showFinalDelivery && (
-                <OrgPicker
-                  label="Final Delivery Location"
-                  type="final_destination"
-                  value={form.final_delivery_location_id}
-                  valueLabel={form.final_delivery_location_label}
-                  onChange={(org) =>
-                    selectOrg('final_delivery_location_id', 'final_delivery_location_label', org)
-                  }
-                  helpText="Outbound final destination — where the load goes after the rail move"
-                />
-              )}
-            </FormSection>
-
-            {typeCfg.showContainer && (
-              <FormSection title="Container & Dates">
-                <Input
-                  label="Container Number"
-                  value={form.container_number}
-                  onChange={(e) => update('container_number', e.target.value.toUpperCase())}
-                  placeholder="MSKU1234567"
-                />
-                <Select
-                  label="Container Size"
-                  value={form.container_size}
-                  onChange={(e) => {
-                    const code = e.target.value;
-                    update('container_size', code);
-                    const match = containerSizes.find((s) => s.value === code);
-                    update('container_size_id', match?.id || null);
+        {pendingCustomerOrg && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 dark:bg-black/75 backdrop-blur-sm p-4">
+            <div className="bg-white dark:bg-slate-900 rounded-lg p-5 max-w-md w-full shadow-xl border border-gray-200 dark:border-slate-700">
+              <div className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-2">Reset notify parties?</div>
+              <div className="text-xs text-gray-600 dark:text-slate-400 mb-4">
+                Changing customer will reset notify parties to the new customer&apos;s defaults. Your manual edits will be lost.
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setPendingCustomerOrg(null)}
+                  className="px-3 py-1.5 text-xs rounded border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const org = pendingCustomerOrg;
+                    setPendingCustomerOrg(null);
+                    await applyCustomerChange(org);
                   }}
-                  options={containerSizes}
-                />
-                <DatePicker
-                  showTime
-                  label="Pickup Appointment"
-                  value={form.pickup_apt_from}
-                  onChange={(v) => updateApt('pickup', v)}
-                  helpText="Sets both From + To. Edit to a window via Load Detail."
-                />
-                <DatePicker
-                  showTime
-                  label="Delivery Appointment"
-                  value={form.delivery_apt_from}
-                  onChange={(v) => updateApt('delivery', v)}
-                  helpText="Sets both From + To. Edit to a window via Load Detail."
-                />
-              </FormSection>
-            )}
-
-            {typeCfg.showTrailer && (
-              <FormSection title="Trailer & Dates">
-                <Input
-                  label="Trailer / Dry Van ID"
-                  value={form.trailer_number}
-                  onChange={(e) => update('trailer_number', e.target.value.toUpperCase())}
-                  placeholder="TRL12345"
-                />
-                <div />
-                <DatePicker
-                  showTime
-                  label="Pickup Appointment"
-                  value={form.pickup_apt_from}
-                  onChange={(v) => updateApt('pickup', v)}
-                  helpText="Sets both From + To. Edit to a window via Load Detail."
-                />
-                <DatePicker
-                  showTime
-                  label="Delivery Appointment"
-                  value={form.delivery_apt_from}
-                  onChange={(v) => updateApt('delivery', v)}
-                  helpText="Sets both From + To. Edit to a window via Load Detail."
-                />
-              </FormSection>
-            )}
-
-            {form.load_type !== 'bill_only' && form.load_type !== 'chassis_reposition' && (
-              <FormSection title="References">
-                <Input
-                  label="Master BOL"
-                  value={form.bill_of_lading}
-                  onChange={(e) => update('bill_of_lading', e.target.value)}
-                />
-                <Input
-                  label="Booking Number"
-                  value={form.booking_number}
-                  onChange={(e) => update('booking_number', e.target.value)}
-                />
-              </FormSection>
-            )}
-
-            {form.load_type === 'chassis_reposition' && (
-              <FormSection title="Appointments">
-                <DatePicker
-                  showTime
-                  label="Pickup Appointment"
-                  value={form.pickup_apt_from}
-                  onChange={(v) => updateApt('pickup', v)}
-                  helpText="Sets both From + To. Edit to a window via Load Detail."
-                />
-                <DatePicker
-                  showTime
-                  label="Delivery Appointment"
-                  value={form.delivery_apt_from}
-                  onChange={(v) => updateApt('delivery', v)}
-                  helpText="Sets both From + To. Edit to a window via Load Detail."
-                />
-              </FormSection>
-            )}
-          </>
+                  className="px-3 py-1.5 text-xs rounded bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
-        <div className="flex justify-between gap-3 pt-4 border-t border-gray-100 dark:border-slate-800">
-          <div>
-            {step === 2 && (
-              <Button variant="secondary" type="button" onClick={() => setStep(1)}>
-                <ArrowLeft className="w-4 h-4 inline -mt-0.5 mr-1" />
-                Back
-              </Button>
-            )}
-          </div>
-          <div className="flex gap-3">
-            <Button variant="secondary" type="button" onClick={onClose}>
-              Cancel
-            </Button>
-            {step === 1 ? (
-              <Button
+        {/* Type pills row */}
+        <div className="flex flex-wrap gap-2">
+          {LOAD_TYPES.map((lt) => {
+            const Icon = lt.icon;
+            const active = form.load_type === lt.id;
+            return (
+              <button
+                key={lt.id}
                 type="button"
-                onClick={() => setStep(2)}
-                disabled={form.load_type !== 'bill_only' && !form.routing_template_id}
+                onClick={() => update('load_type', lt.id)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                  active
+                    ? 'bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border-blue-400 dark:border-blue-600'
+                    : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-300 border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500'
+                }`}
               >
-                Next
-                <ArrowRight className="w-4 h-4 inline -mt-0.5 ml-1" />
-              </Button>
+                <Icon className="w-3.5 h-3.5" />
+                {lt.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Routing template chip grid (DnD-reorderable) */}
+        {form.load_type !== 'bill_only' && (
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-slate-400 font-medium">
+                Routing Template <span className="text-gray-400 dark:text-slate-500 normal-case font-normal">— drag to reorder</span>
+              </div>
+              {templateOrder.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleResetOrder}
+                  className="text-[10px] text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 underline-offset-2 hover:underline"
+                >
+                  Reset order
+                </button>
+              )}
+            </div>
+            {loadingTemplates ? (
+              <div className="text-xs text-gray-500 dark:text-slate-400 py-3">Loading templates…</div>
+            ) : orderedTemplates.length === 0 ? (
+              <div className="text-xs text-gray-500 dark:text-slate-400 py-3">
+                No templates available for this load type.
+              </div>
             ) : (
-              <Button type="submit" loading={submitting}>
-                Create Load
-              </Button>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={orderedTemplates.map((t) => t.id)}
+                  strategy={rectSortingStrategy}
+                >
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {orderedTemplates.map((tpl) => (
+                      <SortableTemplateChip
+                        key={tpl.id}
+                        tpl={tpl}
+                        active={form.routing_template_id === tpl.id}
+                        onSelect={() => selectTemplate(tpl)}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
             )}
           </div>
+        )}
+
+        {/* 3-column field grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-gray-100 dark:border-slate-800">
+          {/* Customer (col-span 2) + Branch */}
+          <div className="md:col-span-2">
+            <OrgPicker
+              label="Customer"
+              type="customer"
+              value={form.customer_id}
+              valueLabel={form.customer_label}
+              onChange={handleCustomerChange}
+              required
+            />
+          </div>
+          {branches?.length > 0 ? (
+            <BranchPicker
+              label="Branch"
+              value={form.branch_id}
+              onChange={(val) => setForm((f) => ({ ...f, branch_id: val }))}
+              placeholder="— Select —"
+            />
+          ) : (
+            <div />
+          )}
+
+          {/* Locations (slot1, slot2, slot3) */}
+          {typeCfg.slot1 && (
+            <OrgPicker
+              label={typeCfg.slot1.label}
+              type={typeCfg.slot1.orgType}
+              value={form.pickup_location_id}
+              valueLabel={form.pickup_location_label}
+              onChange={(org) => selectOrg('pickup_location_id', 'pickup_location_label', org)}
+            />
+          )}
+          {typeCfg.slot2 && (
+            <OrgPicker
+              label={typeCfg.slot2.label}
+              type={typeCfg.slot2.orgType}
+              value={form.delivery_location_id}
+              valueLabel={form.delivery_location_label}
+              onChange={(org) => selectOrg('delivery_location_id', 'delivery_location_label', org)}
+            />
+          )}
+          {typeCfg.slot3 && (
+            <OrgPicker
+              label={typeCfg.slot3.label}
+              type={typeCfg.slot3.orgType}
+              value={form.return_location_id}
+              valueLabel={form.return_location_label}
+              onChange={(org) => selectOrg('return_location_id', 'return_location_label', org)}
+            />
+          )}
+          {typeCfg.showFinalDelivery && (
+            <OrgPicker
+              label="Final Delivery"
+              type="final_destination"
+              value={form.final_delivery_location_id}
+              valueLabel={form.final_delivery_location_label}
+              onChange={(org) =>
+                selectOrg('final_delivery_location_id', 'final_delivery_location_label', org)
+              }
+            />
+          )}
+
+          {/* Container fields (only if showContainer) */}
+          {typeCfg.showContainer && (
+            <>
+              <Input
+                label="Container #"
+                value={form.container_number}
+                onChange={(e) => update('container_number', e.target.value.toUpperCase())}
+                placeholder="MSKU1234567"
+              />
+              <Select
+                label="Size"
+                value={form.container_size}
+                onChange={(e) => {
+                  const code = e.target.value;
+                  update('container_size', code);
+                  const match = containerSizes.find((s) => s.value === code);
+                  update('container_size_id', match?.id || null);
+                }}
+                options={containerSizes}
+              />
+              <div />
+            </>
+          )}
+
+          {/* Trailer (only if showTrailer) */}
+          {typeCfg.showTrailer && (
+            <>
+              <Input
+                label="Trailer / Dry Van ID"
+                value={form.trailer_number}
+                onChange={(e) => update('trailer_number', e.target.value.toUpperCase())}
+                placeholder="TRL12345"
+              />
+              <div />
+              <div />
+            </>
+          )}
+
+          {/* Appointments (when typeCfg shows them) */}
+          {(typeCfg.showContainer || typeCfg.showTrailer || form.load_type === 'chassis_reposition') && (
+            <>
+              <DatePicker
+                showTime
+                label="Pickup Apt"
+                value={form.pickup_apt_from}
+                onChange={(v) => updateApt('pickup', v)}
+              />
+              <DatePicker
+                showTime
+                label="Delivery Apt"
+                value={form.delivery_apt_from}
+                onChange={(v) => updateApt('delivery', v)}
+              />
+              <div />
+            </>
+          )}
+
+          {/* References (skip for bill_only and chassis_reposition) */}
+          {form.load_type !== 'bill_only' && form.load_type !== 'chassis_reposition' && (
+            <>
+              <Input
+                label="Master BOL"
+                value={form.bill_of_lading}
+                onChange={(e) => update('bill_of_lading', e.target.value)}
+              />
+              <Input
+                label="Booking #"
+                value={form.booking_number}
+                onChange={(e) => update('booking_number', e.target.value)}
+              />
+              <div />
+            </>
+          )}
+        </div>
+
+        {/* Notify parties (collapsible, only when customer is set) */}
+        {form.customer_id && (
+          <details className="border border-gray-200 dark:border-slate-700 rounded-lg" open={notifyParties.length > 0}>
+            <summary className="px-3 py-2 cursor-pointer text-xs font-semibold text-gray-700 dark:text-slate-200 flex items-center justify-between">
+              <span>Notify parties (optional)</span>
+              <span className="text-gray-500 dark:text-slate-400 font-normal">
+                {notifyParties.length === 0 ? 'None' : `${notifyParties.length} ${notifyParties.length === 1 ? 'party' : 'parties'}`}
+              </span>
+            </summary>
+            <div className="px-3 pb-3 pt-2 border-t border-gray-200 dark:border-slate-700">
+              <NotifyPartyPicker
+                mode="load"
+                customerId={form.customer_id}
+                pickupLocationOrgId={form.pickup_location_id}
+                deliveryLocationOrgId={form.delivery_location_id}
+                returnLocationOrgId={form.return_location_id}
+                value={notifyParties}
+                onChange={setNotifyParties}
+                onManualEdit={() => setManuallyEditedNotifyParties(true)}
+              />
+            </div>
+          </details>
+        )}
+
+        {/* Footer */}
+        <div className="flex justify-end gap-2 pt-3 border-t border-gray-100 dark:border-slate-800">
+          <Button variant="secondary" type="button" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" loading={submitting}>
+            Create Load
+          </Button>
         </div>
       </form>
     </Modal>
   );
 }
 
-function StepDot({ active, done, label }) {
+function SortableTemplateChip({ tpl, active, onSelect }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: tpl.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   return (
-    <div className="flex items-center gap-2">
-      <div
-        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ${
-          active
-            ? 'bg-blue-600 text-white'
-            : done
-              ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300'
-              : 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400'
-        }`}
-      >
-        {done ? <Check className="w-3.5 h-3.5" /> : active ? '•' : ''}
-      </div>
-      <span
-        className={`text-xs font-medium ${
-          active ? 'text-gray-900 dark:text-slate-100' : done ? 'text-gray-600 dark:text-slate-300' : 'text-gray-400 dark:text-slate-500'
-        }`}
-      >
-        {label}
-      </span>
-    </div>
+    <button
+      ref={setNodeRef}
+      style={style}
+      type="button"
+      onClick={onSelect}
+      {...attributes}
+      {...listeners}
+      className={`text-left p-2 rounded border transition-colors cursor-grab active:cursor-grabbing ${
+        active
+          ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-200'
+          : 'border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600 bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300'
+      }`}
+    >
+      <div className="text-xs font-medium truncate">{tpl.name}</div>
+      {tpl.description && (
+        <div className="text-[10px] text-gray-500 dark:text-slate-400 truncate mt-0.5">
+          {tpl.description}
+        </div>
+      )}
+    </button>
   );
 }
