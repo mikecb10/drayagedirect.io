@@ -161,7 +161,7 @@ export default function LoadInfoTab({ load, holds: initialHolds, routingLocks, o
     // Apply optimistically; reload from server
     setNotifyParties(next);
 
-    await Promise.all([
+    const results = await Promise.allSettled([
       ...toAdd.map((p) =>
         fetch(`/api/tenant/loads/${load.id}/notify-parties`, {
           method: 'POST',
@@ -172,13 +172,21 @@ export default function LoadInfoTab({ load, holds: initialHolds, routingLocks, o
             source: p.source,
             source_organization_id: p.source_organization_id,
           }),
-        }).catch((e) => console.warn('Failed to add notify party:', e))
+        }).then((r) => { if (!r.ok) throw new Error('add failed'); })
       ),
       ...toRemove.filter((p) => p.id).map((p) =>
         fetch(`/api/tenant/loads/${load.id}/notify-parties/${p.id}`, { method: 'DELETE' })
-          .catch((e) => console.warn('Failed to remove notify party:', e))
+          .then((r) => { if (!r.ok) throw new Error('remove failed'); })
       ),
     ]);
+
+    const anyFailed = results.some((r) => r.status === 'rejected');
+    if (anyFailed) {
+      results.filter((r) => r.status === 'rejected').forEach((r) => console.warn('Notify party change failed:', r.reason));
+      flash('notify_parties', 'error');
+    } else {
+      flash('notify_parties', 'success');
+    }
 
     // Reload to pick up authoritative IDs and any name hydration
     const res = await fetch(`/api/tenant/loads/${load.id}/notify-parties`);
@@ -993,16 +1001,11 @@ export default function LoadInfoTab({ load, holds: initialHolds, routingLocks, o
       </FormSection>
 
       {/* Notify Parties */}
-      <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900">
-        <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-700">
-          <div className="text-xs uppercase tracking-wider font-semibold text-gray-500 dark:text-slate-400">
-            Notify parties
-          </div>
-          <div className="text-[10px] text-gray-500 dark:text-slate-500 mt-0.5">
-            Recipients automatically added to umbrella emails that reference Load notify parties.
-          </div>
-        </div>
-        <div className="p-4">
+      <div className={`rounded-lg ${flashClass('notify_parties')}`}>
+        <FormSection
+          title="Notify Parties"
+          description="Recipients automatically added to umbrella emails that reference Load notify parties."
+        >
           {npLoading ? (
             <div className="text-xs text-gray-500 dark:text-slate-400">Loading…</div>
           ) : (
@@ -1016,7 +1019,7 @@ export default function LoadInfoTab({ load, holds: initialHolds, routingLocks, o
               onChange={handleNotifyChange}
             />
           )}
-        </div>
+        </FormSection>
       </div>
 
     </div>
