@@ -3,6 +3,7 @@ import sampleDataInvoice       from '../../../../lib/document-designer/sample-da
 import sampleDataRateCon       from '../../../../lib/document-designer/sample-data-rate-con';
 import sampleDataCombinedInvoice from '../../../../lib/document-designer/sample-data-combined-invoice';
 import sampleDataPod              from '../../../../lib/document-designer/sample-data-pod';
+import sampleDataStatement        from '../../../../lib/document-designer/sample-data-statement';
 import HeaderPreview               from './HeaderPreview';
 import DeliveryOrderDetailsPreview from './DeliveryOrderDetailsPreview';
 import InvoiceDetailsPreview        from './InvoiceDetailsPreview';
@@ -25,6 +26,7 @@ const SAMPLE_BY_DOCUMENT_TYPE = {
   rate_con:                 sampleDataRateCon,
   combined_invoice:         sampleDataCombinedInvoice,
   pod:                      sampleDataPod,
+  statement:                sampleDataStatement,
 };
 
 /**
@@ -55,7 +57,7 @@ const PREVIEW_BY_SECTION_ID = {
  * sample data + resolved field-visibility map + per-template colors.
  *
  * `documentType`: 'delivery_order_full' | 'delivery_order_next_move' | 'invoice'
- *                 | 'rate_con' | 'combined_invoice' | 'pod'
+ *                 | 'rate_con' | 'combined_invoice' | 'pod' | 'statement'
  *                 — picks the per-doc-type sample data slice
  * `visibility`:   { [sectionId]: boolean }
  * `fields`:       { [sectionId]: { [fieldId]: boolean } }
