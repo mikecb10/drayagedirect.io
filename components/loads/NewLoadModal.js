@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import Modal from '../ui/Modal';
+import NotifyPartyPicker from './NotifyPartyPicker';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
@@ -154,6 +155,11 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
   const [containerSizes, setContainerSizes] = useState(DEFAULT_CONTAINER_SIZES);
   const [templateOrder, setTemplateOrder] = useState([]); // string[] of template ids
 
+  const [notifyParties, setNotifyParties] = useState([]);
+  const [manuallyEditedNotifyParties, setManuallyEditedNotifyParties] = useState(false);
+  const [pendingCustomerOrg, setPendingCustomerOrg] = useState(null);
+  const [previousCustomerOrg, setPreviousCustomerOrg] = useState(null);
+
   const typeCfg = TYPE_CONFIG[form.load_type] || TYPE_CONFIG.import;
 
   useEffect(() => {
@@ -163,6 +169,10 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
         branch_id: branchIds?.length === 1 ? branchIds[0] : null,
       });
       setError(null);
+      setNotifyParties([]);
+      setManuallyEditedNotifyParties(false);
+      setPendingCustomerOrg(null);
+      setPreviousCustomerOrg(null);
       fetch('/api/tenant/container-sizes?enabled=true')
         .then((r) => (r.ok ? r.json() : null))
         .then((data) => {
@@ -286,6 +296,98 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
     persistOrder([]);
   }
 
+  async function applyCustomerChange(org) {
+    selectOrg('customer_id', 'customer_label', org);
+    setPreviousCustomerOrg(org);
+
+    if (!org?.id) {
+      setNotifyParties([]);
+      setManuallyEditedNotifyParties(false);
+      return;
+    }
+
+    // Fetch the customer's defaults + hydrate names
+    try {
+      const orgRes = await fetch(`/api/tenant/organizations/${org.id}`).then((r) => r.ok ? r.json() : null);
+      const defaults = orgRes?.organization?.default_notify_parties || [];
+      if (!Array.isArray(defaults) || defaults.length === 0) {
+        setNotifyParties([]);
+        setManuallyEditedNotifyParties(false);
+        return;
+      }
+
+      // Group by source_organization_id (or default to picked customer's org id) to batch fetch
+      const orgIds = Array.from(new Set(defaults.map((d) => d.source_organization_id || org.id).filter(Boolean)));
+      const orgDataById = {};
+      await Promise.all(orgIds.map(async (oid) => {
+        const [orgInfo, groups, contacts] = await Promise.all([
+          fetch(`/api/tenant/organizations/${oid}`).then((r) => r.ok ? r.json() : null).catch(() => null),
+          fetch(`/api/tenant/organizations/${oid}/groups`).then((r) => r.ok ? r.json() : { groups: [] }).catch(() => ({ groups: [] })),
+          fetch(`/api/tenant/organizations/${oid}/contacts`).then((r) => r.ok ? r.json() : { contacts: [] }).catch(() => ({ contacts: [] })),
+        ]);
+        orgDataById[oid] = {
+          name: orgInfo?.organization?.name || 'Unknown',
+          groupById: Object.fromEntries((groups.groups || []).map((g) => [g.id, g])),
+          contactById: Object.fromEntries((contacts.contacts || []).map((c) => [c.id, c])),
+        };
+      }));
+
+      // Hydrate each default; filter dead refs
+      const hydrated = defaults
+        .map((d) => {
+          const oid = d.source_organization_id || org.id;
+          const data = orgDataById[oid];
+          if (!data) return null;
+          if (d.type === 'group') {
+            const g = data.groupById[d.id];
+            if (!g) return null;
+            return {
+              party_type: 'group',
+              party_id: d.id,
+              source: 'default',
+              source_organization_id: oid,
+              source_organization_name: data.name,
+              name: g.name,
+              member_count: g.member_count ?? null,
+            };
+          }
+          const c = data.contactById[d.id];
+          if (!c) return null;
+          // contact name from first_name/last_name (org contacts schema)
+          const name = (c.first_name || c.last_name)
+            ? `${c.first_name || ''} ${c.last_name || ''}`.trim()
+            : (c.email || '(unnamed)');
+          return {
+            party_type: 'contact',
+            party_id: d.id,
+            source: 'default',
+            source_organization_id: oid,
+            source_organization_name: data.name,
+            name,
+            email: c.email,
+          };
+        })
+        .filter(Boolean);
+
+      setNotifyParties(hydrated);
+      setManuallyEditedNotifyParties(false);
+    } catch (e) {
+      console.warn('Failed to load notify-party defaults:', e);
+      setNotifyParties([]);
+      setManuallyEditedNotifyParties(false);
+    }
+  }
+
+  function handleCustomerChange(org) {
+    // No previous customer + no manual edits → just apply
+    if (!form.customer_id || !manuallyEditedNotifyParties) {
+      applyCustomerChange(org);
+      return;
+    }
+    // Has manual edits → confirm before wiping
+    setPendingCustomerOrg(org);
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setSubmitting(true);
@@ -331,6 +433,25 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
         throw new Error(body.error || 'Failed to create load');
       }
       const data = await res.json();
+
+      // Insert manually added notify parties for the newly created load.
+      // (default-source ones were already inserted server-side via copyDefaultNotifyParties.)
+      const manualParties = notifyParties.filter((p) => p.source !== 'default');
+      if (manualParties.length > 0 && data.load?.id) {
+        await Promise.all(manualParties.map((p) =>
+          fetch(`/api/tenant/loads/${data.load.id}/notify-parties`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              party_type: p.party_type,
+              party_id: p.party_id,
+              source: p.source,
+              source_organization_id: p.source_organization_id,
+            }),
+          }).catch((e) => console.warn('Failed to add notify party:', e))
+        ));
+      }
+
       onSuccess?.(data.load);
     } catch (e) {
       setError(e.message);
@@ -343,6 +464,37 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
     <Modal isOpen={isOpen} onClose={onClose} title="Create New Load" size="xl">
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && <Alert type="error" message={error} />}
+
+        {pendingCustomerOrg && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 dark:bg-black/75 backdrop-blur-sm p-4">
+            <div className="bg-white dark:bg-slate-900 rounded-lg p-5 max-w-md w-full shadow-xl border border-gray-200 dark:border-slate-700">
+              <div className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-2">Reset notify parties?</div>
+              <div className="text-xs text-gray-600 dark:text-slate-400 mb-4">
+                Changing customer will reset notify parties to the new customer&apos;s defaults. Your manual edits will be lost.
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setPendingCustomerOrg(null)}
+                  className="px-3 py-1.5 text-xs rounded border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const org = pendingCustomerOrg;
+                    setPendingCustomerOrg(null);
+                    await applyCustomerChange(org);
+                  }}
+                  className="px-3 py-1.5 text-xs rounded bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Type pills row */}
         <div className="flex flex-wrap gap-2">
@@ -425,7 +577,7 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
               type="customer"
               value={form.customer_id}
               valueLabel={form.customer_label}
-              onChange={(org) => selectOrg('customer_id', 'customer_label', org)}
+              onChange={handleCustomerChange}
               required
             />
           </div>
@@ -554,6 +706,30 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
             </>
           )}
         </div>
+
+        {/* Notify parties (collapsible, only when customer is set) */}
+        {form.customer_id && (
+          <details className="border border-gray-200 dark:border-slate-700 rounded-lg" open={notifyParties.length > 0}>
+            <summary className="px-3 py-2 cursor-pointer text-xs font-semibold text-gray-700 dark:text-slate-200 flex items-center justify-between">
+              <span>Notify parties (optional)</span>
+              <span className="text-gray-500 dark:text-slate-400 font-normal">
+                {notifyParties.length === 0 ? 'None' : `${notifyParties.length} ${notifyParties.length === 1 ? 'party' : 'parties'}`}
+              </span>
+            </summary>
+            <div className="px-3 pb-3 pt-2 border-t border-gray-200 dark:border-slate-700">
+              <NotifyPartyPicker
+                mode="load"
+                customerId={form.customer_id}
+                pickupLocationOrgId={form.pickup_location_id}
+                deliveryLocationOrgId={form.delivery_location_id}
+                returnLocationOrgId={form.return_location_id}
+                value={notifyParties}
+                onChange={setNotifyParties}
+                onManualEdit={() => setManuallyEditedNotifyParties(true)}
+              />
+            </div>
+          </details>
+        )}
 
         {/* Footer */}
         <div className="flex justify-end gap-2 pt-3 border-t border-gray-100 dark:border-slate-800">
