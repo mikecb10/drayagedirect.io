@@ -5,6 +5,7 @@ import { typography } from './shared/typography';
 import {
   getSectionsForDocumentType,
   computeVisibility,
+  extractColors,
 } from '../../lib/constants/document-sections';
 import DeliveryOrderDetails from './sections/DeliveryOrderDetails';
 import AddressDetails from './sections/AddressDetails';
@@ -53,9 +54,9 @@ function buildSectionData(doc) {
         phone:         doc.customer_contact?.phone,
         email:         doc.customer_contact?.email,
       } : null,
-      pickup_location:   null, // D2
-      delivery_location: null, // D2
-      return_location:   null, // D2
+      pickup_location:   doc.load_level_locations?.pickup_location   || null,
+      delivery_location: doc.load_level_locations?.delivery_location || null,
+      return_location:   doc.load_level_locations?.return_location   || null,
       appointment_times: {
         pickup:   ap.pickup_appt_number,
         delivery: ap.delivery_appt_number,
@@ -85,15 +86,26 @@ function buildSectionData(doc) {
     },
     notes: {
       driver_notes:   inst.driver_notes,
-      yard_notes:     null, // D2 / data layer FU
-      customer_notes: null, // D2
-      billing_notes:  null, // D2
+      yard_notes:     null, // future data-layer FU
+      customer_notes: null, // future
+      billing_notes:  null, // future
       load_notes:     inst.special_instructions,
     },
+    commodity_details: null,  // No real source yet — preview uses sample-data; print stays empty.
+    signature: {
+      print_name: '',
+      signature: '',
+      date: '',
+      time_in: '',
+      time_out: '',
+    },
+    disclaimer: doc.section_config?.disclaimer?.enabled
+      ? { text: doc.section_config.disclaimer.text || '' }
+      : null,
   };
 }
 
-function renderSection(sectionId, doc, sectionData, opts, ctx) {
+function renderSection(sectionId, doc, sectionData, opts, ctx, colors) {
   switch (sectionId) {
     case 'header':
       return (
@@ -103,14 +115,15 @@ function renderSection(sectionId, doc, sectionData, opts, ctx) {
           title={ctx.title}
           subtitle={ctx.subtitle}
           opts={opts}
+          colors={colors}
         />
       );
     case 'delivery_order_details':
       return <DeliveryOrderDetails data={sectionData.delivery_order_details} opts={opts} />;
     case 'address_details':
-      return <AddressDetails data={sectionData.address_details} opts={opts} />;
+      return <AddressDetails data={sectionData.address_details} opts={opts} colors={colors} />;
     case 'order_details':
-      return <OrderDetails data={sectionData.order_details} opts={opts} />;
+      return <OrderDetails data={sectionData.order_details} opts={opts} colors={colors} />;
     case 'move_events':
       return (
         <MoveBlock
@@ -120,10 +133,10 @@ function renderSection(sectionId, doc, sectionData, opts, ctx) {
           totalMoves={doc.total_moves_in_load}
         />
       );
-    case 'commodity_details': return <CommodityDetails />;
+    case 'commodity_details': return <CommodityDetails data={sectionData.commodity_details} opts={opts} colors={colors} />;
     case 'notes':              return <Notes data={sectionData.notes} opts={opts} />;
-    case 'signature':          return <Signature />;
-    case 'disclaimer':         return <Disclaimer />;
+    case 'signature':          return <Signature data={sectionData.signature} colors={colors} />;
+    case 'disclaimer':         return <Disclaimer data={sectionData.disclaimer} colors={colors} />;
     case 'barcode':            return <BarcodeBlock data={doc.load_metadata} />;
     case 'footer':             return <DocumentFooter data={{ tenant_name: doc.tenant_name }} />;
     default:                   return null;
@@ -143,6 +156,7 @@ export default function DeliveryOrderTemplate({
       {(docs || []).map((doc, idx) => {
         const cfg = perDocSectionConfigs?.[idx] ?? sectionConfig;
         const { visibility, fields } = computeVisibility(registrySections, cfg);
+        const colors = extractColors(cfg);
         const order = cfg?.order || registrySections.map((s) => s.id);
         const sectionData = buildSectionData(doc);
 
@@ -164,7 +178,7 @@ export default function DeliveryOrderTemplate({
               if (sectionId === 'move_events') {
                 opts.show_driver = fields.delivery_order_details?.driver_name !== false;
               }
-              const node = renderSection(sectionId, doc, sectionData, opts, ctx);
+              const node = renderSection(sectionId, doc, sectionData, opts, ctx, colors);
               return node ? <React.Fragment key={sectionId}>{node}</React.Fragment> : null;
             })}
           </Page>
