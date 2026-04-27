@@ -18,6 +18,7 @@ import {
   Mail,
   Eye,
   MoreVertical,
+  ScrollText,
 } from 'lucide-react';
 import SettingsLayout from '../../../../components/settings/SettingsLayout';
 import Button from '../../../../components/ui/Button';
@@ -970,6 +971,17 @@ export default function UmbrellaEditor() {
 // ──────────────────────────────────────────────────────────────
 // GroupCard — nested within the umbrella editor
 // ──────────────────────────────────────────────────────────────
+
+// 5-color accent palette — cycles by group index so successive Group A/B/C
+// cards are visually distinct. Static class strings so Tailwind JIT can purge.
+const GROUP_ACCENT_PALETTE = [
+  { border: 'border-l-blue-500',    bg: 'bg-blue-50/30 dark:bg-blue-950/10',    badgeBg: 'bg-blue-600' },
+  { border: 'border-l-emerald-500', bg: 'bg-emerald-50/30 dark:bg-emerald-950/10', badgeBg: 'bg-emerald-600' },
+  { border: 'border-l-amber-500',   bg: 'bg-amber-50/30 dark:bg-amber-950/10',  badgeBg: 'bg-amber-600' },
+  { border: 'border-l-purple-500',  bg: 'bg-purple-50/30 dark:bg-purple-950/10', badgeBg: 'bg-purple-600' },
+  { border: 'border-l-rose-500',    bg: 'bg-rose-50/30 dark:bg-rose-950/10',    badgeBg: 'bg-rose-600' },
+];
+
 function GroupCard({
   group,
   index,
@@ -1103,11 +1115,13 @@ function GroupCard({
   const attachedIds = new Set((group.templates || []).map((t) => t.id));
   const availableTemplates = allTemplates.filter((t) => !attachedIds.has(t.id));
 
+  const accent = GROUP_ACCENT_PALETTE[index % GROUP_ACCENT_PALETTE.length];
+
   return (
-    <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+    <div className={`rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden border-l-4 ${accent.border} ${accent.bg}`}>
       {/* Group header */}
-      <div className="flex items-center gap-3 px-5 py-3.5 border-b border-gray-200 dark:border-slate-800 bg-gradient-to-r from-blue-50/60 to-transparent dark:from-blue-950/30 dark:to-transparent">
-        <div className="shrink-0 w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center text-sm font-bold shadow-sm">
+      <div className="flex items-center gap-3 px-5 py-3.5 border-b border-gray-200 dark:border-slate-800 bg-gradient-to-r from-transparent to-transparent">
+        <div className={`shrink-0 w-8 h-8 rounded-lg ${accent.badgeBg} text-white flex items-center justify-center text-sm font-bold shadow-sm`}>
           {index + 1}
         </div>
         <div className="flex-1 min-w-0">
@@ -1509,18 +1523,22 @@ function RecipientRow({
     return () => clearTimeout(handle);
   }, [activeTab, groupQuery]);
 
-  const labelClass =
-    accentColor === 'blue'
-      ? 'text-blue-700 dark:text-blue-300'
-      : 'text-gray-600 dark:text-slate-300';
   return (
     <div className="flex items-start gap-3">
-      {/* Label column — fixed width so To/Cc/Bcc align cleanly */}
+      {/* Label column — fixed width so To/Cc/Bcc align cleanly.
+          To row is prominent (larger/bolder/blue); Cc/Bcc are subdued
+          (smaller/lighter) so the required To field reads as primary. */}
       <div className="shrink-0 pt-2 w-10">
-        <div className={`text-xs font-semibold ${labelClass}`}>
-          {label}
-          {required && <span className="text-rose-500 ml-0.5">*</span>}
-        </div>
+        {accentColor === 'blue' ? (
+          <div className="text-sm font-semibold text-blue-700 dark:text-blue-400">
+            {label}
+            {required && <span className="text-rose-500 ml-0.5">*</span>}
+          </div>
+        ) : (
+          <div className="text-xs font-medium text-gray-500 dark:text-slate-500">
+            {label}
+          </div>
+        )}
       </div>
 
       {/* Input field container — proper bordered chip input */}
@@ -1630,28 +1648,42 @@ function RecipientRow({
               </button>
               {tokenPickerOpen && (
                 <div
-                  className="absolute z-30 mt-1 right-0 w-80 max-h-96 overflow-auto rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg"
+                  className="absolute z-30 mt-1 right-0 w-80 max-h-96 overflow-auto rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-2xl ring-1 ring-black/5 dark:ring-white/5"
                 >
                   {/* Tab bar */}
-                  <div className="flex border-b border-gray-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-900 z-10">
-                    {[
-                      { id: 'role', label: 'Role' },
-                      { id: 'contact', label: 'Contact' },
-                      { id: 'group', label: 'Group' },
-                    ].map((t) => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => setActiveTab(t.id)}
-                        className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
-                          activeTab === t.id
-                            ? 'text-purple-700 dark:text-purple-300 border-b-2 border-purple-500'
-                            : 'text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800/50'
-                        }`}
-                      >
-                        {t.label}
-                      </button>
-                    ))}
+                  <div className="flex border-b border-gray-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800 z-10">
+                    {(() => {
+                      const TAB_CONFIG = [
+                        { id: 'role', label: 'Role', icon: ScrollText, color: 'purple' },
+                        { id: 'contact', label: 'Contact', icon: User, color: 'emerald' },
+                        { id: 'group', label: 'Group', icon: Users, color: 'amber' },
+                      ];
+                      // Static lookup tables so Tailwind JIT can purge correctly
+                      // (dynamic class names like `text-${color}-700` don't work)
+                      const ACTIVE_CLS = {
+                        purple: 'text-purple-700 dark:text-purple-300 border-b-2 border-purple-500 bg-purple-50/50 dark:bg-purple-950/30',
+                        emerald: 'text-emerald-700 dark:text-emerald-300 border-b-2 border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30',
+                        amber: 'text-amber-700 dark:text-amber-300 border-b-2 border-amber-500 bg-amber-50/50 dark:bg-amber-950/30',
+                      };
+                      return TAB_CONFIG.map((t) => {
+                        const Icon = t.icon;
+                        return (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => setActiveTab(t.id)}
+                            className={`flex-1 px-3 py-2.5 text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                              activeTab === t.id
+                                ? ACTIVE_CLS[t.color]
+                                : 'text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800/50 border-b-2 border-transparent'
+                            }`}
+                          >
+                            <Icon className="w-3.5 h-3.5" />
+                            {t.label}
+                          </button>
+                        );
+                      });
+                    })()}
                   </div>
 
                   {/* Role tab content */}
