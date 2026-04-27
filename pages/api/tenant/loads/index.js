@@ -528,13 +528,6 @@ export default async function handler(req, res) {
       ipAddress: getClientIp(req),
     });
 
-    // Auto-apply tariff charges on new load creation (fire-and-forget)
-    findMatchingCharges(svc, data, ctx.tenantId)
-      .then((charges) => {
-        if (charges.length > 0) return applyChargesToLoad(svc, data.id, ctx.tenantId, charges);
-      })
-      .catch((e) => console.error('tariff auto-apply on create error:', e));
-
     return res.status(201).json({ load: data });
   }
 
