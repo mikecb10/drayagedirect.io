@@ -42,9 +42,10 @@ const FIELD_ORDER = [
   ['per_diem_free_day',     'Per Diem Free Day'],
 ];
 
-export default function OrderDetails({ data, opts }) {
+export default function OrderDetails({ data, opts, colors }) {
   if (!data) return null;
   const fields = opts?.fields || {};
+  const textColor = colors?.text || '#111827';
   const rows = FIELD_ORDER
     .map(([key, label]) => {
       if (fields[key] === false) return null;
@@ -58,7 +59,7 @@ export default function OrderDetails({ data, opts }) {
 
   return (
     <View style={{ marginBottom: 12 }}>
-      <Text style={typography.label}>Order Details</Text>
+      <Text style={[typography.label, { color: textColor }]}>Order Details</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 2 }}>
         {rows.map(([label, value]) => (
           <View key={label} style={{ minWidth: 100 }}>

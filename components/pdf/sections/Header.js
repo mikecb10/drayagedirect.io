@@ -13,8 +13,9 @@ import { typography } from '../shared/typography';
  * website) is mostly null — the toggles exist but render nothing without
  * data. FU-035-D2 / FU-035-F adds the data wiring.
  */
-export default function Header({ tenantName, title, subtitle, contactLine, tenantInfo, opts }) {
+export default function Header({ tenantName, title, subtitle, contactLine, tenantInfo, opts, colors }) {
   const fields = opts?.fields || {};
+  const accent = colors?.accent || '#3B82F6';
   const showLogo        = fields.logo        !== false;
   const showAddress     = fields.address     !== false;
   const showPhone       = fields.phone       !== false;
@@ -52,7 +53,16 @@ export default function Header({ tenantName, title, subtitle, contactLine, tenan
         </View>
       </View>
       <View style={{ alignItems: 'flex-end' }}>
-        <Text style={typography.h1}>{title}</Text>
+        <View
+          style={{
+            backgroundColor: accent,
+            paddingHorizontal: 8,
+            paddingVertical: 4,
+            borderRadius: 2,
+          }}
+        >
+          <Text style={{ color: 'white', fontSize: 11, fontWeight: 'bold' }}>{title}</Text>
+        </View>
         {subtitle ? (
           <Text style={[typography.value, typography.muted, { marginTop: 2 }]}>{subtitle}</Text>
         ) : null}

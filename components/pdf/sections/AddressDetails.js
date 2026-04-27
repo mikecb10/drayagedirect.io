@@ -1,12 +1,23 @@
 import { View, Text } from '@react-pdf/renderer';
 import { typography } from '../shared/typography';
 
-function AddressBlock({ label, org }) {
+function AddressBlock({ label, org, accent }) {
   if (!org || !org.name) return null;
   const cityLine = [org.city, org.state, org.zip].filter(Boolean).join(', ');
   return (
     <View style={{ marginBottom: 8 }}>
-      <Text style={typography.label}>{label}</Text>
+      <View
+        style={{
+          backgroundColor: accent,
+          paddingHorizontal: 4,
+          paddingVertical: 2,
+          marginBottom: 2,
+        }}
+      >
+        <Text style={{ color: 'white', fontSize: 7, fontWeight: 'bold', textTransform: 'uppercase' }}>
+          {label}
+        </Text>
+      </View>
       <Text style={typography.value}>{org.name}</Text>
       {org.address_line1 ? <Text style={typography.value}>{org.address_line1}</Text> : null}
       {cityLine ? <Text style={typography.value}>{cityLine}</Text> : null}
@@ -38,9 +49,10 @@ function AddressBlock({ label, org }) {
  *     is_operational_street_turn: boolean
  *   }
  */
-export default function AddressDetails({ data, opts }) {
+export default function AddressDetails({ data, opts, colors }) {
   if (!data) return null;
   const fields = opts?.fields || {};
+  const accent = colors?.accent || '#3B82F6';
   const showCustomer  = fields.customer          !== false;
   const showPickup    = fields.pickup_location   !== false;
   const showDelivery  = fields.delivery_location !== false;
@@ -50,16 +62,16 @@ export default function AddressDetails({ data, opts }) {
 
   const rows = [];
   if (showCustomer && data.customer) {
-    rows.push(<AddressBlock key="customer" label="Customer" org={data.customer} />);
+    rows.push(<AddressBlock key="customer" label="Customer" org={data.customer} accent={accent} />);
   }
   if (showPickup && data.pickup_location) {
-    rows.push(<AddressBlock key="pickup" label="Pick Up Location" org={data.pickup_location} />);
+    rows.push(<AddressBlock key="pickup" label="Pick Up Location" org={data.pickup_location} accent={accent} />);
   }
   if (showDelivery && data.delivery_location) {
-    rows.push(<AddressBlock key="delivery" label="Delivery Location" org={data.delivery_location} />);
+    rows.push(<AddressBlock key="delivery" label="Delivery Location" org={data.delivery_location} accent={accent} />);
   }
   if (showReturn && data.return_location) {
-    rows.push(<AddressBlock key="return" label="Return Location" org={data.return_location} />);
+    rows.push(<AddressBlock key="return" label="Return Location" org={data.return_location} accent={accent} />);
   }
 
   const phone = data.customer?.phone;
