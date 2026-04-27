@@ -8,9 +8,9 @@ import {
   isValidDocumentType,
 } from '../lib/constants/document-types.js';
 
-test('DOCUMENT_TYPES contains the two delivery order variants', () => {
+test('DOCUMENT_TYPES contains the delivery order variants and invoice', () => {
   const values = DOCUMENT_TYPES.map((t) => t.value).sort();
-  assert.deepEqual(values, ['delivery_order_full', 'delivery_order_next_move']);
+  assert.deepEqual(values, ['delivery_order_full', 'delivery_order_next_move', 'invoice']);
 });
 
 test('every DOCUMENT_TYPES entry has required fields', () => {
