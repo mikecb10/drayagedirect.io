@@ -3,11 +3,12 @@ import {
   requirePermission,
   getServiceClient,
 } from '../../../../../../lib/tenant-api';
+import { logTenantAction, getClientIp } from '../../../../../../lib/tenant-audit';
 import { PERMISSIONS } from '../../../../../../lib/permissions';
-import { listLoadNotifyParties } from '../../../../../../lib/load-notify-parties-hydrator';
+import { listLoadNotifyParties, addLoadNotifyParty } from '../../../../../../lib/load-notify-parties-hydrator';
 
-// Re-export the pure helper so tests can import it from this module
-export { listLoadNotifyParties };
+// Re-export the pure helpers so tests can import them from this module
+export { listLoadNotifyParties, addLoadNotifyParty };
 
 export default async function handler(req, res) {
   const ctx = await requireTenantUser(req, res);
@@ -32,7 +33,15 @@ export default async function handler(req, res) {
     return res.status(200).json(result);
   }
 
-  // POST handler comes in Task 4
+  if (req.method === 'POST') {
+    if (!requirePermission(ctx, [PERMISSIONS.ORDER_ENTRY, PERMISSIONS.ALL], res)) return;
+    try {
+      const result = await addLoadNotifyParty(svc, ctx, loadId, req.body, getClientIp(req), logTenantAction);
+      return res.status(201).json(result);
+    } catch (e) {
+      return res.status(e.statusCode || 500).json({ error: e.message });
+    }
+  }
 
   return res.status(405).json({ error: 'Method not allowed' });
 }

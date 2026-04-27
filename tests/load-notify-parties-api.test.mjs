@@ -122,5 +122,93 @@ console.log('GET /api/tenant/loads/[id]/notify-parties');
   check('dead-ref contact: email is null', result.parties[0].email === null);
 }
 
+console.log('\nPOST /api/tenant/loads/[id]/notify-parties');
+
+const { addLoadNotifyParty } = await import('../lib/load-notify-parties-hydrator.js');
+
+// Case 4: Successful add with group party_type
+{
+  console.log('\nCase 4: Successful add (group)');
+  let inserted = null;
+  const noopLogger = () => Promise.resolve();
+  // Custom mock that supports the extra ops POST needs:
+  // - .maybeSingle() on organization_groups (cross-tenant check)
+  // - .insert() returning .select().single()
+  const svc = {
+    from: (table) => {
+      const c = {
+        _table: table,
+        _filters: {},
+        select: () => c,
+        eq: (col, val) => { c._filters[col] = val; return c; },
+        maybeSingle: async () => {
+          if (table === 'organization_groups') return { data: { id: c._filters.id }, error: null };
+          if (table === 'organization_contacts') return { data: { id: c._filters.id }, error: null };
+          return { data: null, error: null };
+        },
+        insert: (rec) => {
+          inserted = rec;
+          // Insert returns a chain that ends in .select().single()
+          return {
+            select: () => ({
+              single: async () => ({ data: { id: 'new-row', ...inserted }, error: null }),
+            }),
+          };
+        },
+      };
+      return c;
+    },
+  };
+  const result = await addLoadNotifyParty(
+    svc,
+    { tenantId: 't-1', userId: 'u-1' },
+    'load-1',
+    { party_type: 'group', party_id: 'grp-1', source: 'customer', source_organization_id: 'org-A' },
+    '127.0.0.1',
+    noopLogger
+  );
+  check('add group: returns row', result.row?.id === 'new-row');
+  check('add group: tenant_id set', inserted?.tenant_id === 't-1');
+  check('add group: load_id set', inserted?.load_id === 'load-1');
+  check('add group: party_type set', inserted?.party_type === 'group');
+}
+
+// Case 5: Rejects unknown party_type
+{
+  console.log('\nCase 5: Rejects unknown party_type');
+  const svc = {
+    from: () => ({ select: () => ({ eq: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }) }) }),
+  };
+  let threw = false;
+  try {
+    await addLoadNotifyParty(svc, { tenantId: 't-1', userId: 'u-1' }, 'load-1', { party_type: 'org', party_id: 'x' }, '127.0.0.1');
+  } catch (e) {
+    threw = true;
+  }
+  check('unknown party_type: throws', threw);
+}
+
+// Case 6: Rejects cross-tenant party_id (group)
+{
+  console.log('\nCase 6: Rejects cross-tenant party_id');
+  const svc = {
+    from: () => {
+      const c = {
+        select: () => c,
+        eq: () => c,
+        maybeSingle: async () => ({ data: null, error: null }),  // not found in our tenant
+      };
+      return c;
+    },
+  };
+  let threw = false;
+  try {
+    await addLoadNotifyParty(svc, { tenantId: 't-1', userId: 'u-1' }, 'load-1', { party_type: 'group', party_id: 'grp-other-tenant' }, '127.0.0.1');
+  } catch (e) {
+    threw = true;
+  }
+  check('cross-tenant: throws', threw);
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
