@@ -72,6 +72,12 @@ export default function DocumentPreview({ documentType, visibility, fields, sect
           };
         }
         const opts = { fields: fields[s.id] || {} };
+        if (s.id === 'address_details' && documentType === 'invoice') {
+          opts.customerLabel = 'Bill To';
+          // Field-ID translation to keep AddressDetailsPreview's internal API stable:
+          // INVOICE_SECTIONS uses bill_to; AddressDetailsPreview reads opts.fields.customer.
+          opts.fields = { ...opts.fields, customer: opts.fields?.bill_to !== false };
+        }
         return <Component key={s.id} data={data} opts={opts} colors={colors} />;
       })}
     </div>
