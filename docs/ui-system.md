@@ -295,3 +295,14 @@ A: `<FieldGroup columns={4}>` gives you `grid-cols-1 sm:grid-cols-2 lg:grid-cols
 
 **Q: I want a collapsible section.**
 A: No you don't — the spec explicitly bans it. If your section gets collapsed often, move its content to a different tab or page.
+
+**Q: I want to add a tinted-color background to a section. What alpha level works in dark mode?**
+A: Validated against `bg-slate-900` page background:
+- Below ~30% — imperceptible. Eye reads as no tint at all.
+- 30–50% — visible but subtle. Good for "these cards belong to a series" cues where you don't want competing chroma.
+- 50–70% — clearly tinted. Cards read as colored without becoming saturated.
+- Above ~70% — saturated. Cards feel like alerts, not sections. Avoid for neutral grouping.
+
+In light mode, halve the alpha (15% / 30% / 40%) — the white background takes color more readily. The umbrella editor's `GROUP_ACCENT_PALETTE` uses 65% / 40% (dark / light) as the canonical "visible differentiation across multiple stacked cards" level.
+
+A `<SectionCard>` `accent` prop encoding this guidance is planned — see the FU tracker when 2–3 confirmed consumers materialize.
