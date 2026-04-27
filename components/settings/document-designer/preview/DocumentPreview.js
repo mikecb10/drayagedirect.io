@@ -7,6 +7,8 @@ import HeaderPreview               from './HeaderPreview';
 import DeliveryOrderDetailsPreview from './DeliveryOrderDetailsPreview';
 import InvoiceDetailsPreview        from './InvoiceDetailsPreview';
 import RateConDetailsPreview        from './RateConDetailsPreview';
+import PodDetailsPreview            from './PodDetailsPreview';
+import AttachedDocumentsPreview     from './AttachedDocumentsPreview';
 import AddressDetailsPreview       from './AddressDetailsPreview';
 import LoadsSummaryPreview         from './LoadsSummaryPreview';
 import OrderDetailsPreview         from './OrderDetailsPreview';
@@ -35,10 +37,12 @@ const PREVIEW_BY_SECTION_ID = {
   delivery_order_details: DeliveryOrderDetailsPreview,
   invoice_details:        InvoiceDetailsPreview,
   rate_con_details:       RateConDetailsPreview,
+  pod_details:            PodDetailsPreview,
   address_details:        AddressDetailsPreview,
   loads_summary:          LoadsSummaryPreview,
   order_details:          OrderDetailsPreview,
   commodity_details:      CommodityDetailsPreview,
+  attached_documents:     AttachedDocumentsPreview,
   charge_details:         ChargeDetailsPreview,
   notes:                  NotesPreview,
   signature:              SignaturePreview,
@@ -90,6 +94,13 @@ export default function DocumentPreview({ documentType, visibility, fields, sect
           // Same field-ID translation as Invoice. INVOICE_SECTIONS uses bill_to;
           // AddressDetailsPreview reads opts.fields.customer.
           // Mirrored in components/pdf/CombinedInvoiceTemplate.js renderSection().
+          opts.customerLabel = 'Bill To';
+          opts.fields = { ...opts.fields, customer: opts.fields?.bill_to !== false };
+        }
+        if (s.id === 'address_details' && documentType === 'pod') {
+          // Same field-ID translation as Invoice / Combined Invoice.
+          // POD_SECTIONS uses bill_to; AddressDetailsPreview reads opts.fields.customer.
+          // Mirrored in components/pdf/PodTemplate.js renderSection() for the print path.
           opts.customerLabel = 'Bill To';
           opts.fields = { ...opts.fields, customer: opts.fields?.bill_to !== false };
         }
