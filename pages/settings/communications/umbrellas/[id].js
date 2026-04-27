@@ -975,11 +975,11 @@ export default function UmbrellaEditor() {
 // 5-color accent palette — cycles by group index so successive Group A/B/C
 // cards are visually distinct. Static class strings so Tailwind JIT can purge.
 const GROUP_ACCENT_PALETTE = [
-  { border: 'border-l-blue-500',    bg: 'bg-blue-50/30 dark:bg-blue-950/10',    badgeBg: 'bg-blue-600' },
-  { border: 'border-l-emerald-500', bg: 'bg-emerald-50/30 dark:bg-emerald-950/10', badgeBg: 'bg-emerald-600' },
-  { border: 'border-l-amber-500',   bg: 'bg-amber-50/30 dark:bg-amber-950/10',  badgeBg: 'bg-amber-600' },
-  { border: 'border-l-purple-500',  bg: 'bg-purple-50/30 dark:bg-purple-950/10', badgeBg: 'bg-purple-600' },
-  { border: 'border-l-rose-500',    bg: 'bg-rose-50/30 dark:bg-rose-950/10',    badgeBg: 'bg-rose-600' },
+  { border: 'border-l-blue-500',    bg: 'bg-blue-50/40 dark:bg-blue-950/65',    badgeBg: 'bg-blue-600' },
+  { border: 'border-l-emerald-500', bg: 'bg-emerald-50/40 dark:bg-emerald-950/65', badgeBg: 'bg-emerald-600' },
+  { border: 'border-l-amber-500',   bg: 'bg-amber-50/40 dark:bg-amber-950/65',  badgeBg: 'bg-amber-600' },
+  { border: 'border-l-purple-500',  bg: 'bg-purple-50/40 dark:bg-purple-950/65', badgeBg: 'bg-purple-600' },
+  { border: 'border-l-rose-500',    bg: 'bg-rose-50/40 dark:bg-rose-950/65',    badgeBg: 'bg-rose-600' },
 ];
 
 function GroupCard({
