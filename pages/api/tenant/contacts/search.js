@@ -14,8 +14,14 @@ export async function searchContacts(svc, ctx, q) {
     e.statusCode = 400;
     throw e;
   }
-  // Escape SQL wildcards (% and _) AND PostgREST .or() delimiters (, ( ))
-  const escaped = trimmed.replace(/[%_]/g, '\\$&').replace(/[,()]/g, ' ');
+  // Normalize backslash first (a trailing backslash would escape our
+  // closing %), then escape SQL wildcards (% and _), then strip PostgREST
+  // .or() delimiters (, ( )) which would break the predicate parser.
+  // Same chain used in pages/api/tenant/dispatcher/planner/index.js.
+  const escaped = trimmed
+    .replace(/\\/g, '\\\\')
+    .replace(/([%_])/g, '\\$1')
+    .replace(/[,()]/g, ' ');
   const pattern = `%${escaped}%`;
 
   // Use Postgres OR across first_name, last_name, email

@@ -114,5 +114,37 @@ console.log('GET /api/tenant/contacts/search');
   check('parens stripped from .or() expr', !capturedOr.includes('(') && !capturedOr.includes(')'));
 }
 
+// Case 6: Trailing backslash is normalized so it can't escape the closing %
+// wildcard. Without normalization, input "abc\" produces pattern "%abc\%"
+// where the trailing backslash escapes the closing wildcard.
+{
+  console.log('\nCase 6: Trailing backslash normalized');
+  let capturedOr = null;
+  const svc = {
+    from: (table) => {
+      const c = {
+        _table: table,
+        _filters: {},
+        select: () => c,
+        eq: () => c,
+        or: (expr) => { capturedOr = expr; return c; },
+        order: () => c,
+        limit: () => c,
+        then: (resolve) => resolve({ data: [], error: null }),
+      };
+      return c;
+    },
+  };
+  // user types 'abc\' (one trailing backslash); JS source needs 'abc\\'
+  await searchContacts(svc, { tenantId: 't-1' }, 'abc\\');
+  // After escape chain, the single backslash must be doubled to \\ so the
+  // closing % wildcard isn't escaped. Captured pattern should contain
+  // literal '%abc\\%' (chars: %, a, b, c, \, \, %) → JS source '%abc\\\\%'.
+  check(
+    'trailing backslash doubled to prevent escaping closing %',
+    capturedOr != null && capturedOr.includes('%abc\\\\%')
+  );
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

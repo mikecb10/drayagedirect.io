@@ -15,7 +15,15 @@ export async function searchGroups(svc, ctx, q) {
     e.statusCode = 400;
     throw e;
   }
-  const escaped = trimmed.replace(/[%_]/g, '\\$&');
+  // Same escape chain as contacts/search.js + dispatcher/planner: normalize
+  // backslash first (a trailing backslash would escape our closing %), then
+  // escape SQL wildcards, then strip PostgREST delimiters. This single-column
+  // .ilike() doesn't have the .or() parser issue, but we keep the chain
+  // identical so behavior is uniform across helpers.
+  const escaped = trimmed
+    .replace(/\\/g, '\\\\')
+    .replace(/([%_])/g, '\\$1')
+    .replace(/[,()]/g, ' ');
   const pattern = `%${escaped}%`;
 
   const { data } = await svc

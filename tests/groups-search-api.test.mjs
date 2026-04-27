@@ -87,5 +87,62 @@ console.log('GET /api/tenant/groups/search');
   check('member_count is 0', result.groups[0].member_count === 0);
 }
 
+// Case 4: Trailing backslash is normalized so it can't escape the closing %
+// wildcard. groups/search.js uses single-column .ilike() (not .or()), so
+// PostgREST comma/paren parsing isn't an issue here, but the same escape
+// chain is applied for consistency with contacts/search.js and the
+// dispatcher planner.
+{
+  console.log('\nCase 4: Trailing backslash normalized');
+  let capturedIlike = null;
+  const svc = {
+    from: (table) => {
+      const c = {
+        _table: table,
+        _filters: { tenant_id: null },
+        select: () => c,
+        eq: (col, val) => { c._filters[col] = val; return c; },
+        ilike: (col, val) => { capturedIlike = { col, val }; return c; },
+        order: () => c,
+        limit: () => c,
+        then: (resolve) => resolve({ data: [], error: null }),
+      };
+      return c;
+    },
+  };
+  // user types 'abc\' (one trailing backslash); JS source needs 'abc\\'
+  await searchGroups(svc, { tenantId: 't-1' }, 'abc\\');
+  // After normalization, the pattern should be '%abc\\%' (literal: %,a,b,c,\,\,%)
+  // → JS source string '%abc\\\\%'. Without normalization it would be '%abc\%'.
+  check(
+    'trailing backslash doubled to prevent escaping closing %',
+    capturedIlike != null && capturedIlike.val === '%abc\\\\%'
+  );
+}
+
+// Case 5: Comma/parens in query are stripped (consistency with contacts).
+// Single-column .ilike() doesn't suffer the .or() parser issue, but the
+// same sanitization is applied so the behavior is uniform across helpers.
+{
+  console.log('\nCase 5: Comma + parens stripped from query');
+  let capturedIlike = null;
+  const svc = {
+    from: () => {
+      const c = {
+        select: () => c,
+        eq: () => c,
+        ilike: (col, val) => { capturedIlike = { col, val }; return c; },
+        order: () => c,
+        limit: () => c,
+        then: (resolve) => resolve({ data: [], error: null }),
+      };
+      return c;
+    },
+  };
+  await searchGroups(svc, { tenantId: 't-1' }, 'A, B (C)');
+  check('no comma in pattern', capturedIlike != null && !capturedIlike.val.includes(','));
+  check('no parens in pattern', !capturedIlike.val.includes('(') && !capturedIlike.val.includes(')'));
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
