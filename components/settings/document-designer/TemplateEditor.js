@@ -264,6 +264,7 @@ export default function TemplateEditor({
       {/* Preview side */}
       <div className="lg:w-3/5 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
         <DocumentPreview
+          documentType={template.document_type}
           visibility={visibility}
           fields={fields}
           sections={sections}

@@ -1,4 +1,5 @@
-import sampleData from '../../../../lib/document-designer/sample-data';
+import sampleDataDeliveryOrder from '../../../../lib/document-designer/sample-data-delivery-order';
+import sampleDataInvoice       from '../../../../lib/document-designer/sample-data-invoice';
 import HeaderPreview               from './HeaderPreview';
 import DeliveryOrderDetailsPreview from './DeliveryOrderDetailsPreview';
 import AddressDetailsPreview       from './AddressDetailsPreview';
@@ -8,10 +9,18 @@ import NotesPreview                from './NotesPreview';
 import SignaturePreview            from './SignaturePreview';
 import DisclaimerPreview           from './DisclaimerPreview';
 
+const SAMPLE_BY_DOCUMENT_TYPE = {
+  delivery_order_full:      sampleDataDeliveryOrder,
+  delivery_order_next_move: sampleDataDeliveryOrder,
+  invoice:                  sampleDataInvoice,
+};
+
 /**
  * Maps section ID → its HTML preview component. Sections without preview
  * components (move_events / barcode / footer) are intentionally absent —
  * the preview pane is a one-page snapshot, not a multi-page render.
+ *
+ * Tasks 6, 7, 8 will register `invoice_details` and `charge_details` here.
  */
 const PREVIEW_BY_SECTION_ID = {
   header:                 HeaderPreview,
@@ -29,34 +38,38 @@ const PREVIEW_BY_SECTION_ID = {
  * each visible section through its corresponding preview component, passing
  * sample data + resolved field-visibility map + per-template colors.
  *
- * `visibility`: { [sectionId]: boolean }
- * `fields`:     { [sectionId]: { [fieldId]: boolean } }
- * `sections`:   the section registry array
- * `colors`:     { accent, text } — per-template colors with defaults applied
- * `branding`:   { tenantName, logo_url } — overrides sample-data values for the header section
+ * `documentType`: 'delivery_order_full' | 'delivery_order_next_move' | 'invoice'
+ *                 — picks the per-doc-type sample data slice
+ * `visibility`:   { [sectionId]: boolean }
+ * `fields`:       { [sectionId]: { [fieldId]: boolean } }
+ * `sections`:     the section registry array
+ * `colors`:       { accent, text } — per-template colors with defaults applied
+ * `branding`:     { tenantName, logo_url } — overrides sample-data values for the header section
  */
-export default function DocumentPreview({ visibility, fields, sections, colors, branding }) {
+export default function DocumentPreview({ documentType, visibility, fields, sections, colors, branding }) {
+  const sampleData = SAMPLE_BY_DOCUMENT_TYPE[documentType] || sampleDataDeliveryOrder;
+
   return (
     <div className="bg-white rounded-lg shadow-lg ring-1 ring-gray-200 p-8 text-sm text-gray-900">
       {sections.map((s) => {
-          if (!visibility[s.id]) return null;
-          const Component = PREVIEW_BY_SECTION_ID[s.id];
-          if (!Component) return null;
-          let data = sampleData[s.id];
-          // Apply branding override to the header section's data.
-          if (s.id === 'header' && branding) {
-            data = {
-              ...data,
-              tenantName: branding.tenantName || data.tenantName,
-              tenantInfo: {
-                ...data.tenantInfo,
-                logo_url: branding.logo_url || data.tenantInfo?.logo_url,
-              },
-            };
-          }
-          const opts = { fields: fields[s.id] || {} };
-          return <Component key={s.id} data={data} opts={opts} colors={colors} />;
-        })}
+        if (!visibility[s.id]) return null;
+        const Component = PREVIEW_BY_SECTION_ID[s.id];
+        if (!Component) return null;
+        let data = sampleData[s.id];
+        // Apply branding override to the header section's data.
+        if (s.id === 'header' && branding) {
+          data = {
+            ...data,
+            tenantName: branding.tenantName || data.tenantName,
+            tenantInfo: {
+              ...data.tenantInfo,
+              logo_url: branding.logo_url || data.tenantInfo?.logo_url,
+            },
+          };
+        }
+        const opts = { fields: fields[s.id] || {} };
+        return <Component key={s.id} data={data} opts={opts} colors={colors} />;
+      })}
     </div>
   );
 }
