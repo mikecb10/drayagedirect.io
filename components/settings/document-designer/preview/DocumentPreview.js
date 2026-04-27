@@ -7,6 +7,7 @@ import DeliveryOrderDetailsPreview from './DeliveryOrderDetailsPreview';
 import InvoiceDetailsPreview        from './InvoiceDetailsPreview';
 import RateConDetailsPreview        from './RateConDetailsPreview';
 import AddressDetailsPreview       from './AddressDetailsPreview';
+import LoadsSummaryPreview         from './LoadsSummaryPreview';
 import OrderDetailsPreview         from './OrderDetailsPreview';
 import CommodityDetailsPreview     from './CommodityDetailsPreview';
 import ChargeDetailsPreview         from './ChargeDetailsPreview';
@@ -33,6 +34,7 @@ const PREVIEW_BY_SECTION_ID = {
   invoice_details:        InvoiceDetailsPreview,
   rate_con_details:       RateConDetailsPreview,
   address_details:        AddressDetailsPreview,
+  loads_summary:          LoadsSummaryPreview,
   order_details:          OrderDetailsPreview,
   commodity_details:      CommodityDetailsPreview,
   charge_details:         ChargeDetailsPreview,
@@ -82,12 +84,25 @@ export default function DocumentPreview({ documentType, visibility, fields, sect
           // INVOICE_SECTIONS uses bill_to; AddressDetailsPreview reads opts.fields.customer.
           opts.fields = { ...opts.fields, customer: opts.fields?.bill_to !== false };
         }
+        if (s.id === 'address_details' && documentType === 'combined_invoice') {
+          // Same field-ID translation as Invoice. INVOICE_SECTIONS uses bill_to;
+          // AddressDetailsPreview reads opts.fields.customer.
+          // Mirrored in components/pdf/CombinedInvoiceTemplate.js renderSection().
+          opts.customerLabel = 'Bill To';
+          opts.fields = { ...opts.fields, customer: opts.fields?.bill_to !== false };
+        }
         if (s.id === 'charge_details' && documentType === 'rate_con') {
           // Rate Con's charge_set.total_cents is the only authoritative total — there
           // is no subtotal_cents column. Suppress the Subtotal row in the totals footer.
           // Mirrored in components/pdf/RateConTemplate.js renderSection() for the
           // print path — keep the two in sync.
           opts.showSubtotal = false;
+        }
+        if (s.id === 'charge_details' && documentType === 'combined_invoice') {
+          // Combined invoice groups line items by load. ChargeDetailsPreview reads
+          // data.charge_groups (per-load buckets) instead of data.charge_lines.
+          // Mirrored in components/pdf/CombinedInvoiceTemplate.js renderSection().
+          opts.groupByLoad = true;
         }
         return <Component key={s.id} data={data} opts={opts} colors={colors} />;
       })}
