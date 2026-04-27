@@ -1,7 +1,9 @@
+import { useState, useEffect } from 'react';
 import { Pencil } from 'lucide-react';
 import Button from '../../ui/Button';
 import Badge from '../../ui/Badge';
 import { getCombinationRuleLabel } from '../../../lib/ar-utils';
+import NotifyPartyPicker from '../../loads/NotifyPartyPicker';
 
 function Field({ label, value }) {
   return (
@@ -16,6 +18,123 @@ function Field({ label, value }) {
 
 export default function OverviewTab({ organization, onEdit }) {
   const o = organization;
+
+  const [defaults, setDefaults] = useState([]);
+  const [defaultsDirty, setDefaultsDirty] = useState(false);
+  const [savingDefaults, setSavingDefaults] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const raw = o?.default_notify_parties || [];
+    if (!Array.isArray(raw) || raw.length === 0) {
+      setDefaults([]);
+      return;
+    }
+
+    // Hydrate names — fetch each unique source-org's groups + contacts
+    (async () => {
+      const orgIds = Array.from(
+        new Set(raw.map((d) => d.source_organization_id || o.id).filter(Boolean))
+      );
+      const orgDataById = {};
+      await Promise.all(
+        orgIds.map(async (oid) => {
+          const [info, groups, contacts] = await Promise.all([
+            fetch(`/api/tenant/organizations/${oid}`)
+              .then((r) => (r.ok ? r.json() : null))
+              .catch(() => null),
+            fetch(`/api/tenant/organizations/${oid}/groups`)
+              .then((r) => (r.ok ? r.json() : { groups: [] }))
+              .catch(() => ({ groups: [] })),
+            fetch(`/api/tenant/organizations/${oid}/contacts`)
+              .then((r) => (r.ok ? r.json() : { contacts: [] }))
+              .catch(() => ({ contacts: [] })),
+          ]);
+          orgDataById[oid] = {
+            name: info?.organization?.name || 'Unknown',
+            groupById: Object.fromEntries((groups.groups || []).map((g) => [g.id, g])),
+            contactById: Object.fromEntries((contacts.contacts || []).map((c) => [c.id, c])),
+          };
+        })
+      );
+      if (cancelled) return;
+
+      const hydrated = raw.map((d) => {
+        const oid = d.source_organization_id || o.id;
+        const data = orgDataById[oid];
+        if (!data) {
+          return {
+            party_type: d.type,
+            party_id: d.id,
+            source: 'customer',
+            source_organization_id: oid,
+            source_organization_name: 'Unknown',
+            name: null,
+          };
+        }
+        if (d.type === 'group') {
+          const g = data.groupById[d.id];
+          return {
+            party_type: 'group',
+            party_id: d.id,
+            source: 'customer',
+            source_organization_id: oid,
+            source_organization_name: data.name,
+            name: g?.name || null,
+            member_count: g?.member_count ?? null,
+          };
+        }
+        const c = data.contactById[d.id];
+        const name = c
+          ? (c.first_name || c.last_name)
+            ? `${c.first_name || ''} ${c.last_name || ''}`.trim()
+            : (c.email || '(unnamed)')
+          : null;
+        return {
+          party_type: 'contact',
+          party_id: d.id,
+          source: 'customer',
+          source_organization_id: oid,
+          source_organization_name: data.name,
+          name,
+          email: c?.email || null,
+        };
+      });
+      setDefaults(hydrated);
+      setDefaultsDirty(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [o]);
+
+  async function saveDefaults() {
+    setSavingDefaults(true);
+    const payload = defaults.map((p) => ({
+      type: p.party_type,
+      id: p.party_id,
+      source_organization_id: p.source_organization_id,
+    }));
+    try {
+      const res = await fetch(`/api/tenant/organizations/${o.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ default_notify_parties: payload }),
+      });
+      if (res.ok) {
+        setDefaultsDirty(false);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(`Failed to save: ${err.error || res.statusText}`);
+      }
+    } catch (e) {
+      alert(`Failed to save: ${e.message}`);
+    } finally {
+      setSavingDefaults(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
@@ -113,6 +232,40 @@ export default function OverviewTab({ organization, onEdit }) {
           <Field label="Office Hours End" value={o.office_hour_end} />
         </div>
       </section>
+
+      <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+        <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
+          <div>
+            <div className="text-xs uppercase tracking-wider font-semibold text-gray-500 dark:text-slate-400">
+              Default notify parties for new loads
+            </div>
+            <div className="text-[10px] text-gray-500 dark:text-slate-500 mt-0.5">
+              Auto-populated when a new load is created for this customer. Editable per-load.
+            </div>
+          </div>
+          {defaultsDirty && (
+            <button
+              type="button"
+              onClick={saveDefaults}
+              disabled={savingDefaults}
+              className="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs disabled:opacity-50"
+            >
+              {savingDefaults ? 'Saving…' : 'Save'}
+            </button>
+          )}
+        </div>
+        <div className="p-4">
+          <NotifyPartyPicker
+            mode="customer-default"
+            customerId={o.id}
+            value={defaults}
+            onChange={(next) => {
+              setDefaults(next);
+              setDefaultsDirty(true);
+            }}
+          />
+        </div>
+      </div>
 
       {o.portal_enabled && (
         <section className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60 rounded-xl p-6">
