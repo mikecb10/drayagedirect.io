@@ -46,6 +46,14 @@ test("validator accepts statement_details.as_of_date=false", () => {
   assert.equal(r.ok, true);
 });
 
+test("validator accepts total_outstanding.total=false", () => {
+  const r = validateSectionConfig(
+    { perSection: { total_outstanding: { fields: { total: false } } } },
+    'statement',
+  );
+  assert.equal(r.ok, true);
+});
+
 test("validator accepts open_invoices.days_past_due=false", () => {
   const r = validateSectionConfig(
     { perSection: { open_invoices: { fields: { days_past_due: false } } } },
