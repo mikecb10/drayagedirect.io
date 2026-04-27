@@ -1591,7 +1591,8 @@ function RecipientRow({
               );
             })}
             <input
-              type="email"
+              type="text"
+              inputMode="email"
               value={input}
               onChange={(e) => onInputChange(e.target.value)}
               onKeyDown={(e) => {
