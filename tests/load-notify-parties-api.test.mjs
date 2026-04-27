@@ -68,7 +68,7 @@ console.log('GET /api/tenant/loads/[id]/notify-parties');
       { id: 'grp-1', name: 'Operations' },
     ],
     organization_contacts: [
-      { id: 'con-1', name: 'John Smith', email: 'john@warehouse.com' },
+      { id: 'con-1', first_name: 'John', last_name: 'Smith', email: 'john@warehouse.com' },
     ],
     customers: [
       { id: 'org-A', name: 'Acme Corp' },

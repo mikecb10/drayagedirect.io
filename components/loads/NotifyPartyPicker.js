@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Plus, X, Search, Users, User } from 'lucide-react';
 
 /**
@@ -47,6 +48,8 @@ export default function NotifyPartyPicker({
   const [searchSelected, setSearchSelected] = useState(null);
   const [loadingSections, setLoadingSections] = useState(false);
   const dropdownRef = useRef(null);
+  const triggerRef = useRef(null);
+  const [dropdownPos, setDropdownPos] = useState(null);
 
   // ── Fetch the predefined sections ────────────────────────────
   useEffect(() => {
@@ -112,12 +115,25 @@ export default function NotifyPartyPicker({
   useEffect(() => {
     if (!pickerOpen) return;
     function handleOutside(e) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target) &&
+          triggerRef.current && !triggerRef.current.contains(e.target)) {
         setPickerOpen(false);
       }
     }
     document.addEventListener('mousedown', handleOutside);
     return () => document.removeEventListener('mousedown', handleOutside);
+  }, [pickerOpen]);
+
+  // ── Close dropdown on scroll/resize (portal stays at fixed position) ──
+  useEffect(() => {
+    if (!pickerOpen) return;
+    function close() { setPickerOpen(false); }
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
   }, [pickerOpen]);
 
   async function selectSearchOrg(org) {
@@ -230,18 +246,32 @@ export default function NotifyPartyPicker({
       )}
 
       {/* Add button + dropdown */}
-      <div className="relative" ref={dropdownRef}>
+      <div className="relative">
         <button
+          ref={triggerRef}
           type="button"
-          onClick={() => setPickerOpen((o) => !o)}
+          onClick={() => {
+            setPickerOpen((o) => {
+              const next = !o;
+              if (next && triggerRef.current) {
+                const rect = triggerRef.current.getBoundingClientRect();
+                setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: 384 });
+              }
+              return next;
+            });
+          }}
           className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors"
         >
           <Plus className="w-3.5 h-3.5" />
           Add notify party
         </button>
 
-        {pickerOpen && (
-          <div className="absolute z-30 mt-1 left-0 w-96 max-h-[480px] overflow-auto rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg">
+        {pickerOpen && dropdownPos && createPortal(
+          <div
+            ref={dropdownRef}
+            style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, maxHeight: 480, zIndex: 200 }}
+            className="overflow-auto rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg"
+          >
             {loadingSections ? (
               <div className="p-3 text-xs text-gray-500 dark:text-slate-400">Loading…</div>
             ) : (
@@ -372,7 +402,8 @@ export default function NotifyPartyPicker({
                 </div>
               </>
             )}
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     </div>
