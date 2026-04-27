@@ -1407,7 +1407,14 @@ function RecipientRow({
                   onAdd();
                 }
               }}
-              onBlur={onAdd}
+              onBlur={(e) => {
+                // Don't fire onAdd if focus is moving to a button inside the same
+                // chip-input row (e.g., the {{}} token picker button or an X
+                // remove button). Only commit when leaving the row entirely.
+                const next = e.relatedTarget;
+                if (next && next.tagName === 'BUTTON') return;
+                onAdd();
+              }}
               placeholder={
                 recipients.length === 0
                   ? 'Type email and press Enter to add…'
