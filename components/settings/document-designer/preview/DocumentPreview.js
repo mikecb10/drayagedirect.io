@@ -2,6 +2,7 @@ import sampleDataDeliveryOrder from '../../../../lib/document-designer/sample-da
 import sampleDataInvoice       from '../../../../lib/document-designer/sample-data-invoice';
 import sampleDataRateCon       from '../../../../lib/document-designer/sample-data-rate-con';
 import sampleDataCombinedInvoice from '../../../../lib/document-designer/sample-data-combined-invoice';
+import sampleDataPod              from '../../../../lib/document-designer/sample-data-pod';
 import HeaderPreview               from './HeaderPreview';
 import DeliveryOrderDetailsPreview from './DeliveryOrderDetailsPreview';
 import InvoiceDetailsPreview        from './InvoiceDetailsPreview';
@@ -21,6 +22,7 @@ const SAMPLE_BY_DOCUMENT_TYPE = {
   invoice:                  sampleDataInvoice,
   rate_con:                 sampleDataRateCon,
   combined_invoice:         sampleDataCombinedInvoice,
+  pod:                      sampleDataPod,
 };
 
 /**
