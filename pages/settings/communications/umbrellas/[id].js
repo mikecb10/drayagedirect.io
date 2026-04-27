@@ -1339,6 +1339,13 @@ function RecipientRow({
   onRemove,
 }) {
   const [tokenPickerOpen, setTokenPickerOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('role');
+  const [contactQuery, setContactQuery] = useState('');
+  const [groupQuery, setGroupQuery] = useState('');
+  const [contactResults, setContactResults] = useState([]);
+  const [groupResults, setGroupResults] = useState([]);
+  const [contactLoading, setContactLoading] = useState(false);
+  const [groupLoading, setGroupLoading] = useState(false);
   const tokenPickerRef = useRef(null);
 
   useEffect(() => {
@@ -1350,6 +1357,16 @@ function RecipientRow({
     }
     document.addEventListener('mousedown', handleOutside);
     return () => document.removeEventListener('mousedown', handleOutside);
+  }, [tokenPickerOpen]);
+
+  useEffect(() => {
+    if (!tokenPickerOpen) {
+      setActiveTab('role');
+      setContactQuery('');
+      setGroupQuery('');
+      setContactResults([]);
+      setGroupResults([]);
+    }
   }, [tokenPickerOpen]);
 
   const labelClass =
@@ -1432,25 +1449,62 @@ function RecipientRow({
                 <span className="text-xs font-mono">{'{{}}'}</span>
               </button>
               {tokenPickerOpen && (
-                <div className="absolute z-30 mt-1 right-0 w-72 max-h-96 overflow-auto rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg">
-                  {ROLE_TOKEN_CATALOG.map((s) => (
-                    <div key={s.section} className="border-b border-gray-100 dark:border-slate-800 last:border-0">
-                      <div className="px-3 py-1 text-[10px] uppercase tracking-wider font-semibold bg-gray-50 dark:bg-slate-800/50 text-gray-500 dark:text-slate-400">
-                        {s.section}
-                      </div>
-                      {s.tokens.map((t) => (
-                        <button
-                          key={t.value}
-                          type="button"
-                          onClick={() => { onAddToken?.(t.value); setTokenPickerOpen(false); }}
-                          className="block w-full px-3 py-2 text-left hover:bg-purple-50 dark:hover:bg-purple-950/40"
-                        >
-                          <div className="text-xs font-medium text-gray-900 dark:text-slate-100">{t.label}</div>
-                          <div className="text-[10px] text-gray-500 dark:text-slate-500 mt-0.5">{t.description}</div>
-                        </button>
+                <div
+                  className="absolute z-30 mt-1 right-0 w-80 max-h-96 overflow-auto rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg"
+                >
+                  {/* Tab bar */}
+                  <div className="flex border-b border-gray-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-900 z-10">
+                    {[
+                      { id: 'role', label: 'Role' },
+                      { id: 'contact', label: 'Contact' },
+                      { id: 'group', label: 'Group' },
+                    ].map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setActiveTab(t.id)}
+                        className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
+                          activeTab === t.id
+                            ? 'text-purple-700 dark:text-purple-300 border-b-2 border-purple-500'
+                            : 'text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800/50'
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Role tab content */}
+                  {activeTab === 'role' && (
+                    <>
+                      {ROLE_TOKEN_CATALOG.map((s) => (
+                        <div key={s.section} className="border-b border-gray-100 dark:border-slate-800 last:border-0">
+                          <div className="px-3 py-1 text-[10px] uppercase tracking-wider font-semibold bg-gray-50 dark:bg-slate-800/50 text-gray-500 dark:text-slate-400">
+                            {s.section}
+                          </div>
+                          {s.tokens.map((t) => (
+                            <button
+                              key={t.value}
+                              type="button"
+                              onClick={() => { onAddToken?.(t.value); setTokenPickerOpen(false); }}
+                              className="block w-full px-3 py-2 text-left hover:bg-purple-50 dark:hover:bg-purple-950/40"
+                            >
+                              <div className="text-xs font-medium text-gray-900 dark:text-slate-100">{t.label}</div>
+                              <div className="text-[10px] text-gray-500 dark:text-slate-500 mt-0.5">{t.description}</div>
+                            </button>
+                          ))}
+                        </div>
                       ))}
-                    </div>
-                  ))}
+                    </>
+                  )}
+
+                  {/* Placeholder for Contact + Group tab content (Task 6) */}
+                  {activeTab === 'contact' && (
+                    <div className="p-3 text-xs text-gray-500 dark:text-slate-400">Contact search panel coming in Task 6</div>
+                  )}
+                  {activeTab === 'group' && (
+                    <div className="p-3 text-xs text-gray-500 dark:text-slate-400">Group search panel coming in Task 6</div>
+                  )}
                 </div>
               )}
             </div>
