@@ -23,6 +23,13 @@ import { Plus, X, Search, Users, User } from 'lucide-react';
  *   GET /api/tenant/organizations/[id]/groups   → { groups: [{ id, name, member_count, ... }] }
  *   GET /api/tenant/organizations/[id]/contacts → { contacts: [{ id, first_name, last_name, email, ... }] }
  */
+
+// ── Helper: derive display name from a contact row ────────────
+function contactDisplayName(c) {
+  const parts = [c.first_name, c.last_name].filter(Boolean);
+  return parts.length > 0 ? parts.join(' ') : c.email || '(unnamed)';
+}
+
 export default function NotifyPartyPicker({
   mode = 'load',
   customerId,
@@ -40,12 +47,6 @@ export default function NotifyPartyPicker({
   const [searchSelected, setSearchSelected] = useState(null);
   const [loadingSections, setLoadingSections] = useState(false);
   const dropdownRef = useRef(null);
-
-  // ── Helper: derive display name from a contact row ────────────
-  function contactDisplayName(c) {
-    const parts = [c.first_name, c.last_name].filter(Boolean);
-    return parts.length > 0 ? parts.join(' ') : c.email || '(unnamed)';
-  }
 
   // ── Fetch the predefined sections ────────────────────────────
   useEffect(() => {
@@ -107,6 +108,18 @@ export default function NotifyPartyPicker({
     return () => clearTimeout(handle);
   }, [searchQuery]);
 
+  // ── Click-outside handler to close dropdown ──────────────────
+  useEffect(() => {
+    if (!pickerOpen) return;
+    function handleOutside(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setPickerOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [pickerOpen]);
+
   async function selectSearchOrg(org) {
     const [groupsRes, contactsRes] = await Promise.all([
       fetch(`/api/tenant/organizations/${org.id}/groups`).then((r) => (r.ok ? r.json() : { groups: [] })).catch(() => ({ groups: [] })),
@@ -131,7 +144,7 @@ export default function NotifyPartyPicker({
       source_organization_id: section.orgId,
       source_organization_name: section.orgName,
       name: partyObj.name,
-      ...(party_type === 'group' ? { member_count: partyObj.member_count || 0 } : { email: partyObj.email }),
+      ...(party_type === 'group' ? { member_count: partyObj.member_count ?? null } : { email: partyObj.email }),
     };
     onChange([...(value || []), newEntry]);
     onManualEdit?.();
@@ -289,6 +302,7 @@ export default function NotifyPartyPicker({
                       value={searchQuery}
                       onChange={(e) => { setSearchQuery(e.target.value); setSearchSelected(null); }}
                       placeholder="Search any organization…"
+                      aria-label="Search organizations"
                       className="flex-1 text-xs bg-transparent border-none outline-none text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500"
                     />
                   </div>
@@ -336,16 +350,24 @@ export default function NotifyPartyPicker({
                       )}
                     </div>
                   ) : (
-                    searchResults.map((org) => (
-                      <button
-                        key={org.id}
-                        type="button"
-                        onClick={() => selectSearchOrg(org)}
-                        className="block w-full px-2 py-1 text-xs text-left text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 rounded"
-                      >
-                        {org.name}
-                      </button>
-                    ))
+                    <>
+                      {searchQuery.trim() && searchResults.length === 0 ? (
+                        <div className="text-[10px] text-gray-400 dark:text-slate-500 italic px-2 py-1">
+                          No organizations found
+                        </div>
+                      ) : (
+                        searchResults.map((org) => (
+                          <button
+                            key={org.id}
+                            type="button"
+                            onClick={() => selectSearchOrg(org)}
+                            className="block w-full px-2 py-1 text-xs text-left text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 rounded"
+                          >
+                            {org.name}
+                          </button>
+                        ))
+                      )}
+                    </>
                   )}
                 </div>
               </>
