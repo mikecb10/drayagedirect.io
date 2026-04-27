@@ -20,7 +20,14 @@ export default function InvoiceDetailsPreview({ data, opts, colors }) {
   const rows = FIELD_ORDER
     .map(([key, label]) => {
       if (fields[key] === false) return null;
-      const value = key === 'terms' ? termsLabel : data[key];
+      let value;
+      if (key === 'terms') {
+        value = termsLabel;
+      } else if (key === 'load_number' && data.consolidated_count > 1) {
+        value = `(${data.consolidated_count} loads)`;
+      } else {
+        value = data[key];
+      }
       if (value === undefined || value === null || value === '') return null;
       return [label, value];
     })
