@@ -392,13 +392,24 @@ Either way: same `NotifyPartyPicker` component in `mode="load"` with all the loc
 - Save button persists the picker's current value to `customers.default_notify_parties` via the extended PATCH endpoint.
 - Dirty-state tracking: if the user has unsaved changes and tries to navigate away, prompt to save (matches existing org-detail-page convention — plan verifies).
 
-### Umbrella editor — adding the token to the picker
+### Umbrella editor — RecipientRow expansion
 
-**Location:** `pages/settings/communications/umbrellas/[id].js` — the role-token picker UI (plan locates the exact section).
+**Location:** `pages/settings/communications/umbrellas/[id].js` — `RecipientRow` (≈ line 1285) and `addRecipient` (≈ line 959).
 
-**Change:** add **"Load notify parties"** as a new option, with description text "*Recipients set per-load on the load itself. Empty if none configured for this load.*" Sort placement: near `load_dispatcher` since both are load-scoped.
+**Reality check:** today `RecipientRow` only accepts text-typed email addresses (`addRecipient` always creates `{type: 'email', value}` entries). The expander supports `type: 'role'` / `'contact_group'` / `'contact'` / `'variable'` but those entries are only reachable via direct DB seeding today, not via the editor. To make `load_notify_parties` actually usable from the UI, we add a token picker alongside the email input.
 
-The plan will read the picker's current data shape (likely a hard-coded list of role options) and insert the new entry there. Token value: `load_notify_parties`.
+**Change:**
+
+1. Add an **"+ Insert dynamic recipient ▾"** button at the right edge of the chip-input box.
+2. Clicking opens a small dropdown of role tokens, sectioned:
+   - **Per-load** — `load_notify_parties` (new, label: "Load notify parties — recipients set per-load on the load itself"), `load_dispatcher`, `driver`
+   - **Customer** — `customer_primary`
+   - **Tenant** — `tenant_dispatcher`, `tenant_ops`, `acting_user`
+3. Selecting one calls a new `addTokenRecipient(kind, token)` that pushes `{type: 'role', value: token}` into the recipients array.
+4. The chip rendering is extended to show role chips visually distinct from email chips (e.g., a token-style chip with a `{}` icon prefix and the human-readable label, while the underlying value stays the token string).
+5. Existing `type: 'contact_group'` / `'contact'` / `'variable'` entries that may already exist in DB stay rendered as their respective chip styles (covered by the same chip-rendering fork) — but adding new ones via the editor stays out of scope for this feature (file as separate FU).
+
+**Token value:** `load_notify_parties`. Sort placement at top of "Per-load" section so it's the first thing a user sees if they're configuring a load-scoped umbrella.
 
 ## Testing
 
