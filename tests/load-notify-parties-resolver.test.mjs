@@ -69,7 +69,7 @@ console.log('load_notify_parties — resolver token expansion');
   const out = await expandRecipients(
     svc, 't-1',
     [{ type: 'role', value: 'load_notify_parties' }],
-    { order: { id: 'ord-1' } },
+    { load: { id: 'ord-1' } },
     new Map()
   );
   check('group: 3 emails returned', Array.isArray(out) && out.length === 3);
@@ -91,7 +91,7 @@ console.log('load_notify_parties — resolver token expansion');
   const out = await expandRecipients(
     svc, 't-1',
     [{ type: 'role', value: 'load_notify_parties' }],
-    { order: { id: 'ord-2' } },
+    { load: { id: 'ord-2' } },
     new Map()
   );
   check('contact: 1 email returned', out.length === 1);
@@ -121,7 +121,7 @@ console.log('load_notify_parties — resolver token expansion');
   const out = await expandRecipients(
     svc, 't-1',
     [{ type: 'role', value: 'load_notify_parties' }],
-    { order: { id: 'ord-3' } },
+    { load: { id: 'ord-3' } },
     new Map()
   );
   check('mixed dedupe: 2 unique emails (shared+unique)', out.length === 2);
@@ -136,7 +136,7 @@ console.log('load_notify_parties — resolver token expansion');
   const out = await expandRecipients(
     svc, 't-1',
     [{ type: 'role', value: 'load_notify_parties' }],
-    { order: { id: 'ord-4' } },
+    { load: { id: 'ord-4' } },
     new Map()
   );
   check('empty: 0 emails returned', out.length === 0);
@@ -156,7 +156,7 @@ console.log('load_notify_parties — resolver token expansion');
   const out = await expandRecipients(
     svc, 't-1',
     [{ type: 'role', value: 'load_notify_parties' }],
-    { order: { id: 'ord-5' } },
+    { load: { id: 'ord-5' } },
     new Map()
   );
   check('missing party skipped: 1 email returned', out.length === 1);
@@ -187,7 +187,7 @@ console.log('load_notify_parties — resolver token expansion');
     ],
     organization_contacts: { byId: { 'con-7': { email: 'cached@x.com' } } },
   });
-  const ctx = { order: { id: 'ord-7' } };
+  const ctx = { load: { id: 'ord-7' } };
   const out1 = await expandRecipients(svc, 't-1', [{ type: 'role', value: 'load_notify_parties' }], ctx, cache);
   const queryCount1 = svc._calls.queries.length;
   const out2 = await expandRecipients(svc, 't-1', [{ type: 'role', value: 'load_notify_parties' }], ctx, cache);
