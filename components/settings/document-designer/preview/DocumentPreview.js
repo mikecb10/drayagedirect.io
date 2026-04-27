@@ -37,12 +37,8 @@ const PREVIEW_BY_SECTION_ID = {
  */
 export default function DocumentPreview({ visibility, fields, sections, colors, branding }) {
   return (
-    <div className="space-y-3">
-      <div className="text-[11px] px-3 py-1.5 rounded bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 text-amber-900 dark:text-amber-200">
-        Preview reflects the upcoming document layout. Printed PDFs use the current layout until the rendering update ships.
-      </div>
-      <div className="bg-white rounded-lg shadow-lg ring-1 ring-gray-200 p-8 text-sm text-gray-900">
-        {sections.map((s) => {
+    <div className="bg-white rounded-lg shadow-lg ring-1 ring-gray-200 p-8 text-sm text-gray-900">
+      {sections.map((s) => {
           if (!visibility[s.id]) return null;
           const Component = PREVIEW_BY_SECTION_ID[s.id];
           if (!Component) return null;
@@ -61,7 +57,6 @@ export default function DocumentPreview({ visibility, fields, sections, colors, 
           const opts = { fields: fields[s.id] || {} };
           return <Component key={s.id} data={data} opts={opts} colors={colors} />;
         })}
-      </div>
     </div>
   );
 }
