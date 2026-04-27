@@ -1,5 +1,4 @@
 import { View, Text } from '@react-pdf/renderer';
-import { colors as defaultColors } from '../shared/typography';
 
 /**
  * Aging Summary — 5-bucket horizontal grid. Each bucket: label + amount.
