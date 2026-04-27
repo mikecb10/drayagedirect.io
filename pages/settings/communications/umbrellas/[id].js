@@ -13,6 +13,7 @@ import {
   Filter,
   Plus,
   X,
+  User,
   Users,
   Mail,
   Eye,
@@ -1008,6 +1009,24 @@ function GroupCard({
     onUpdate({ [key]: [...current, entry] });
   }
 
+  function addContactRecipient(kind, contactId) {
+    if (!contactId) return;
+    const entry = { type: 'contact', value: contactId };
+    const key = `${kind}_recipients`;
+    const current = Array.isArray(group[key]) ? group[key] : [];
+    if (current.some((r) => r.type === 'contact' && r.value === contactId)) return;
+    onUpdate({ [key]: [...current, entry] });
+  }
+
+  function addContactGroupRecipient(kind, groupId) {
+    if (!groupId) return;
+    const entry = { type: 'contact_group', value: groupId };
+    const key = `${kind}_recipients`;
+    const current = Array.isArray(group[key]) ? group[key] : [];
+    if (current.some((r) => r.type === 'contact_group' && r.value === groupId)) return;
+    onUpdate({ [key]: [...current, entry] });
+  }
+
   function removeRecipient(kind, index) {
     const key = `${kind}_recipients`;
     const current = Array.isArray(group[key]) ? group[key] : [];
@@ -1092,6 +1111,8 @@ function GroupCard({
               setToInput('');
             }}
             onAddToken={(token) => addTokenRecipient('to', token)}
+            onAddContact={(contactId) => addContactRecipient('to', contactId)}
+            onAddContactGroup={(groupId) => addContactGroupRecipient('to', groupId)}
             onRemove={(idx) => removeRecipient('to', idx)}
           />
           <RecipientRow
@@ -1105,6 +1126,8 @@ function GroupCard({
               setCcInput('');
             }}
             onAddToken={(token) => addTokenRecipient('cc', token)}
+            onAddContact={(contactId) => addContactRecipient('cc', contactId)}
+            onAddContactGroup={(groupId) => addContactGroupRecipient('cc', groupId)}
             onRemove={(idx) => removeRecipient('cc', idx)}
           />
           <RecipientRow
@@ -1118,6 +1141,8 @@ function GroupCard({
               setBccInput('');
             }}
             onAddToken={(token) => addTokenRecipient('bcc', token)}
+            onAddContact={(contactId) => addContactRecipient('bcc', contactId)}
+            onAddContactGroup={(groupId) => addContactGroupRecipient('bcc', groupId)}
             onRemove={(idx) => removeRecipient('bcc', idx)}
           />
         </div>
@@ -1335,7 +1360,9 @@ function RecipientRow({
   input,
   onInputChange,
   onAdd,
-  onAddToken,        // NEW
+  onAddToken,
+  onAddContact,        // NEW
+  onAddContactGroup,   // NEW
   onRemove,
 }) {
   const [tokenPickerOpen, setTokenPickerOpen] = useState(false);
@@ -1368,6 +1395,54 @@ function RecipientRow({
       setGroupResults([]);
     }
   }, [tokenPickerOpen]);
+
+  // Contact search — 250ms debounce
+  useEffect(() => {
+    if (activeTab !== 'contact' || !contactQuery.trim()) {
+      setContactResults([]);
+      return;
+    }
+    const q = contactQuery.trim();
+    const handle = setTimeout(async () => {
+      setContactLoading(true);
+      try {
+        const res = await fetch(`/api/tenant/contacts/search?q=${encodeURIComponent(q)}`);
+        if (res.ok) {
+          const json = await res.json();
+          setContactResults(json.contacts || []);
+        } else {
+          setContactResults([]);
+        }
+      } finally {
+        setContactLoading(false);
+      }
+    }, 250);
+    return () => clearTimeout(handle);
+  }, [activeTab, contactQuery]);
+
+  // Group search — 250ms debounce
+  useEffect(() => {
+    if (activeTab !== 'group' || !groupQuery.trim()) {
+      setGroupResults([]);
+      return;
+    }
+    const q = groupQuery.trim();
+    const handle = setTimeout(async () => {
+      setGroupLoading(true);
+      try {
+        const res = await fetch(`/api/tenant/groups/search?q=${encodeURIComponent(q)}`);
+        if (res.ok) {
+          const json = await res.json();
+          setGroupResults(json.groups || []);
+        } else {
+          setGroupResults([]);
+        }
+      } finally {
+        setGroupLoading(false);
+      }
+    }, 250);
+    return () => clearTimeout(handle);
+  }, [activeTab, groupQuery]);
 
   const labelClass =
     accentColor === 'blue'
@@ -1498,12 +1573,95 @@ function RecipientRow({
                     </>
                   )}
 
-                  {/* Placeholder for Contact + Group tab content (Task 6) */}
                   {activeTab === 'contact' && (
-                    <div className="p-3 text-xs text-gray-500 dark:text-slate-400">Contact search panel coming in Task 6</div>
+                    <div className="p-2">
+                      <input
+                        type="search"
+                        value={contactQuery}
+                        onChange={(e) => setContactQuery(e.target.value)}
+                        placeholder="Search contacts by name or email…"
+                        aria-label="Search contacts"
+                        className="w-full px-2 py-1.5 text-xs rounded border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                      />
+                      <div className="mt-2">
+                        {!contactQuery.trim() ? (
+                          <div className="px-2 py-2 text-[11px] text-gray-400 dark:text-slate-500 italic">Start typing to search…</div>
+                        ) : contactLoading ? (
+                          <div className="px-2 py-2 text-[11px] text-gray-500 dark:text-slate-400">Searching…</div>
+                        ) : contactResults.length === 0 ? (
+                          <div className="px-2 py-2 text-[11px] text-gray-400 dark:text-slate-500 italic">No matches</div>
+                        ) : (
+                          contactResults.map((c) => {
+                            const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || c.email || '(unnamed)';
+                            return (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => { onAddContact?.(c.id); setTokenPickerOpen(false); }}
+                                className="flex items-start gap-2 w-full px-2 py-1.5 text-xs text-left text-gray-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded"
+                              >
+                                <User className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500 mt-0.5 shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-xs font-medium truncate">{name}</div>
+                                  <div className="text-[10px] text-gray-500 dark:text-slate-500 truncate">
+                                    {c.email}
+                                    {c.organization_name && <span className="ml-1">· {c.organization_name}</span>}
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
                   )}
+
                   {activeTab === 'group' && (
-                    <div className="p-3 text-xs text-gray-500 dark:text-slate-400">Group search panel coming in Task 6</div>
+                    <div className="p-2">
+                      <input
+                        type="search"
+                        value={groupQuery}
+                        onChange={(e) => setGroupQuery(e.target.value)}
+                        placeholder="Search groups by name…"
+                        aria-label="Search groups"
+                        className="w-full px-2 py-1.5 text-xs rounded border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                      />
+                      <div className="mt-2">
+                        {!groupQuery.trim() ? (
+                          <div className="px-2 py-2 text-[11px] text-gray-400 dark:text-slate-500 italic">Start typing to search…</div>
+                        ) : groupLoading ? (
+                          <div className="px-2 py-2 text-[11px] text-gray-500 dark:text-slate-400">Searching…</div>
+                        ) : groupResults.length === 0 ? (
+                          <div className="px-2 py-2 text-[11px] text-gray-400 dark:text-slate-500 italic">No matches</div>
+                        ) : (
+                          groupResults.map((g) => (
+                            <button
+                              key={g.id}
+                              type="button"
+                              onClick={() => { onAddContactGroup?.(g.id); setTokenPickerOpen(false); }}
+                              className="flex items-start gap-2 w-full px-2 py-1.5 text-xs text-left text-gray-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-950/40 rounded"
+                            >
+                              <Users className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500 mt-0.5 shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs font-medium truncate">
+                                  {g.name}
+                                  {g.member_count != null && (
+                                    <span className="ml-1 text-[10px] text-gray-500 dark:text-slate-500 font-normal">
+                                      ({g.member_count})
+                                    </span>
+                                  )}
+                                </div>
+                                {g.organization_name && (
+                                  <div className="text-[10px] text-gray-500 dark:text-slate-500 truncate">
+                                    {g.organization_name}
+                                  </div>
+                                )}
+                              </div>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
