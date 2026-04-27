@@ -11,7 +11,7 @@ const styles = {
   emptyRow:   { paddingVertical: 12, paddingHorizontal: 4, color: defaultColors.muted, fontStyle: 'italic', textAlign: 'center', fontSize: 10 },
 };
 
-// Column widths sum to 100% — order must match OpenInvoicesTablePreview's <colgroup>
+// Column widths sum to 100% — order must match OpenInvoicesTablePreview's column order
 const COLUMNS = [
   { key: 'invoice_number',     label: 'Invoice #',         width: '14%', align: 'left'  },
   { key: 'invoice_date',       label: 'Inv. Date',         width: '11%', align: 'left'  },
