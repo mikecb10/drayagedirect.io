@@ -1,96 +1,100 @@
-import { Document, Page, View, Text } from '@react-pdf/renderer';
-import Header from './sections/Header';
-import LineItemsTable from './shared/LineItemsTable';
-import { typography, colors } from './shared/typography';
-
-function formatCents(cents) {
-  const num = (cents || 0) / 100;
-  return `$${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function formatDate(input) {
-  if (!input) return '—';
-  const d = new Date(input);
-  if (isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-}
+/**
+ * InvoiceTemplate.js
+ *
+ * Exports:
+ *   buildSectionData(doc)  — pure mapping function; unit-testable with bare Node
+ *   default InvoiceTemplate — React-PDF composer (stub; completed in Task 12)
+ *
+ * The React / @react-pdf/renderer imports are deferred to module scope only
+ * when this file is consumed by the Next.js / bundler environment.  The pure
+ * `buildSectionData` export has NO React dependency and is safe to import in
+ * bare Node test runners.
+ */
 
 /**
- * Minimal default invoice template.
- * Data shape is documented at lib/pdf/render-invoice.js.
+ * Build per-section data subsets for the Invoice composer. Pure function;
+ * exported for unit testing. Mirrors DeliveryOrderTemplate.js's pattern.
  *
- * IMPORTANT: this is an intentionally plain default. The document
- * designer sub-project (future) will replace all of this.
+ * For Address Details specifically, this sets `data.customer = doc.bill_to`
+ * because AddressDetails.js (shared between DO and Invoice) reads
+ * `data.customer` internally. The Invoice-specific label "Bill To" is
+ * applied at the renderSection switch site (Task 12), not here.
  */
-export default function InvoiceTemplate({
-  tenantName,
-  invoiceNumber,
-  invoiceDate,
-  dueDate,
-  referenceNumber,
-  customer,
-  lineItems,
-  subtotal,
-  total,
-  notes,
-}) {
-  const customerAddress = customer
-    ? [customer.address_line1, customer.address_line2, [customer.city, customer.state, customer.zip].filter(Boolean).join(', ')]
-        .filter(Boolean).join('\n')
-    : '';
+export function buildSectionData(doc) {
+  const meta = doc.invoice_meta || {};
+  const order = doc.first_order || null;
+  const locations = doc.load_level_locations || {};
 
-  return (
-    <Document>
-      <Page size="LETTER" style={typography.page}>
-        <Header tenantName={tenantName} title="INVOICE" />
+  return {
+    header: {
+      tenantName: doc.tenant_name,
+      tenantInfo: doc.tenant_info || {},
+    },
+    invoice_details: {
+      invoice_number:     meta.invoice_number ?? null,
+      load_number:        order?.order_number ?? null,
+      customer_reference: order?.customer_reference ?? null,
+      invoice_date:       meta.invoice_date ?? null,
+      terms_days:         meta.terms_days ?? null,
+      due_date:           meta.due_date ?? null,
+      consolidated_count: meta.consolidated_count ?? 1,
+    },
+    address_details: {
+      customer: doc.bill_to ? {
+        name:          doc.bill_to.name,
+        address_line1: doc.bill_to.address_line1,
+        city:          doc.bill_to.city,
+        state:         doc.bill_to.state,
+        zip:           doc.bill_to.zip,
+        phone:         doc.customer_contact?.phone,
+        email:         doc.customer_contact?.email,
+      } : null,
+      pickup_location:   locations.pickup_location   ?? null,
+      delivery_location: locations.delivery_location ?? null,
+      return_location:   locations.return_location   ?? null,
+      appointment_times: null,
+      is_operational_street_turn: false,
+    },
+    order_details: {
+      reference_number:      order?.customer_reference  ?? null,
+      booking_bl:            order?.booking_number      ?? order?.bl_number ?? null,
+      mbol:                  order?.mbol                ?? null,
+      hbol:                  order?.hbol                ?? null,
+      container_number:      order?.container_number    ?? null,
+      container_size:        order?.container_size      ?? null,
+      container_type:        order?.container_type      ?? null,
+      chassis_number:        order?.chassis_number      ?? null,
+      chassis_size:          order?.chassis_size        ?? null,
+      chassis_type:          order?.chassis_type        ?? null,
+      chassis_owner:         order?.chassis_owner       ?? null,
+      steamship_line:        order?.steamship_line      ?? null,
+      seal:                  order?.seal_number         ?? null,
+      hazmat:                order?.is_hazmat ? 'HAZMAT' : null,
+      pickup_number:         order?.pickup_number       ?? null,
+      pull_container_date:   order?.pull_container_date ?? null,
+      return_container_date: order?.return_container_date ?? null,
+      last_free_day:         order?.last_free_day       ?? null,
+      per_diem_free_day:     order?.per_diem_free_day   ?? null,
+    },
+    commodity_details: null,  // No real source yet; sample-data fills preview
+    charge_details: {
+      charge_lines: doc.charge_lines || [],
+      totals:       doc.totals       || { subtotal_cents: 0, total_cents: 0 },
+    },
+    notes: {
+      driver_notes:  order?.notes          ?? null,    // orders.notes  → driver_notes
+      billing_notes: meta.notes            ?? null,    // invoices.notes → billing_notes
+      load_notes:    order?.internal_notes ?? null,    // orders.internal_notes → load_notes
+    },
+    disclaimer: doc.section_config?.disclaimer?.enabled
+      ? { text: doc.section_config.disclaimer.text || '' }
+      : null,
+  };
+}
 
-        {/* Metadata block */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
-          <View>
-            <Text style={typography.label}>Bill To</Text>
-            <Text style={typography.value}>{customer?.name || '(unknown customer)'}</Text>
-            <Text style={[typography.value, typography.muted]}>{customerAddress}</Text>
-          </View>
-          <View style={{ minWidth: 180 }}>
-            <Text style={typography.label}>Invoice #</Text>
-            <Text style={typography.value}>{invoiceNumber || '—'}</Text>
-            <Text style={typography.label}>Invoice Date</Text>
-            <Text style={typography.value}>{formatDate(invoiceDate)}</Text>
-            <Text style={typography.label}>Due Date</Text>
-            <Text style={typography.value}>{formatDate(dueDate)}</Text>
-            {referenceNumber ? (
-              <>
-                <Text style={typography.label}>PO / Reference #</Text>
-                <Text style={typography.value}>{referenceNumber}</Text>
-              </>
-            ) : null}
-          </View>
-        </View>
-
-        <LineItemsTable items={lineItems} />
-
-        {/* Totals */}
-        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 }}>
-          <View style={{ minWidth: 180 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 }}>
-              <Text style={typography.muted}>Subtotal</Text>
-              <Text>{formatCents(subtotal)}</Text>
-            </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, borderTopWidth: 1, borderTopColor: colors.border }}>
-              <Text style={{ fontWeight: 'bold' }}>Total Due</Text>
-              <Text style={{ fontWeight: 'bold' }}>{formatCents(total)}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Notes */}
-        {notes ? (
-          <View style={{ marginTop: 24 }}>
-            <Text style={typography.label}>Notes</Text>
-            <Text style={typography.value}>{notes}</Text>
-          </View>
-        ) : null}
-      </Page>
-    </Document>
-  );
+// Composer body completed in Task 12.
+// React / @react-pdf/renderer are imported at the module level in the
+// bundler environment; the default export is a stub until Task 12.
+export default function InvoiceTemplate(/* { doc, sectionConfig } */) {
+  return null;
 }
