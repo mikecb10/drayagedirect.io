@@ -9,6 +9,7 @@ import Alert from '../ui/Alert';
 import DatePicker from '../ui/DatePicker';
 import OrgPicker from '../ui/OrgPicker';
 import BranchPicker from '../ui/BranchPicker';
+import { SectionCard } from '../ui/FormSection';
 import { useAuth } from '../../contexts/AuthContext';
 import { LOAD_TYPES as CENTRAL_LOAD_TYPES } from '../../lib/constants/load-types.js';
 import { Package, Truck, ArrowRight as ArrowRightIcon, RefreshCcw, FileText } from 'lucide-react';
@@ -524,21 +525,20 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
 
         {/* Routing template chip grid (DnD-reorderable) */}
         {form.load_type !== 'bill_only' && (
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-slate-400 font-medium">
-                Routing Template <span className="text-gray-400 dark:text-slate-500 normal-case font-normal">— drag to reorder</span>
-              </div>
-              {templateOrder.length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleResetOrder}
-                  className="text-[10px] text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 underline-offset-2 hover:underline"
-                >
-                  Reset order
-                </button>
-              )}
-            </div>
+          <SectionCard
+            title="Routing template"
+            description="Drag to reorder · choose the leg pattern for this load"
+            actions={templateOrder.length > 0 ? (
+              <button
+                type="button"
+                onClick={handleResetOrder}
+                className="text-[10px] text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 underline-offset-2 hover:underline"
+              >
+                Reset order
+              </button>
+            ) : null}
+            columns={0}
+          >
             {loadingTemplates ? (
               <div className="text-xs text-gray-500 dark:text-slate-400 py-3">Loading templates…</div>
             ) : orderedTemplates.length === 0 ? (
@@ -568,147 +568,169 @@ export default function NewLoadModal({ isOpen, onClose, onSuccess }) {
                 </SortableContext>
               </DndContext>
             )}
-          </div>
+          </SectionCard>
         )}
 
-        {/* 3-column field grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-gray-100 dark:border-slate-800">
-          {/* Customer (col-span 2) + Branch */}
-          <div className="md:col-span-2">
-            <OrgPicker
-              label="Customer"
-              type="customer"
-              value={form.customer_id}
-              valueLabel={form.customer_label}
-              onChange={handleCustomerChange}
-              required
-            />
+        {/* Customer section — bill-to + branch */}
+        <SectionCard
+          title="Customer"
+          description="Bill-to organization and optional branch assignment"
+          columns={0}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="md:col-span-2">
+              <OrgPicker
+                label="Customer"
+                type="customer"
+                value={form.customer_id}
+                valueLabel={form.customer_label}
+                onChange={handleCustomerChange}
+                required
+              />
+            </div>
+            {branches?.length > 0 ? (
+              <BranchPicker
+                label="Branch"
+                value={form.branch_id}
+                onChange={(val) => setForm((f) => ({ ...f, branch_id: val }))}
+                placeholder="— Select —"
+              />
+            ) : (
+              <div />
+            )}
           </div>
-          {branches?.length > 0 ? (
-            <BranchPicker
-              label="Branch"
-              value={form.branch_id}
-              onChange={(val) => setForm((f) => ({ ...f, branch_id: val }))}
-              placeholder="— Select —"
-            />
-          ) : (
-            <div />
-          )}
+        </SectionCard>
 
-          {/* Locations (slot1, slot2, slot3) */}
-          {typeCfg.slot1 && (
-            <OrgPicker
-              label={typeCfg.slot1.label}
-              type={typeCfg.slot1.orgType}
-              value={form.pickup_location_id}
-              valueLabel={form.pickup_location_label}
-              onChange={(org) => selectOrg('pickup_location_id', 'pickup_location_label', org)}
-            />
-          )}
-          {typeCfg.slot2 && (
-            <OrgPicker
-              label={typeCfg.slot2.label}
-              type={typeCfg.slot2.orgType}
-              value={form.delivery_location_id}
-              valueLabel={form.delivery_location_label}
-              onChange={(org) => selectOrg('delivery_location_id', 'delivery_location_label', org)}
-            />
-          )}
-          {typeCfg.slot3 && (
-            <OrgPicker
-              label={typeCfg.slot3.label}
-              type={typeCfg.slot3.orgType}
-              value={form.return_location_id}
-              valueLabel={form.return_location_label}
-              onChange={(org) => selectOrg('return_location_id', 'return_location_label', org)}
-            />
-          )}
-          {typeCfg.showFinalDelivery && (
-            <OrgPicker
-              label="Final Delivery"
-              type="final_destination"
-              value={form.final_delivery_location_id}
-              valueLabel={form.final_delivery_location_label}
-              onChange={(org) =>
-                selectOrg('final_delivery_location_id', 'final_delivery_location_label', org)
-              }
-            />
-          )}
+        {/* Routing section — pickup / delivery / return / final delivery */}
+        {(typeCfg.slot1 || typeCfg.slot2 || typeCfg.slot3 || typeCfg.showFinalDelivery) && (
+          <SectionCard
+            title="Routing"
+            description="Pickup → Delivery → Return locations"
+            columns={0}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {typeCfg.slot1 && (
+                <OrgPicker
+                  label={typeCfg.slot1.label}
+                  type={typeCfg.slot1.orgType}
+                  value={form.pickup_location_id}
+                  valueLabel={form.pickup_location_label}
+                  onChange={(org) => selectOrg('pickup_location_id', 'pickup_location_label', org)}
+                />
+              )}
+              {typeCfg.slot2 && (
+                <OrgPicker
+                  label={typeCfg.slot2.label}
+                  type={typeCfg.slot2.orgType}
+                  value={form.delivery_location_id}
+                  valueLabel={form.delivery_location_label}
+                  onChange={(org) => selectOrg('delivery_location_id', 'delivery_location_label', org)}
+                />
+              )}
+              {typeCfg.slot3 && (
+                <OrgPicker
+                  label={typeCfg.slot3.label}
+                  type={typeCfg.slot3.orgType}
+                  value={form.return_location_id}
+                  valueLabel={form.return_location_label}
+                  onChange={(org) => selectOrg('return_location_id', 'return_location_label', org)}
+                />
+              )}
+              {typeCfg.showFinalDelivery && (
+                <OrgPicker
+                  label="Final Delivery"
+                  type="final_destination"
+                  value={form.final_delivery_location_id}
+                  valueLabel={form.final_delivery_location_label}
+                  onChange={(org) =>
+                    selectOrg('final_delivery_location_id', 'final_delivery_location_label', org)
+                  }
+                />
+              )}
+            </div>
+          </SectionCard>
+        )}
 
-          {/* Container fields (only if showContainer) */}
-          {typeCfg.showContainer && (
-            <>
-              <Input
-                label="Container #"
-                value={form.container_number}
-                onChange={(e) => update('container_number', e.target.value.toUpperCase())}
-                placeholder="MSKU1234567"
-              />
-              <Select
-                label="Size"
-                value={form.container_size}
-                onChange={(e) => {
-                  const code = e.target.value;
-                  update('container_size', code);
-                  const match = containerSizes.find((s) => s.value === code);
-                  update('container_size_id', match?.id || null);
-                }}
-                options={containerSizes}
-              />
-              <div />
-            </>
-          )}
-
-          {/* Trailer (only if showTrailer) */}
-          {typeCfg.showTrailer && (
-            <>
-              <Input
-                label="Trailer / Dry Van ID"
-                value={form.trailer_number}
-                onChange={(e) => update('trailer_number', e.target.value.toUpperCase())}
-                placeholder="TRL12345"
-              />
-              <div />
-              <div />
-            </>
-          )}
-
-          {/* Appointments (when typeCfg shows them) */}
-          {(typeCfg.showContainer || typeCfg.showTrailer || form.load_type === 'chassis_reposition') && (
-            <>
-              <DatePicker
-                showTime
-                label="Pickup Apt"
-                value={form.pickup_apt_from}
-                onChange={(v) => updateApt('pickup', v)}
-              />
-              <DatePicker
-                showTime
-                label="Delivery Apt"
-                value={form.delivery_apt_from}
-                onChange={(v) => updateApt('delivery', v)}
-              />
-              <div />
-            </>
-          )}
-
-          {/* References (skip for bill_only and chassis_reposition) */}
-          {form.load_type !== 'bill_only' && form.load_type !== 'chassis_reposition' && (
-            <>
-              <Input
-                label="Master BOL"
-                value={form.bill_of_lading}
-                onChange={(e) => update('bill_of_lading', e.target.value)}
-              />
-              <Input
-                label="Booking #"
-                value={form.booking_number}
-                onChange={(e) => update('booking_number', e.target.value)}
-              />
-              <div />
-            </>
-          )}
-        </div>
+        {/* Container & schedule — container/trailer + appointments + references.
+            Outer guard: render unless bill_only (which has no container, no trailer,
+            no appointments, no references). For chassis_reposition, only the
+            appointments inner block renders — section still shows. */}
+        {form.load_type !== 'bill_only' && (
+          <SectionCard
+            title="Container & schedule"
+            description="Container details, appointments, and reference numbers"
+            columns={0}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {typeCfg.showContainer && (
+                <>
+                  <Input
+                    label="Container #"
+                    value={form.container_number}
+                    onChange={(e) => update('container_number', e.target.value.toUpperCase())}
+                    placeholder="MSKU1234567"
+                  />
+                  <Select
+                    label="Size"
+                    value={form.container_size}
+                    onChange={(e) => {
+                      const code = e.target.value;
+                      update('container_size', code);
+                      const match = containerSizes.find((s) => s.value === code);
+                      update('container_size_id', match?.id || null);
+                    }}
+                    options={containerSizes}
+                  />
+                  <div />
+                </>
+              )}
+              {typeCfg.showTrailer && (
+                <>
+                  <Input
+                    label="Trailer / Dry Van ID"
+                    value={form.trailer_number}
+                    onChange={(e) => update('trailer_number', e.target.value.toUpperCase())}
+                    placeholder="TRL12345"
+                  />
+                  <div />
+                  <div />
+                </>
+              )}
+              {(typeCfg.showContainer || typeCfg.showTrailer || form.load_type === 'chassis_reposition') && (
+                <>
+                  <DatePicker
+                    showTime
+                    label="Pickup Apt"
+                    value={form.pickup_apt_from}
+                    onChange={(v) => updateApt('pickup', v)}
+                  />
+                  <DatePicker
+                    showTime
+                    label="Delivery Apt"
+                    value={form.delivery_apt_from}
+                    onChange={(v) => updateApt('delivery', v)}
+                  />
+                  <div />
+                </>
+              )}
+              {form.load_type !== 'bill_only' && form.load_type !== 'chassis_reposition' && (
+                <>
+                  <Input
+                    label="Master BOL"
+                    value={form.bill_of_lading}
+                    onChange={(e) => update('bill_of_lading', e.target.value)}
+                  />
+                  <Input
+                    label="Booking #"
+                    value={form.booking_number}
+                    onChange={(e) => update('booking_number', e.target.value)}
+                  />
+                  <div />
+                </>
+              )}
+            </div>
+          </SectionCard>
+        )}
 
         {/* Notify parties (collapsible, only when customer is set) */}
         {form.customer_id && (
