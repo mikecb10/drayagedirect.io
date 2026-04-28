@@ -20,6 +20,7 @@ import DetailTabs from '../../components/ui/DetailTabs';
 import Badge from '../../components/ui/Badge';
 import Alert from '../../components/ui/Alert';
 import OrganizationModal from '../../components/organizations/OrganizationModal';
+import GenerateStatementModal from '../../components/organizations/GenerateStatementModal';
 import OverviewTab from '../../components/organizations/tabs/OverviewTab';
 import PeopleTab from '../../components/organizations/tabs/PeopleTab';
 import GroupsTab from '../../components/organizations/tabs/GroupsTab';
@@ -51,6 +52,7 @@ export default function OrganizationDetail() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [editOpen, setEditOpen] = useState(false);
+  const [statementOpen, setStatementOpen] = useState(false);
 
   async function load() {
     if (!id) return;
@@ -138,6 +140,15 @@ export default function OrganizationDetail() {
                 {organization.mc_number && <span>MC# {organization.mc_number}</span>}
               </div>
             </div>
+            <div className="flex flex-col gap-2 flex-shrink-0">
+              <button
+                onClick={() => setStatementOpen(true)}
+                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800 rounded-lg whitespace-nowrap"
+              >
+                <FileText className="w-4 h-4" strokeWidth={1.75} />
+                Generate Statement
+              </button>
+            </div>
           </div>
         </div>
 
@@ -183,6 +194,13 @@ export default function OrganizationDetail() {
           load();
         }}
         editing={organization}
+      />
+
+      <GenerateStatementModal
+        isOpen={statementOpen}
+        onClose={() => setStatementOpen(false)}
+        customerId={organization?.id}
+        customerName={organization?.name || ''}
       />
     </TenantLayout>
   );
