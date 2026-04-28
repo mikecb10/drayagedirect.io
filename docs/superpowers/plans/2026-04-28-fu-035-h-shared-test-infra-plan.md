@@ -1,12 +1,12 @@
-# FU-035-H-shared-test-infra Implementation Plan
+# FU-035-H-shared-test-infra Implementation Plan (Revised)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add `@swc-node/register` to enable JSX-aware test runs under `node --test`, then prove it works end-to-end by adding byte-magic PDF smoke tests across all 6 AR-family PDF renderers (Invoice / Rate Con / Combined Invoice / POD / Statement / Credit Memo).
+**Goal:** Enable byte-magic PDF render smoke tests across all 6 AR-family renderers (Credit Memo + Invoice + Rate Con + Combined Invoice + POD + Statement) under bare `node --test`. Achieved by refactoring 5 renderers to dynamic-import their JSX templates (mirroring `render-credit-memo.js`'s pattern), adding a shared mock-Supabase helper, and writing one byte-magic test per renderer.
 
-**Architecture:** Single new devDependency (`@swc-node/register@^1.x`) wired in via `--import` flag in a new `npm test` script. A shared `tests/helpers/mock-supabase.mjs` module exports `makeMockSvc(responses)` — extracted from the existing inline helper in `tests/credit-memo-fetcher-integration.test.mjs` and extended to support the `.or()` chain method that `resolveTemplateConfig` uses. Each of 6 renderer integration test files imports the helper, mocks the per-renderer query plan + `document_templates` (for cascade resolution), calls `renderXPdf(svc, id, tenantId)`, and asserts the result is a Buffer starting with `%PDF-` magic bytes and longer than 1000 bytes.
+**Architecture:** Zero new dependencies. The 5 renderers being refactored already statically `import` their `@react-pdf/renderer` + `react` + `XTemplate` modules at the top of each file; the refactor moves those imports into a `Promise.all([...])` inside the `renderXPdf` function (one-time per-process module load, ~5-10ms cold start). Shared `tests/helpers/mock-supabase.mjs` exports `makeMockSvc(responses)` extracted from the existing inline definition in `tests/credit-memo-fetcher-integration.test.mjs` plus `.or()` for `resolveTemplateConfig`. Each fetcher-integration test mocks the per-renderer query plan + `document_templates` for cascade resolution, calls `renderXPdf(svc, id, tenantId)`, and asserts the buffer is a Buffer starting with `%PDF-` magic bytes and longer than 1000 bytes.
 
-**Tech Stack:** Node ≥ 20.6 native test runner (`node --test`), `@swc-node/register@^1.x` for JSX transform on import, existing `@react-pdf/renderer@^4.5.1` for PDF rendering, `node:assert/strict` for assertions.
+**Tech Stack:** Node ≥ 20 native test runner (`node --test`), existing `@react-pdf/renderer@^4.5.1`, `node:assert/strict` for assertions. Spec at `docs/superpowers/specs/2026-04-28-fu-035-h-shared-test-infra-design.md`. **NO JSX transformer** — earlier transformer attempts (`@swc-node/register`, `tsx`) hit insurmountable env issues; the dynamic-import refactor is a more robust answer with zero new deps.
 
 ---
 
@@ -27,34 +27,345 @@
 
 | Path | Change |
 |---|---|
-| `package.json` | Add `@swc-node/register` to `devDependencies`; add `"test"` script |
-| `tests/credit-memo-fetcher-integration.test.mjs` | Replace inline `makeMockSvc` (lines 19-55) with `import { makeMockSvc } from './helpers/mock-supabase.mjs'`; add new test `'renderCreditMemoPdf produces a valid PDF buffer'` |
+| `package.json` | Add `"test": "node --test \"tests/*.test.mjs\""` to `scripts` (no new devDeps) |
+| `lib/pdf/render-invoice.js` | Refactor: drop top-level React/React-PDF/InvoiceTemplate imports; dynamic-import them inside `renderInvoicePdf`; `.js` suffix internal imports |
+| `lib/pdf/render-rate-con.js` | Same refactor with `RateConTemplate` |
+| `lib/pdf/render-combined-invoice.js` | Same refactor with `CombinedInvoiceTemplate` |
+| `lib/pdf/render-pod.js` | Same refactor with `PodTemplate` |
+| `lib/pdf/render-statement.js` | Same refactor with `StatementTemplate` |
+| `tests/credit-memo-fetcher-integration.test.mjs` | Replace inline `makeMockSvc` with `import` from helper module; add new test (`renderCreditMemoPdf produces a valid PDF buffer`) |
 
-**Total:** 6 new + 2 modified = 8 files.
+**Total:** 6 new + 7 modified = 13 files.
 
 ---
 
-## Task 1: Add @swc-node/register + npm test script
+## Task 1: Refactor 5 renderers + add npm test script
 
 **Files:**
 - Modify: `package.json`
+- Modify: `lib/pdf/render-invoice.js`
+- Modify: `lib/pdf/render-rate-con.js`
+- Modify: `lib/pdf/render-combined-invoice.js`
+- Modify: `lib/pdf/render-pod.js`
+- Modify: `lib/pdf/render-statement.js`
 
-- [ ] **Step 1: Read current package.json**
+**Reference pattern:** Read `lib/pdf/render-credit-memo.js` first. The refactor mirrors it exactly. The header comment, the dynamic-import inside the public render function, the `.js` suffix on internal imports — all match.
 
-Run: `cat package.json` (or use Read tool). Verify `devDependencies` block does not yet contain `@swc-node/register`. Verify `scripts` block does not yet contain `test`.
+- [ ] **Step 1: Refactor `lib/pdf/render-invoice.js`**
 
-- [ ] **Step 2: Add devDependency + test script via npm**
+Find the top-level imports (lines 1-5):
 
-Run:
-```bash
-npm install --save-dev @swc-node/register@^1.10.0
+```js
+import { renderToBuffer } from '@react-pdf/renderer';
+import React from 'react';
+import InvoiceTemplate from '../../components/pdf/InvoiceTemplate';
+import { resolveTemplateConfig } from './resolve-template-config';
+import { formatDate } from './format-date';
 ```
 
-Expected: `package.json` and `package-lock.json` updated; `node_modules/@swc-node/register` exists.
+Replace with:
 
-- [ ] **Step 3: Add test script to package.json**
+```js
+// React-PDF + InvoiceTemplate (a JSX-bearing React component) are
+// dynamically imported inside renderInvoicePdf so that this module's
+// pure-JS fetcher (fetchInvoiceData) can be unit-tested under bare
+// `node --test` without a JSX transformer. See
+// tests/invoice-fetcher-integration.test.mjs.
+import { resolveTemplateConfig } from './resolve-template-config.js';
+import { formatDate } from './format-date.js';
+```
 
-Edit `package.json` `scripts` block to add the new entry (preserve existing entries):
+Find the `renderToBuffer` call inside `renderInvoicePdf` (currently lines 230-233 — the part of the function AFTER the `is_consolidated` peek + delegate). It looks like:
+
+```js
+const sectionConfig = await resolveTemplateConfig(
+  svc, tenantId, doc.bill_to_customer_id, 'invoice'
+);
+
+return await renderToBuffer(
+  React.createElement(InvoiceTemplate, { doc, sectionConfig })
+);
+```
+
+Replace with:
+
+```js
+const sectionConfig = await resolveTemplateConfig(
+  svc, tenantId, doc.bill_to_customer_id, 'invoice'
+);
+
+const [{ renderToBuffer }, React, { default: InvoiceTemplate }] = await Promise.all([
+  import('@react-pdf/renderer'),
+  import('react'),
+  import('../../components/pdf/InvoiceTemplate'),
+]);
+
+return await renderToBuffer(
+  React.createElement(InvoiceTemplate, { doc, sectionConfig })
+);
+```
+
+Also update the dynamic-import inside `fetchInvoiceData` for `deriveLoadLevelLocations` to add the `.js` suffix:
+
+Find:
+```js
+const { deriveLoadLevelLocations } = await import('./render-delivery-order');
+```
+
+Replace with:
+```js
+const { deriveLoadLevelLocations } = await import('./render-delivery-order.js');
+```
+
+- [ ] **Step 2: Refactor `lib/pdf/render-rate-con.js`**
+
+Find the top-level imports (lines 1-5):
+
+```js
+import { renderToBuffer } from '@react-pdf/renderer';
+import React from 'react';
+import RateConTemplate from '../../components/pdf/RateConTemplate';
+import { resolveTemplateConfig } from './resolve-template-config';
+import { formatDate } from './format-date';
+```
+
+Replace with:
+
+```js
+// React-PDF + RateConTemplate (a JSX-bearing React component) are
+// dynamically imported inside renderRateConPdf so that this module's
+// pure-JS fetcher (fetchRateConData) can be unit-tested under bare
+// `node --test` without a JSX transformer. See
+// tests/rate-con-fetcher-integration.test.mjs.
+import { resolveTemplateConfig } from './resolve-template-config.js';
+import { formatDate } from './format-date.js';
+```
+
+Find the `renderToBuffer` call inside `renderRateConPdf` (around line 181):
+
+```js
+const sectionConfig = await resolveTemplateConfig(
+  svc, tenantId, doc.bill_to_customer_id, 'rate_con'
+);
+
+return await renderToBuffer(
+  React.createElement(RateConTemplate, { doc, sectionConfig })
+);
+```
+
+Replace with:
+
+```js
+const sectionConfig = await resolveTemplateConfig(
+  svc, tenantId, doc.bill_to_customer_id, 'rate_con'
+);
+
+const [{ renderToBuffer }, React, { default: RateConTemplate }] = await Promise.all([
+  import('@react-pdf/renderer'),
+  import('react'),
+  import('../../components/pdf/RateConTemplate'),
+]);
+
+return await renderToBuffer(
+  React.createElement(RateConTemplate, { doc, sectionConfig })
+);
+```
+
+Also add `.js` suffix to the dynamic-import inside `fetchRateConData`:
+
+Find:
+```js
+const { deriveLoadLevelLocations } = await import('./render-delivery-order');
+```
+
+Replace with:
+```js
+const { deriveLoadLevelLocations } = await import('./render-delivery-order.js');
+```
+
+- [ ] **Step 3: Refactor `lib/pdf/render-combined-invoice.js`**
+
+Find the top-level imports (lines 1-5):
+
+```js
+import { renderToBuffer } from '@react-pdf/renderer';
+import React from 'react';
+import CombinedInvoiceTemplate from '../../components/pdf/CombinedInvoiceTemplate';
+import { resolveTemplateConfig } from './resolve-template-config';
+import { formatDate } from './format-date';
+```
+
+Replace with:
+
+```js
+// React-PDF + CombinedInvoiceTemplate (a JSX-bearing React component) are
+// dynamically imported inside renderCombinedInvoicePdf so that this module's
+// pure-JS fetcher (fetchCombinedInvoiceData) can be unit-tested under bare
+// `node --test` without a JSX transformer. See
+// tests/combined-invoice-fetcher-integration.test.mjs.
+import { resolveTemplateConfig } from './resolve-template-config.js';
+import { formatDate } from './format-date.js';
+```
+
+Find the `renderToBuffer` call inside `renderCombinedInvoicePdf` (around line 186):
+
+```js
+const sectionConfig = await resolveTemplateConfig(
+  svc, tenantId, doc.bill_to_customer_id, 'combined_invoice'
+);
+
+return await renderToBuffer(
+  React.createElement(CombinedInvoiceTemplate, { doc, sectionConfig })
+);
+```
+
+Replace with:
+
+```js
+const sectionConfig = await resolveTemplateConfig(
+  svc, tenantId, doc.bill_to_customer_id, 'combined_invoice'
+);
+
+const [{ renderToBuffer }, React, { default: CombinedInvoiceTemplate }] = await Promise.all([
+  import('@react-pdf/renderer'),
+  import('react'),
+  import('../../components/pdf/CombinedInvoiceTemplate'),
+]);
+
+return await renderToBuffer(
+  React.createElement(CombinedInvoiceTemplate, { doc, sectionConfig })
+);
+```
+
+(`render-combined-invoice.js` does not have a `deriveLoadLevelLocations` dynamic import; skip that part.)
+
+- [ ] **Step 4: Refactor `lib/pdf/render-pod.js`**
+
+Find the top-level imports (lines 1-5):
+
+```js
+import { renderToBuffer } from '@react-pdf/renderer';
+import React from 'react';
+import PodTemplate from '../../components/pdf/PodTemplate';
+import { resolveTemplateConfig } from './resolve-template-config';
+import { formatDate, formatTime } from './format-date';
+```
+
+Replace with:
+
+```js
+// React-PDF + PodTemplate (a JSX-bearing React component) are
+// dynamically imported inside renderPodPdf so that this module's
+// pure-JS fetcher (fetchPodData) can be unit-tested under bare
+// `node --test` without a JSX transformer. See
+// tests/pod-fetcher-integration.test.mjs.
+import { resolveTemplateConfig } from './resolve-template-config.js';
+import { formatDate, formatTime } from './format-date.js';
+```
+
+Find the `renderToBuffer` call inside `renderPodPdf` (around line 237):
+
+```js
+const sectionConfig = await resolveTemplateConfig(
+  svc, tenantId, doc.bill_to_customer_id, 'pod'
+);
+
+return await renderToBuffer(
+  React.createElement(PodTemplate, { doc, sectionConfig })
+);
+```
+
+Replace with:
+
+```js
+const sectionConfig = await resolveTemplateConfig(
+  svc, tenantId, doc.bill_to_customer_id, 'pod'
+);
+
+const [{ renderToBuffer }, React, { default: PodTemplate }] = await Promise.all([
+  import('@react-pdf/renderer'),
+  import('react'),
+  import('../../components/pdf/PodTemplate'),
+]);
+
+return await renderToBuffer(
+  React.createElement(PodTemplate, { doc, sectionConfig })
+);
+```
+
+Also add `.js` suffix to the dynamic-import inside `fetchPodData`:
+
+Find:
+```js
+const { deriveLoadLevelLocations } = await import('./render-delivery-order');
+```
+
+Replace with:
+```js
+const { deriveLoadLevelLocations } = await import('./render-delivery-order.js');
+```
+
+- [ ] **Step 5: Refactor `lib/pdf/render-statement.js`**
+
+Find the top-level imports (lines 1-6):
+
+```js
+import { renderToBuffer } from '@react-pdf/renderer';
+import React from 'react';
+import StatementTemplate from '../../components/pdf/StatementTemplate';
+import { resolveTemplateConfig } from './resolve-template-config';
+import { formatDate } from './format-date';
+import { computeAging } from './compute-aging';
+```
+
+Replace with:
+
+```js
+// React-PDF + StatementTemplate (a JSX-bearing React component) are
+// dynamically imported inside renderStatementPdf so that this module's
+// pure-JS fetcher (fetchStatementData) can be unit-tested under bare
+// `node --test` without a JSX transformer. See
+// tests/statement-fetcher-integration.test.mjs.
+import { resolveTemplateConfig } from './resolve-template-config.js';
+import { formatDate } from './format-date.js';
+import { computeAging } from './compute-aging.js';
+```
+
+Find the `renderToBuffer` call inside `renderStatementPdf` (around line 196):
+
+```js
+const sectionConfig = await resolveTemplateConfig(
+  svc, tenantId, doc.bill_to_customer_id, 'statement'
+);
+
+return await renderToBuffer(
+  React.createElement(StatementTemplate, { doc, sectionConfig })
+);
+```
+
+Replace with:
+
+```js
+const sectionConfig = await resolveTemplateConfig(
+  svc, tenantId, doc.bill_to_customer_id, 'statement'
+);
+
+const [{ renderToBuffer }, React, { default: StatementTemplate }] = await Promise.all([
+  import('@react-pdf/renderer'),
+  import('react'),
+  import('../../components/pdf/StatementTemplate'),
+]);
+
+return await renderToBuffer(
+  React.createElement(StatementTemplate, { doc, sectionConfig })
+);
+```
+
+(`render-statement.js` has no `deriveLoadLevelLocations` dynamic import; skip that part.)
+
+- [ ] **Step 6: Add `npm test` script to package.json**
+
+Edit `package.json` `scripts` block — add the `test` line preserving the existing 4 entries:
 
 ```json
 "scripts": {
@@ -62,36 +373,52 @@ Edit `package.json` `scripts` block to add the new entry (preserve existing entr
   "build": "next build",
   "start": "next start",
   "lint": "next lint",
-  "test": "node --import @swc-node/register/esm-register --test \"tests/*.test.mjs\""
+  "test": "node --test \"tests/*.test.mjs\""
 }
 ```
 
-Note: `@swc-node/register/esm-register` is the ESM-mode entry point that supports `--import`. The plain `@swc-node/register` may fail with newer Node ESM loader rules; if it does, that's the fallback path.
-
-- [ ] **Step 4: Run all existing tests to verify no regression**
+- [ ] **Step 7: Run all existing tests to verify no regression**
 
 Run:
 ```bash
-npm test 2>&1 | tail -20
+npm test 2>&1 | tail -10
 ```
 
-Expected: All ~83 existing test files pass. Look for the summary line `# pass <N>` and confirm no `# fail` count > 0 (note: there is one pre-existing fire-trigger failure documented in the H6 handoff — `tests/fire-trigger-entity-aware.test.mjs`. If exactly that one fails, it's expected and acceptable).
+Expected: All 83 existing test files pass; only the documented pre-existing `tests/fire-trigger-entity-aware.test.mjs` failure remains. Look for `# pass` and `# fail` summary lines.
 
-If any *other* test fails, investigate before proceeding — it likely means the SWC transformer is changing module-load behavior in a way that exposes a real bug.
+Specifically critical checks:
+- `tests/credit-memo-fetcher-integration.test.mjs` (7 tests) all pass — proves the existing dynamic-import pattern still works.
+- No new failures in any other `*.test.mjs` file — proves the renderer refactor doesn't break unrelated tests.
 
-- [ ] **Step 5: Commit**
+If any *new* test fails (beyond the documented baseline), investigate before committing — likely a `.js` suffix was missed or a renderer's signature was inadvertently changed.
+
+- [ ] **Step 8: Commit**
 
 ```bash
-git add package.json package-lock.json
+git add package.json lib/pdf/render-invoice.js lib/pdf/render-rate-con.js lib/pdf/render-combined-invoice.js lib/pdf/render-pod.js lib/pdf/render-statement.js
 git commit -m "$(cat <<'EOF'
-chore(deps): add @swc-node/register + npm test script (FU-035-H-shared-test-infra task 1)
+refactor(pdf): dynamic-import JSX in 5 renderers + npm test script (FU-035-H-shared-test-infra task 1)
 
-Adds @swc-node/register@^1.10.0 as a devDependency to enable JSX-aware
-test runs under bare node --test. Adds an "npm test" script that wires
-the transformer in via --import. No behavior change for existing tests
-(SWC is a no-op for non-JSX modules).
+Mirrors render-credit-memo.js's H6-followup-A pattern: moves React +
+React-PDF + the per-doc-type Template import from top-level into a
+Promise.all inside the public renderXPdf function. Lets the modules
+load under bare `node --test` (no JSX transformer needed) and unblocks
+byte-magic PDF smoke tests for all 6 AR-family renderers.
 
-Unblocks byte-magic PDF smoke tests for all 6 AR-family renderers.
+Refactored:
+- lib/pdf/render-invoice.js
+- lib/pdf/render-rate-con.js
+- lib/pdf/render-combined-invoice.js
+- lib/pdf/render-pod.js
+- lib/pdf/render-statement.js
+
+Production behavior unchanged (one-time ~5-10ms per-process module
+load on first call; module cache covers subsequent calls). No new
+dependencies. Internal imports gain `.js` suffixes for ESM consistency.
+
+Adds bare `npm test` script: `node --test "tests/*.test.mjs"`. All
+83 existing test files still pass (modulo the pre-existing
+fire-trigger-entity-aware failure documented in the H6 handoff).
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
@@ -168,66 +495,24 @@ export function makeMockSvc(responses) {
 
 Modify `tests/credit-memo-fetcher-integration.test.mjs`:
 
-Find this block (lines 19-55):
+Find the entire `// ── Mock builder ────────...` block (lines 19-55) including its docblock and the `function makeMockSvc(...)` definition. Delete it.
 
-```js
-// ── Mock builder ────────────────────────────────────────────────────
-
-/**
- * Build a Supabase-shaped client that responds to the chained query API:
- *   client.from(table).select(...).eq(...).is(...).maybeSingle()
- *   client.from(table).select(...).in(...).eq(...).is(...)
- *
- * Each table's response is supplied via the `responses` map. The same
- * builder shape is returned for every chained method except the terminal
- * (`maybeSingle()` resolves to single row; the absence of a terminal
- * returns the array directly when awaited).
- */
-function makeMockSvc(responses) {
-  function builder(table) {
-    let response = responses[table];
-    if (!response) {
-      response = { data: null, error: null };
-    }
-    const obj = {
-      // Terminal that resolves to a single row.
-      maybeSingle: () => Promise.resolve(response),
-      // Chain methods (no-ops returning self).
-      select: () => obj,
-      eq:     () => obj,
-      in:     () => obj,
-      is:     () => obj,
-      not:    () => obj,
-      gt:     () => obj,
-      lte:    () => obj,
-      order:  () => obj,
-      // Awaiting the chain directly (no terminal) returns the response.
-      then:   (resolve, reject) => Promise.resolve(response).then(resolve, reject),
-    };
-    return obj;
-  }
-  return { from: (table) => builder(table) };
-}
-```
-
-Replace with a single import line at the top of the imports block:
+Add the import line in the import block at the top:
 
 ```js
 import { makeMockSvc } from './helpers/mock-supabase.mjs';
 ```
 
-Delete the entire `// ── Mock builder ────...` block including its docblock comment and the `function makeMockSvc(...)` definition.
+(Place it after the `import { fetchCreditMemoData } from '../lib/pdf/render-credit-memo.js';` line.)
 
 - [ ] **Step 3: Run credit-memo tests to verify no regression**
 
 Run:
 ```bash
-npm test -- --test-name-pattern="fetchCreditMemoData" 2>&1 | tail -30
+npm test 2>&1 | grep -E "(credit-memo|tests \d|pass|fail)" | tail -10
 ```
 
 Expected: All 7 existing credit-memo tests pass. If any fail, the helper's chain shape diverged from the inline original — re-check the diff.
-
-(If `--test-name-pattern` isn't supported by the installed Node version, just run full `npm test` and grep the output for `credit-memo` results.)
 
 - [ ] **Step 4: Commit**
 
@@ -236,7 +521,7 @@ git add tests/helpers/mock-supabase.mjs tests/credit-memo-fetcher-integration.te
 git commit -m "$(cat <<'EOF'
 test(pdf): extract makeMockSvc into shared helper (FU-035-H-shared-test-infra task 2)
 
-Lifts makeMockSvc from the inline definition in credit-memo-fetcher-integration.test.mjs
+Lifts makeMockSvc from inline definition in credit-memo-fetcher-integration.test.mjs
 into a new shared module at tests/helpers/mock-supabase.mjs. Adds .or()
 to the chain shape (used by resolveTemplateConfig).
 
@@ -269,7 +554,7 @@ test('renderCreditMemoPdf produces a valid PDF buffer (end-to-end smoke)', async
     invoices:        { data: [issuedFromInvoice, appliedToInvoice], error: null },
     tenants:         { data: tenantRow, error: null },
     tenant_settings: { data: settingsRow, error: null },
-    document_templates: { data: [], error: null },  // no custom template; fall back to system default
+    document_templates: { data: [], error: null },
   });
 
   const buf = await renderCreditMemoPdf(svc, memoRow.id, 'tenant-uuid');
@@ -284,13 +569,13 @@ test('renderCreditMemoPdf produces a valid PDF buffer (end-to-end smoke)', async
 
 Run:
 ```bash
-npm test 2>&1 | tail -40
+npm test 2>&1 | grep -E "(credit-memo|tests \d|pass|fail)" | tail -10
 ```
 
-Expected: All credit-memo tests including the new byte-magic test pass. If the new test fails:
+Expected: All 8 credit-memo tests pass (7 pre-existing + 1 new byte-magic). If the new test fails:
 - "expected a Buffer" → renderCreditMemoPdf is returning the wrong type; investigate render-credit-memo.js
-- "PDF buffer too small" → the React-PDF render produced an unexpectedly tiny output; likely a template crash silently rendered an empty Page
-- `'%PDF-'` mismatch → the output isn't a PDF; check whether an error response is being returned instead
+- "PDF buffer too small" → React-PDF rendered an empty Page; likely a template crash silently rendered an empty Page
+- `'%PDF-'` mismatch → output isn't a PDF; check whether an error response is being returned instead
 
 If the test fails because of a missing fixture field (e.g., `Cannot read property 'X' of null`), expand the relevant fixture row at the top of the file to include the missing field, then re-run.
 
@@ -304,9 +589,9 @@ test(pdf): credit-memo byte-magic PDF smoke (FU-035-H-shared-test-infra task 3)
 Adds the first end-to-end byte-magic smoke test for renderCreditMemoPdf —
 asserts the output is a Buffer >1000 bytes starting with %PDF- magic.
 
-This is the first proof that the @swc-node/register transformer wires
-JSX-importing modules through node --test correctly. Closes the remaining
-~10% gap of FU-035-H6-followup-A.
+This is the first proof the dynamic-import refactor lets bare `node --test`
+exercise the full fetcher → composer → React-PDF render pipeline. Closes
+the remaining ~10% gap of FU-035-H6-followup-A.
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
@@ -506,7 +791,7 @@ npm test 2>&1 | grep -A 2 "invoice-fetcher" | tail -15
 Expected first run outcomes:
 - **Pass** → done; move to Step 3.
 - **`Cannot read property 'X' of null/undefined`** → InvoiceTemplate references a field not in the fixture. Read `components/pdf/InvoiceTemplate.js` (or check the section composer in `lib/pdf/build-invoice-section-data.js`) to identify the missing field. Add it to `invoiceRow`, `orderRow`, `customerRow`, or `settingsRow` as appropriate. Re-run.
-- **PDF buffer too small (< 1000 bytes)** → React-PDF rendered an empty Page. Likely the section composer returned all-falsy values for every section. Inspect `lib/pdf/build-invoice-section-data.js` to see what data shapes drive section visibility. Add missing data (e.g., `invoice_meta.invoice_number` is the most common required field).
+- **PDF buffer too small (< 1000 bytes)** → React-PDF rendered an empty Page. Likely the section composer returned all-falsy values for every section. Inspect `lib/pdf/build-invoice-section-data.js` to see what data shapes drive section visibility.
 
 Iterate fixture until the test passes.
 
@@ -1147,7 +1432,7 @@ EOF
 
 Run:
 ```bash
-npm test 2>&1 | tail -20
+npm test 2>&1 | tail -10
 ```
 
 Expected: All test files pass except the pre-existing `fire-trigger-entity-aware.test.mjs` failure documented in the H6 handoff. Confirm:
@@ -1159,11 +1444,11 @@ Expected: All test files pass except the pre-existing `fire-trigger-entity-aware
 Open `memory/followups.md`. Find the `### FU-035-H-shared-test-infra:` section (currently at line ~702). Replace the existing section with a Resolved entry:
 
 ```markdown
-### FU-035-H-shared-test-infra: JSX-transform test utility for end-to-end renderer integration smoke
-- ✅ Resolved 2026-04-28 in `<commit-hash>` — Added `@swc-node/register@^1.10.0` as devDependency + `npm test` script wired with `--import @swc-node/register/esm-register`. Extracted `makeMockSvc` from inline definition into shared `tests/helpers/mock-supabase.mjs` (added `.or()` chain method support for resolveTemplateConfig). All 6 AR-family renderers now have a byte-magic PDF smoke test: Credit Memo (extension to existing file) + new files for Invoice / Rate Con / Combined Invoice / POD / Statement. Each asserts `Buffer.isBuffer(buf)` + `buf.length > 1000` + `buf.slice(0,5).toString('ascii') === '%PDF-'`. 6 new tests total. **Closes the remaining ~10% gap of FU-035-H6-followup-A (which was scoped-resolved at `11a43f0`). The full FU-035-H6-followup-A is now fully resolved.**
+### FU-035-H-shared-test-infra: Test infrastructure for end-to-end renderer smokes
+- ✅ Resolved 2026-04-28 in `<commit-hash-range>` — Refactored 5 AR-family renderers (Invoice / Rate Con / Combined Invoice / POD / Statement) to dynamic-import their JSX templates inside the public `renderXPdf` function, mirroring `render-credit-memo.js`'s H6-followup-A pattern. Added `npm test` script (bare `node --test`, no transformer). Extracted `makeMockSvc` from inline definition into shared `tests/helpers/mock-supabase.mjs` (added `.or()` chain method for `resolveTemplateConfig`). All 6 AR-family renderers now have a byte-magic PDF smoke test asserting `Buffer.isBuffer(buf)` + `buf.length > 1000` + `buf.slice(0,5).toString('ascii') === '%PDF-'`. **Pivoted from JSX-transformer approach mid-implementation:** `@swc-node/register` (CJS-only hook), `tsx` (broke 74/75 unrelated tests), `@swc-node/register/esm-register` (requires tsconfig.json that would conflict with Next.js's auto-TS-detection). Dynamic-import refactor is more robust with zero new deps. **Closes the remaining ~10% gap of FU-035-H6-followup-A (which was scoped-resolved at `11a43f0`). FU-035-H6-followup-A is now fully resolved.**
 ```
 
-(Insert the actual commit hash from the final commit after Step 4 below.)
+(Insert the actual commit hash range from this FU's commits after Step 4 below.)
 
 Find `### FU-035-H6-followup-A:` (line ~665). Update its trailing line — change "Remaining ~10%" to "Resolved":
 
@@ -1174,7 +1459,7 @@ Find:
 
 Replace with:
 ```markdown
-- **Remaining ~10% — Resolved 2026-04-28** via FU-035-H-shared-test-infra: byte-magic smoke for `renderCreditMemoPdf` added; transformer infra back-applied to 5 other AR renderers.
+- **Remaining ~10% — Resolved 2026-04-28** via FU-035-H-shared-test-infra: byte-magic smoke for `renderCreditMemoPdf` added; dynamic-import pattern back-applied to 5 other AR renderers. No transformer needed.
 ```
 
 - [ ] **Step 3: Commit ledger + final verification**
@@ -1184,7 +1469,8 @@ git add memory/followups.md
 git commit -m "$(cat <<'EOF'
 chore: FU-035-H-shared-test-infra resolved + H6-followup-A fully closed
 
-- @swc-node/register installed; npm test script wired
+- Dynamic-import refactor in 5 AR-family renderers (no transformer)
+- npm test script wired (bare node --test)
 - 6 AR-family renderers all have byte-magic PDF smoke tests
 - tests/helpers/mock-supabase.mjs convention established
 - followups.md ledger updated
@@ -1201,28 +1487,10 @@ Run:
 git log --oneline origin/main..HEAD
 ```
 
-Expected: ~9 commits ahead (1 spec, 1 each per task = 8 implementation commits, 1 ledger).
+Expected: ~10 commits ahead (1 spec, 1 plan, 1 spec/plan revision, 1 each per task = 9 implementation+ledger commits). Then:
 
-Then:
 ```bash
 git push origin main
 ```
 
 Expected: push succeeds, all commits on remote.
-
----
-
-## Self-Review Checklist (planner — run before handoff)
-
-- [x] **Spec coverage:** Every spec section maps to a task:
-  - Spec §3.1 transformer choice → Task 1
-  - Spec §3.2 test invocation → Task 1
-  - Spec §3.3 shared helper → Task 2
-  - Spec §3.4 byte-magic pattern → Tasks 3-8
-  - Spec §3.5 per-renderer fixtures → Tasks 4-8
-  - Spec §5.1 verification plan → distributed across all tasks; final pass in Task 9
-  - Spec §7 success criteria → Task 9 ledger entry
-- [x] **Placeholder scan:** No "TBD" / "TODO" / "implement later" in any task. Each step has executable content.
-- [x] **Type consistency:** `makeMockSvc(responses)` signature is the same across all 6 test files. Fixture names (`tenantId`, `tenantRow`, `settingsRow`, `customerRow`) follow the same convention. Chain method list (`select, eq, in, is, not, gt, lte, order, or`) is identical between the helper definition (Task 2) and the comment (Task 2).
-- [x] **DRY check:** `tenantRow` and `settingsRow` shapes are intentionally repeated per test file (no shared fixtures helper) — see spec §3.3 last paragraph for rationale (premature factoring).
-- [x] **Risk coverage:** The "iterate fixture until GREEN" steps in Tasks 4-8 explicitly handle the spec's identified risk #1 (hidden non-Supabase I/O) and #2 (templates that crash on minimal data).
