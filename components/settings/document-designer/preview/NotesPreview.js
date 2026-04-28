@@ -1,24 +1,34 @@
 /**
- * HTML preview of the Notes section. Renders 5 toggleable note types as a
- * vertical list with label + body. Mirrors components/pdf/sections/Notes.js.
+ * HTML preview of the Notes section. Mirrors components/pdf/sections/Notes.js.
+ * Renders a superset of doc-type-specific note fields:
+ *   - DO-family: driver_notes / yard_notes / customer_notes / billing_notes / load_notes
+ *   - AR-family (Statement / Credit Memo): payment_instructions / custom_notes
  *
- * `opts.fields`: { driver_notes, yard_notes, customer_notes, billing_notes, load_notes }
- * Default-true for all except billing_notes (defaultVisible: false in registry).
+ * Each registry declares its own `notes` section field set; `opts.fields` gates
+ * visibility and absent values are skipped via empty-value check.
+ *
+ * Default-off: billing_notes, custom_notes (match registry defaultVisible: false).
  */
 const NOTE_ORDER = [
-  ['driver_notes',   'Driver Notes'],
-  ['yard_notes',     'Yard Notes'],
-  ['customer_notes', 'Customer Notes'],
-  ['billing_notes',  'Billing Notes'],
-  ['load_notes',     'Load Notes'],
+  ['driver_notes',         'Driver Notes'],
+  ['yard_notes',           'Yard Notes'],
+  ['customer_notes',       'Customer Notes'],
+  ['billing_notes',        'Billing Notes'],
+  ['load_notes',           'Load Notes'],
+  ['payment_instructions', 'Payment Instructions'],
+  ['custom_notes',         'Custom Notes'],
 ];
+
+const DEFAULT_OFF_FIELDS = new Set(['billing_notes', 'custom_notes']);
 
 export default function NotesPreview({ data, opts }) {
   if (!data) return null;
   const fields = opts?.fields || {};
   const visible = NOTE_ORDER
     .map(([key, label]) => {
-      const enabled = key === 'billing_notes' ? fields[key] === true : fields[key] !== false;
+      const enabled = DEFAULT_OFF_FIELDS.has(key)
+        ? fields[key] === true
+        : fields[key] !== false;
       if (!enabled) return null;
       const value = data[key];
       if (!value) return null;

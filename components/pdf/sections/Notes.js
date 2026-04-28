@@ -2,36 +2,53 @@ import { View, Text } from '@react-pdf/renderer';
 import { typography } from '../shared/typography';
 
 /**
- * Notes section — 5 toggleable note types (driver / yard / customer /
- * billing / load). Subsumes data the old `instructions` section ID rendered.
+ * Notes section — toggleable note types. Field set varies by doc type:
+ *   - DO / Invoice / Rate Con / Combined Invoice / POD: `driver_notes`, `yard_notes`,
+ *     `customer_notes`, `billing_notes`, `load_notes` (from doc.instructions).
+ *   - Statement / Credit Memo (AR doc types): `payment_instructions`, `custom_notes`.
  *
- * `opts.fields`: { driver_notes, yard_notes, customer_notes, billing_notes, load_notes }.
- * Default-true for all except billing_notes (defaultVisible: false in registry).
+ * Each doc-type's registry declares which fields belong to its `notes` section,
+ * so this component renders a superset and relies on (a) `opts.fields` from the
+ * registry to gate visibility, and (b) the data shape from the doc-type's
+ * `buildSectionData` to populate values. Fields not produced by a doc type's
+ * builder are skipped via the empty-value check.
  *
- * `data` shape:
+ * Default-true for everything except `billing_notes` and `custom_notes`
+ * (which match `defaultVisible: false` in their respective registries).
+ *
+ * `data` shape (union):
  *   {
- *     driver_notes:   string | null,
- *     yard_notes:     string | null,
- *     customer_notes: string | null,
- *     billing_notes:  string | null,
- *     load_notes:     string | null   // sourced from doc.instructions.special_instructions
+ *     // DO-family
+ *     driver_notes?:         string | null,
+ *     yard_notes?:           string | null,
+ *     customer_notes?:       string | null,
+ *     billing_notes?:        string | null,
+ *     load_notes?:           string | null,
+ *     // AR-family (Statement / Credit Memo)
+ *     payment_instructions?: string | null,
+ *     custom_notes?:         string | null,
  *   }
  */
 const NOTE_ORDER = [
-  ['driver_notes',   'Driver Notes'],
-  ['yard_notes',     'Yard Notes'],
-  ['customer_notes', 'Customer Notes'],
-  ['billing_notes',  'Billing Notes'],
-  ['load_notes',     'Load Notes'],
+  ['driver_notes',         'Driver Notes'],
+  ['yard_notes',           'Yard Notes'],
+  ['customer_notes',       'Customer Notes'],
+  ['billing_notes',        'Billing Notes'],
+  ['load_notes',           'Load Notes'],
+  ['payment_instructions', 'Payment Instructions'],
+  ['custom_notes',         'Custom Notes'],
 ];
+
+const DEFAULT_OFF_FIELDS = new Set(['billing_notes', 'custom_notes']);
 
 export default function Notes({ data, opts }) {
   if (!data) return null;
   const fields = opts?.fields || {};
   const visible = NOTE_ORDER
     .map(([key, label]) => {
-      // billing_notes default is false; everything else is true.
-      const enabled = key === 'billing_notes' ? fields[key] === true : fields[key] !== false;
+      const enabled = DEFAULT_OFF_FIELDS.has(key)
+        ? fields[key] === true
+        : fields[key] !== false;
       if (!enabled) return null;
       const value = data[key];
       if (!value) return null;
