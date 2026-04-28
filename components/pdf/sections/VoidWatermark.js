@@ -3,12 +3,14 @@ import { View, Text } from '@react-pdf/renderer';
 const styles = {
   // The overlay sits inside <Page>'s body. position: 'absolute' centers it.
   // `fixed` (passed as prop on the View) tells React-PDF to replicate it
-  // on every page if the doc wraps to multiple pages.
+  // on every page if the doc wraps to multiple pages. transformOrigin
+  // ensures rotation pivots around the View's center, not its top-left.
   overlay: {
     position: 'absolute',
-    top: '40%',         // approximate vertical center allowing for the rotation
-    left: '15%',        // pull leftward so the rotated rectangle sits centered
-    transform: 'rotate(-22deg)',
+    top: '40%',
+    left: '15%',
+    transform: 'rotate(-22)',
+    transformOrigin: '50% 50%',
     paddingHorizontal: 22,
     paddingVertical: 4,
     borderWidth: 4,
@@ -19,7 +21,7 @@ const styles = {
   },
   text: {
     fontSize: 100,
-    fontWeight: 900,
+    fontWeight: 'bold',
     color: 'rgba(220, 38, 38, 0.18)',
     letterSpacing: 8,
     textAlign: 'center',
