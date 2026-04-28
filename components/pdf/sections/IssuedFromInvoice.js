@@ -26,14 +26,19 @@ function fmtDollars(cents) {
 
 /**
  * Issued From Invoice — small card showing the source invoice (the invoice
- * the credit was issued against). Blue 3px left border accent.
+ * the credit was issued against). Blue 3px left border accent — the palette
+ * is hardcoded for semantic distinction (blue == "issued from"; green ==
+ * "applied to"). The composer passes `colors` to all section components for
+ * call-uniformity; this component intentionally ignores it.
  *
  * `data` shape: { invoice_number, invoice_date, due_date, total_cents }
  * `opts.fields`: { invoice_number, invoice_date, due_date, total }
  *
  * Composer-level guard: rendered only when doc.issued_from_invoice is non-null.
+ * Component-level guard: returns null when every field is toggled off (avoids
+ * an empty bordered card in that edge case).
  */
-export default function IssuedFromInvoice({ data, opts, colors }) {
+export default function IssuedFromInvoice({ data, opts }) {
   if (!data) return null;
   const fields = opts?.fields || {};
 
@@ -46,21 +51,27 @@ export default function IssuedFromInvoice({ data, opts, colors }) {
   if (showInvD && data.invoice_date) meta.push(`Issued ${data.invoice_date}`);
   if (showDue  && data.due_date)     meta.push(`Due ${data.due_date}`);
 
+  const hasTopRow = showInv || showTot;
+  const hasMeta   = meta.length > 0;
+  if (!hasTopRow && !hasMeta) return null;  // every leaf hidden — drop the empty card
+
   return (
     <View style={styles.section}>
       <Text style={styles.label}>Issued From Invoice</Text>
       <View style={styles.card}>
-        {(showInv || showTot) && (
+        {hasTopRow && (
           <View style={styles.topRow}>
-            {showInv && data.invoice_number ? (
-              <Text style={styles.invNum}>{data.invoice_number}</Text>
-            ) : <Text style={styles.invNum}>—</Text>}
+            {showInv ? (
+              <Text style={styles.invNum}>{data.invoice_number || '—'}</Text>
+            ) : (
+              <Text style={styles.invNum}>—</Text>
+            )}
             {showTot ? (
               <Text style={styles.total}>{fmtDollars(data.total_cents)}</Text>
             ) : null}
           </View>
         )}
-        {meta.length > 0 && <Text style={styles.meta}>{meta.join(' · ')}</Text>}
+        {hasMeta && <Text style={styles.meta}>{meta.join(' · ')}</Text>}
       </View>
     </View>
   );

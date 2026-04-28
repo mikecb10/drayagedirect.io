@@ -26,7 +26,10 @@ function fmtDollars(cents) {
 
 /**
  * Applied To Invoice — small card showing the destination invoice (the
- * invoice this credit's amount was applied against). Green 3px left border.
+ * invoice this credit's amount was applied against). Green 3px left border —
+ * the palette is hardcoded for semantic distinction (green == "applied to";
+ * blue == "issued from"). The composer passes `colors` to all section
+ * components for call-uniformity; this component intentionally ignores it.
  *
  * `data` shape: { invoice_number, invoice_date, balance_due_cents,
  *                 applied_amount_cents, applied_date }
@@ -34,8 +37,10 @@ function fmtDollars(cents) {
  *                  applied_amount, applied_date }
  *
  * Composer-level guard: rendered only when doc.applied_to_invoice is non-null.
+ * Component-level guard: returns null when every field is toggled off (avoids
+ * an empty bordered card in that edge case).
  */
-export default function AppliedToInvoice({ data, opts, colors }) {
+export default function AppliedToInvoice({ data, opts }) {
   if (!data) return null;
   const fields = opts?.fields || {};
 
@@ -62,21 +67,27 @@ export default function AppliedToInvoice({ data, opts, colors }) {
     meta.push(`Applied ${data.applied_date}`);
   }
 
+  const hasTopRow = showInv || balanceLabel;
+  const hasMeta   = meta.length > 0;
+  if (!hasTopRow && !hasMeta) return null;  // every leaf hidden — drop the empty card
+
   return (
     <View style={styles.section}>
       <Text style={styles.label}>Applied To Invoice</Text>
       <View style={styles.card}>
-        {(showInv || balanceLabel) && (
+        {hasTopRow && (
           <View style={styles.topRow}>
-            {showInv && data.invoice_number ? (
-              <Text style={styles.invNum}>{data.invoice_number}</Text>
-            ) : <Text style={styles.invNum}>—</Text>}
+            {showInv ? (
+              <Text style={styles.invNum}>{data.invoice_number || '—'}</Text>
+            ) : (
+              <Text style={styles.invNum}>—</Text>
+            )}
             {balanceLabel ? (
               <Text style={styles.balance}>{balanceLabel}</Text>
             ) : null}
           </View>
         )}
-        {meta.length > 0 && <Text style={styles.meta}>{meta.join(' · ')}</Text>}
+        {hasMeta && <Text style={styles.meta}>{meta.join(' · ')}</Text>}
       </View>
     </View>
   );

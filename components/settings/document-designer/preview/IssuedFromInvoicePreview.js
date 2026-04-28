@@ -1,12 +1,14 @@
 /**
  * HTML preview of Issued From Invoice. Mirrors components/pdf/sections/IssuedFromInvoice.js.
+ * Hardcoded blue palette (semantic — see IssuedFromInvoice.js JSDoc); composer
+ * passes `colors` for call-uniformity but this component ignores it.
  */
 function fmtDollars(cents) {
   if (cents == null) return '—';
   return `$${(cents / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 }
 
-export default function IssuedFromInvoicePreview({ data, opts, colors }) {
+export default function IssuedFromInvoicePreview({ data, opts }) {
   if (!data) return null;
   const fields = opts?.fields || {};
 
@@ -18,6 +20,10 @@ export default function IssuedFromInvoicePreview({ data, opts, colors }) {
   const meta = [];
   if (showInvD && data.invoice_date) meta.push(`Issued ${data.invoice_date}`);
   if (showDue  && data.due_date)     meta.push(`Due ${data.due_date}`);
+
+  const hasTopRow = showInv || showTot;
+  const hasMeta   = meta.length > 0;
+  if (!hasTopRow && !hasMeta) return null;  // every leaf hidden — drop the empty card
 
   return (
     <div className="mb-4">
@@ -32,13 +38,15 @@ export default function IssuedFromInvoicePreview({ data, opts, colors }) {
           borderLeft: '3px solid #3b82f6',
         }}
       >
-        {(showInv || showTot) && (
+        {hasTopRow && (
           <div className="flex justify-between items-baseline mb-1">
             {showInv ? (
               <span className="font-bold text-[12px]" style={{ color: '#0f172a' }}>
                 {data.invoice_number || '—'}
               </span>
-            ) : <span>—</span>}
+            ) : (
+              <span className="font-bold text-[12px]" style={{ color: '#0f172a' }}>—</span>
+            )}
             {showTot ? (
               <span className="font-bold text-[13px]" style={{ color: '#0f172a' }}>
                 {fmtDollars(data.total_cents)}
@@ -46,7 +54,7 @@ export default function IssuedFromInvoicePreview({ data, opts, colors }) {
             ) : null}
           </div>
         )}
-        {meta.length > 0 && (
+        {hasMeta && (
           <div className="text-[10px]" style={{ color: '#64748b' }}>
             {meta.join(' · ')}
           </div>
