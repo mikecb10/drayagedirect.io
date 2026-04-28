@@ -121,6 +121,14 @@ export default function CreditMemosTab({ filters = {} }) {
                       {m.created_at ? new Date(m.created_at).toLocaleDateString() : '—'}
                     </td>
                     <td className="px-4 py-2.5">
+                      <a
+                        href={`/api/tenant/pdf/credit-memo/${m.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] font-semibold text-blue-500 dark:text-blue-400 hover:text-blue-600 px-1.5 py-0.5 rounded hover:bg-blue-50 dark:hover:bg-blue-950/40 mr-1"
+                      >
+                        PDF
+                      </a>
                       {m.status === 'draft' && (
                         <button onClick={() => { if (confirm('Void this credit memo?')) handleAction(m.id, 'void'); }}
                           className="text-[10px] font-semibold text-red-500 dark:text-red-400 hover:text-red-600 px-1.5 py-0.5 rounded hover:bg-red-50 dark:hover:bg-red-950/40">
