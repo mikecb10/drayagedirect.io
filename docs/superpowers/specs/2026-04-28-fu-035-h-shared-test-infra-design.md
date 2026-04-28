@@ -1,6 +1,11 @@
 # FU-035-H-shared-test-infra: Test Infrastructure for End-to-End Renderer Smokes — Design Spec
 
-**Status:** Revised 2026-04-28 — pivoted from JSX-transformer approach to dynamic-import refactor
+**Status:** ⚠️ **Partially shipped 2026-04-28**
+- ✅ **Shipped:** Dynamic-import refactor of 5 AR-family renderers + shared `tests/helpers/mock-supabase.mjs` helper. Establishes pure-JS fetcher path so `fetchXData` is testable from `node --test`.
+- ⏭️ **Deferred to FU-035-H-byte-magic:** Byte-magic PDF smoke tests (Tasks 3-8 below). During implementation we discovered that the dynamic-import refactor — while valuable for fetcher-level testing — does NOT enable `renderXPdf` calls under bare `node --test`. When `renderXPdf` is called, it dynamically imports the JSX-bearing `XTemplate` module, which Node's parser still rejects without a JSX transformer. Resolving this requires solving the JSX-transformer problem on this project's setup (see §1.1 for failed approaches; the new follow-up FU enumerates options not yet tried).
+
+The original design below is preserved for reference. Sections §1.1 (transformer rejection rationale) and §3.1-§3.6 (dynamic-import refactor) describe the **shipped** work. Sections §3.4-§3.5 (byte-magic test pattern + per-renderer fixtures) remain accurate design for the deferred FU.
+
 **Author:** Claude (brainstorming session 2026-04-28)
 **Predecessor:** FU-035-H6-followup-A (scoped) — established the pure-JS fetcher pattern + first fetcher integration test for Credit Memo
 
@@ -259,11 +264,17 @@ Expected commit count: ~9 (1 per task).
 
 ## 7. Success Criteria
 
-- [ ] No new devDependencies added (`package.json` `devDependencies` block unchanged in count and content).
-- [ ] `npm test` script exists and uses bare `node --test`.
-- [ ] All 83 pre-existing test files continue to pass.
-- [ ] All 5 of `lib/pdf/render-{invoice,rate-con,combined-invoice,pod,statement}.js` use the dynamic-import pattern for React + React-PDF + their respective `XTemplate`.
-- [ ] `tests/helpers/mock-supabase.mjs` exists and is imported by all 6 fetcher-integration test files.
+### Shipped (this FU)
+
+- [x] No new devDependencies added (`package.json` `devDependencies` block unchanged).
+- [x] `npm test` script exists and uses bare `node --test`.
+- [x] All 83 pre-existing test files continue to pass (only the documented `fire-trigger-entity-aware.test.mjs` baseline failure remains).
+- [x] All 5 of `lib/pdf/render-{invoice,rate-con,combined-invoice,pod,statement}.js` use the dynamic-import pattern for React + React-PDF + their respective `XTemplate`.
+- [x] `tests/helpers/mock-supabase.mjs` exists and is imported by `tests/credit-memo-fetcher-integration.test.mjs`.
+- [x] Followups.md ledger updated: `FU-035-H-shared-test-infra` marked Resolved with this scope; new `FU-035-H-byte-magic` filed for deferred work.
+
+### Deferred (FU-035-H-byte-magic)
+
 - [ ] All 6 renderer fetcher-integration test files contain a byte-magic smoke test that passes.
-- [ ] Total test files: 83 existing + 5 new = **88 test files minimum**, all green. The 5 new files contribute ≥5 new individual tests; the credit-memo extension adds 1.
-- [ ] Followups.md ledger updated: `FU-035-H-shared-test-infra` marked Resolved with the commit range; `FU-035-H6-followup-A` marked fully resolved (the remaining ~10% byte-magic gap closed).
+- [ ] Total test files: 83 existing + 5 new = 88 test files, all green. (Currently: 83 existing only — Tasks 4-8 not implemented.)
+- [ ] `FU-035-H6-followup-A` marked fully resolved (the remaining ~10% byte-magic gap remains open until this FU lands).

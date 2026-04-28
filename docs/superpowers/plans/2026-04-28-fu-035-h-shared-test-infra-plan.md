@@ -1,5 +1,13 @@
 # FU-035-H-shared-test-infra Implementation Plan (Revised)
 
+> **⚠️ Status update 2026-04-28 — Partially shipped.**
+>
+> - **Tasks 1-2 SHIPPED:** dynamic-import refactor of 5 renderers (`33b851f` + `9489909`) + shared mock helper extraction (`003ebcb`).
+> - **Tasks 3-8 NOT EXECUTED — deferred to FU-035-H-byte-magic.** Discovered during Task 3 implementation that calling `renderXPdf` always triggers JSX parsing of the dynamically-imported template module, which bare `node --test` rejects. Dynamic vs static `import()` does not change parsing — only defers when the module loads. The byte-magic test path therefore still requires solving the JSX-transformer problem on this project's setup. The new follow-up FU enumerates approaches not yet tried (custom esbuild loader, esbuild-register, pre-built .cjs templates).
+> - **Task 9 reduced** to ledger update (mark this FU resolved + file the byte-magic follow-up).
+>
+> Tasks 3-8 below are kept verbatim as the design contract for the deferred FU. Once the JSX-transformer problem is resolved in FU-035-H-byte-magic, those tasks can be executed largely as written (modulo adding `.js` suffix to the `import('../../components/pdf/XTemplate')` call inside each `renderXPdf`).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Enable byte-magic PDF render smoke tests across all 6 AR-family renderers (Credit Memo + Invoice + Rate Con + Combined Invoice + POD + Statement) under bare `node --test`. Achieved by refactoring 5 renderers to dynamic-import their JSX templates (mirroring `render-credit-memo.js`'s pattern), adding a shared mock-Supabase helper, and writing one byte-magic test per renderer.
