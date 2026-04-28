@@ -3,11 +3,21 @@
  * but renders to plain HTML for the live preview pane in the Document Designer.
  *
  * Two-column layout: left = tenant identity (logo / company name / address /
- * phone / website); right = document title in the accent-colored band.
+ * phone / website); right = document title in the accent-colored band, with
+ * an optional subtitle (document number) muted below.
  *
  * `data.tenantName` and `data.tenantInfo.logo_url` may be overridden by the
  * page's real `branding` payload (from /api/tenant/me). When present in
  * `data` they take priority over the sample-data defaults.
+ *
+ * `data.title` (e.g., "CREDIT MEMO", "STATEMENT", "INVOICE") is supplied
+ * per-doc-type via `lib/document-designer/sample-data-*.js`. When absent,
+ * the preview falls back to a generic "Document" label rather than leaking
+ * a stale "Delivery Order" placeholder onto every doc type's preview
+ * (FU-035-H6-followup-G).
+ *
+ * `data.subtitle` (e.g., "CM-2026-014", "OF ACCOUNT") renders muted below
+ * the badge — matches the PDF Header's title-then-subtitle stacking.
  *
  * `opts.fields`: { logo, address, phone, website, company_name }.
  * Default-true except `website` (matches registry).
@@ -66,8 +76,11 @@ export default function HeaderPreview({ data, opts, colors }) {
           className="inline-block px-3 py-1.5 text-white rounded text-xs font-semibold"
           style={{ backgroundColor: accent }}
         >
-          Delivery Order # : ABC123
+          {data.title || 'Document'}
         </div>
+        {data.subtitle ? (
+          <div className="text-xs text-gray-600 mt-1">{data.subtitle}</div>
+        ) : null}
       </div>
     </div>
   );
