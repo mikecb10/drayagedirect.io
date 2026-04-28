@@ -4,6 +4,7 @@ import sampleDataRateCon       from '../../../../lib/document-designer/sample-da
 import sampleDataCombinedInvoice from '../../../../lib/document-designer/sample-data-combined-invoice';
 import sampleDataPod              from '../../../../lib/document-designer/sample-data-pod';
 import sampleDataStatement        from '../../../../lib/document-designer/sample-data-statement';
+import sampleDataCreditMemo       from '../../../../lib/document-designer/sample-data-credit-memo';
 import HeaderPreview               from './HeaderPreview';
 import DeliveryOrderDetailsPreview from './DeliveryOrderDetailsPreview';
 import InvoiceDetailsPreview        from './InvoiceDetailsPreview';
@@ -14,6 +15,11 @@ import StatementDetailsPreview      from './StatementDetailsPreview';
 import OpenInvoicesTablePreview     from './OpenInvoicesTablePreview';
 import AgingSummaryPreview          from './AgingSummaryPreview';
 import TotalOutstandingPreview      from './TotalOutstandingPreview';
+import CreditMemoDetailsPreview     from './CreditMemoDetailsPreview';
+import ReasonPreview                from './ReasonPreview';
+import IssuedFromInvoicePreview     from './IssuedFromInvoicePreview';
+import AppliedToInvoicePreview      from './AppliedToInvoicePreview';
+import CreditAmountPanelPreview     from './CreditAmountPanelPreview';
 import AddressDetailsPreview       from './AddressDetailsPreview';
 import LoadsSummaryPreview         from './LoadsSummaryPreview';
 import OrderDetailsPreview         from './OrderDetailsPreview';
@@ -31,6 +37,7 @@ const SAMPLE_BY_DOCUMENT_TYPE = {
   combined_invoice:         sampleDataCombinedInvoice,
   pod:                      sampleDataPod,
   statement:                sampleDataStatement,
+  credit_memo:              sampleDataCreditMemo,
 };
 
 /**
@@ -45,6 +52,11 @@ const PREVIEW_BY_SECTION_ID = {
   rate_con_details:       RateConDetailsPreview,
   pod_details:            PodDetailsPreview,
   statement_details:      StatementDetailsPreview,
+  memo_details:           CreditMemoDetailsPreview,
+  reason:                 ReasonPreview,
+  issued_from_invoice:    IssuedFromInvoicePreview,
+  applied_to_invoice:     AppliedToInvoicePreview,
+  credit_amount:          CreditAmountPanelPreview,
   address_details:        AddressDetailsPreview,
   loads_summary:          LoadsSummaryPreview,
   order_details:          OrderDetailsPreview,
@@ -65,7 +77,7 @@ const PREVIEW_BY_SECTION_ID = {
  * sample data + resolved field-visibility map + per-template colors.
  *
  * `documentType`: 'delivery_order_full' | 'delivery_order_next_move' | 'invoice'
- *                 | 'rate_con' | 'combined_invoice' | 'pod' | 'statement'
+ *                 | 'rate_con' | 'combined_invoice' | 'pod' | 'statement' | 'credit_memo'
  *                 — picks the per-doc-type sample data slice
  * `visibility`:   { [sectionId]: boolean }
  * `fields`:       { [sectionId]: { [fieldId]: boolean } }
@@ -115,10 +127,10 @@ export default function DocumentPreview({ documentType, visibility, fields, sect
           opts.customerLabel = 'Bill To';
           opts.fields = { ...opts.fields, customer: opts.fields?.bill_to !== false };
         }
-        if (s.id === 'address_details' && documentType === 'statement') {
+        if (s.id === 'address_details' && (documentType === 'statement' || documentType === 'credit_memo')) {
           // Same field-ID translation as Invoice / Combined Invoice / POD.
-          // STATEMENT_SECTIONS uses bill_to; AddressDetailsPreview reads opts.fields.customer.
-          // Mirrored in components/pdf/StatementTemplate.js renderSection() for the print path.
+          // STATEMENT_SECTIONS / CREDIT_MEMO_SECTIONS use bill_to; AddressDetailsPreview reads opts.fields.customer.
+          // Mirrored in components/pdf/StatementTemplate.js + CreditMemoTemplate.js renderSection() for the print path.
           opts.customerLabel = 'Bill To';
           opts.fields = { ...opts.fields, customer: opts.fields?.bill_to !== false };
         }
