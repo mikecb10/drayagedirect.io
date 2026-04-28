@@ -15,44 +15,7 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 import { fetchCreditMemoData } from '../lib/pdf/render-credit-memo.js';
-
-// ── Mock builder ────────────────────────────────────────────────────
-
-/**
- * Build a Supabase-shaped client that responds to the chained query API:
- *   client.from(table).select(...).eq(...).is(...).maybeSingle()
- *   client.from(table).select(...).in(...).eq(...).is(...)
- *
- * Each table's response is supplied via the `responses` map. The same
- * builder shape is returned for every chained method except the terminal
- * (`maybeSingle()` resolves to single row; the absence of a terminal
- * returns the array directly when awaited).
- */
-function makeMockSvc(responses) {
-  function builder(table) {
-    let response = responses[table];
-    if (!response) {
-      response = { data: null, error: null };
-    }
-    const obj = {
-      // Terminal that resolves to a single row.
-      maybeSingle: () => Promise.resolve(response),
-      // Chain methods (no-ops returning self).
-      select: () => obj,
-      eq:     () => obj,
-      in:     () => obj,
-      is:     () => obj,
-      not:    () => obj,
-      gt:     () => obj,
-      lte:    () => obj,
-      order:  () => obj,
-      // Awaiting the chain directly (no terminal) returns the response.
-      then:   (resolve, reject) => Promise.resolve(response).then(resolve, reject),
-    };
-    return obj;
-  }
-  return { from: (table) => builder(table) };
-}
+import { makeMockSvc } from './helpers/mock-supabase.mjs';
 
 // ── Fixture rows ────────────────────────────────────────────────────
 
